@@ -305,7 +305,7 @@ public class QuizService {
             question.setChoices(String.join(",", dto.getChoices()));
             question.setCorrectAnswer(dto.getCorrectAnswer());
             question.setTopic(dto.getTopic());
-            question.setQuizSessionId(quizSession.getId());
+
             questionEntities.add(question);
         }
         quizQuestionRepo.saveAll(questionEntities);

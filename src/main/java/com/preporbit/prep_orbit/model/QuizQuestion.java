@@ -65,8 +65,8 @@ public class QuizQuestion {
     }
 
     public void setQuizSessionId(Long id) {
-        this.id = id;
     }
+
 
     // Removed invalid methods: toString(Object questionText), setQuizSessionId(Long id)
     // Getters and setters...
