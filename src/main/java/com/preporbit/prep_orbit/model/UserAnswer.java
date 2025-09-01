@@ -37,5 +37,9 @@ public class UserAnswer {
         this.quizSession = quizSession;
     }
 
+    public Long getQuestionId() {
+        return this.questionId;
+    }
+
     // Getters and setters...
 }
