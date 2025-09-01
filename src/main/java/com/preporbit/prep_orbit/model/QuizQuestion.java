@@ -17,10 +17,8 @@ public class QuizQuestion {
     private String topic;
 
     @ManyToOne
+    @JoinColumn(name = "quiz_session_id") // <-- Added for correct mapping
     private QuizSession quizSession;
-
-    public void toString(Object questionText) {
-    }
 
     public String getQuestionText() {
         return this.questionText;
@@ -50,17 +48,25 @@ public class QuizQuestion {
         this.quizSession = session;
     }
 
+    public QuizSession getQuizSession() {
+        return this.quizSession;
+    }
+
     public String getCorrectAnswer() {
         return this.correctAnswer;
     }
 
     public void setQuestionText(String questionText) {
-        this.questionText =questionText;
+        this.questionText = questionText;
     }
 
     public void setCorrectAnswer(String correctAnswer) {
         this.correctAnswer = correctAnswer;
     }
 
+    public void setQuizSessionId(Long id) {
+    }
+
+    // Removed invalid methods: toString(Object questionText), setQuizSessionId(Long id)
     // Getters and setters...
 }

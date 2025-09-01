@@ -1,5 +1,6 @@
 package com.preporbit.prep_orbit.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.preporbit.prep_orbit.dto.*;
@@ -12,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,12 +29,20 @@ public class QuizService {
     private QuizQuestionRepository quizQuestionRepo;
     @Autowired
     private UserAnswerRepository userAnswerRepo;
+    @Autowired
+    private UserWeaknessService userWeaknessService;
+    @Autowired
+    private UserRepository userRepository;
 
     public QuizStartResponseDto startQuiz(QuizStartRequestDto request, String username) {
+        Long userId = userRepository.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("User not found"))
+                .getId();
         List<QuizQuestionDto> aiQuestions = generateQuestionsFromGemini(request.getTopics(), request.getNumQuestions());
 
         QuizSession session = new QuizSession();
         session.setUsername(username);
+        session.setUserId(userId);
         session.setTopics(String.join(",", request.getTopics()));
         session.setStartedAt(LocalDateTime.now());
         quizSessionRepo.save(session);
@@ -78,28 +89,28 @@ public class QuizService {
     private List<QuizQuestionDto> generateQuestionsFromGemini(List<String> topics, int numQuestions) {
         String prompt = "Generate " + numQuestions + " technical MCQ questions on these topics: " +
                 String.join(", ", topics) +
-                ". Each question should have 4 options (A, B, C, D), specify the correct answer as a letter, and include a 'topic' field using one of the provided topics for each question, in JSON format.";
+                ". Each question should have exactly 4 options (A, B, C, D), specify the correct answer as a letter," +
+                " and include a 'topic' field using one of the provided topics for each question. " +
+                "Reply ONLY with a JSON array of objects in the format: " +
+                "[{\"questionText\": \"...\", \"choices\": [\"...\"], \"correctAnswer\": \"...\", \"topic\": \"...\"}]. " +
+                "Do not include any explanation or extra text, just the JSON.";
 
         String geminiResponse = geminiService.askGemini(prompt);
 
         // Strip markdown code block if present
-        if (geminiResponse != null && geminiResponse.startsWith("```")) {
-            int start = geminiResponse.indexOf("\n") + 1;
-            int end = geminiResponse.lastIndexOf("```");
-            if (start > 0 && end > start) {
-                geminiResponse = geminiResponse.substring(start, end).trim();
-            }
-        }
+        geminiResponse = stripMarkdownCodeBlock(geminiResponse);
 
-        if (geminiResponse == null || geminiResponse.isEmpty()) {
+        // Check for valid JSON array
+        if (geminiResponse == null || geminiResponse.isEmpty() || !geminiResponse.trim().startsWith("[")) {
+            System.err.println("Gemini did not return JSON. Raw response: " + geminiResponse);
             return new ArrayList<>();
         }
 
         ObjectMapper mapper = new ObjectMapper();
         try {
-            return mapper.readValue(geminiResponse, new com.fasterxml.jackson.core.type.TypeReference<List<QuizQuestionDto>>() {});
+            return mapper.readValue(geminiResponse, new TypeReference<List<QuizQuestionDto>>() {});
         } catch (Exception e) {
-            System.err.println("Failed to parse Gemini response: " + e.getMessage());
+            System.err.println("Failed to parse Gemini response: " + e.getMessage() + "\nRaw response: " + geminiResponse);
             return new ArrayList<>();
         }
     }
@@ -136,7 +147,7 @@ public class QuizService {
         // Gather user answers and topics for session-level analysis
         List<String> userAnswers = new ArrayList<>();
         List<String> topics = new ArrayList<>();
-
+        List<String> incorrectTopics = new ArrayList<>();
         for (UserAnswerDto dto : request.getAnswers()) {
             QuizQuestion question = quizQuestionRepo.findById(dto.getQuestionId())
                     .orElseThrow(() -> new IllegalArgumentException("Question ID not found: " + dto.getQuestionId()));
@@ -144,6 +155,7 @@ public class QuizService {
             String feedbackMsg = isCorrect ? "Correct" : "Incorrect; Correct: " + question.getCorrectAnswer();
 
             if (isCorrect) correct++;
+            else incorrectTopics.add(question.getTopic());
 
             // Generate a hint for each question using Gemini
             String hintPrompt = "Question: " + question.getQuestionText() + "\n"
@@ -177,7 +189,16 @@ public class QuizService {
             topics.add(question.getTopic());
         }
         userAnswerRepo.saveAll(persistedAnswers);
-
+        if (!incorrectTopics.isEmpty()) {
+            Long userId = session.getUserId();
+            if (userId == null) {
+                // Fetch userId from username (email)
+                userId = userRepository.findByEmail(session.getUsername())
+                        .orElseThrow(() -> new RuntimeException("User not found"))
+                        .getId();
+            }
+            userWeaknessService.updateUserWeaknesses(userId, incorrectTopics);
+        }
         // Session-level feedback: strengths, weaknesses, suggestions
         String sessionPrompt = "Topics: " + String.join(", ", topics) + "\n"
                 + "User Answers: " + String.join(" | ", userAnswers) + "\n"
@@ -195,9 +216,9 @@ public class QuizService {
             String cleanedJson = stripMarkdownCodeBlock(sessionFeedback); // <-- Use utility here
             ObjectMapper mapper = new ObjectMapper();
             JsonNode node = mapper.readTree(cleanedJson);
-            strengths = mapper.convertValue(node.get("strengths"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
-            weaknesses = mapper.convertValue(node.get("weaknesses"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
-            suggestions = mapper.convertValue(node.get("suggestions"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            strengths = mapper.convertValue(node.get("strengths"), new TypeReference<List<String>>() {});
+            weaknesses = mapper.convertValue(node.get("weaknesses"), new TypeReference<List<String>>() {});
+            suggestions = mapper.convertValue(node.get("suggestions"), new TypeReference<List<String>>() {});
         } catch (Exception e) {
             System.err.println("Session feedback parse error: " + e.getMessage());
         }
@@ -220,7 +241,7 @@ public class QuizService {
 
     // Retrieve questions by sessionId
     public List<QuizQuestionDto> getQuizQuestions(Long sessionId) {
-        List<QuizQuestion> questions = quizQuestionRepo.findByQuizSessionId(sessionId);
+        List<QuizQuestion> questions = quizQuestionRepo.findByQuizSession_Id(sessionId);
         return questions.stream().map(q -> {
             QuizQuestionDto dto = new QuizQuestionDto();
             dto.setId(q.getId());
@@ -230,5 +251,54 @@ public class QuizService {
             dto.setTopic(q.getTopic());
             return dto;
         }).collect(Collectors.toList());
+    }
+    public QuizStartResponseDto practiceWeakAreas(Long userId, int numQuestions) {
+        // Get user's weakest topics
+
+        List<UserWeakness> weaknesses = userWeaknessService.getWeaknessesForUser(userId);
+        List<String> weakTopics = weaknesses.stream()
+                .map(UserWeakness::getTopic)
+                .limit(3) // Focus on 3 weakest topics, can be adjusted
+                .collect(Collectors.toList());
+
+        // Generate new quiz questions focused on weak topics
+        List<QuizQuestionDto> aiQuestions = generateQuestionsFromGemini(weakTopics, numQuestions);
+
+        // Create new QuizSession
+        QuizSession quizSession = new QuizSession();
+        quizSession.setUserId(userId);
+        quizSession.setStartedAt(LocalDateTime.now());
+        quizSession.setTopics(String.join(",", weakTopics));
+        quizSessionRepo.save(quizSession);
+
+        // Create QuizQuestion entities and link them to session
+        List<QuizQuestion> questionEntities = new ArrayList<>();
+        for (QuizQuestionDto dto : aiQuestions) {
+            QuizQuestion question = new QuizQuestion();
+            question.setQuestionText(dto.getQuestionText());
+            question.setChoices(String.join(",", dto.getChoices()));
+            question.setCorrectAnswer(dto.getCorrectAnswer());
+            question.setTopic(dto.getTopic());
+            question.setQuizSessionId(quizSession.getId());
+            questionEntities.add(question);
+        }
+        quizQuestionRepo.saveAll(questionEntities);
+
+        // Prepare response DTOs
+        List<QuizQuestionDto> responseQuestions = questionEntities.stream().map(q -> {
+            QuizQuestionDto dto = new QuizQuestionDto();
+            dto.setId(q.getId());
+            dto.setQuestionText(q.getQuestionText());
+            dto.setChoices(q.getChoices().split(","));
+            dto.setCorrectAnswer(q.getCorrectAnswer());
+            dto.setTopic(q.getTopic());
+            return dto;
+        }).collect(Collectors.toList());
+
+        QuizStartResponseDto response = new QuizStartResponseDto();
+        response.setSessionId(quizSession.getId());
+        response.setQuestions(responseQuestions);
+
+        return response;
     }
 }
