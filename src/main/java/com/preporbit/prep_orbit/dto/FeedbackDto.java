@@ -4,6 +4,7 @@ public class FeedbackDto {
     private Long questionId;
     private boolean correct;
     private String feedback;
+    private String hint; // New field for per-question hint
 
     // Getter and setter for questionId
     public Long getQuestionId() { return questionId; }
@@ -16,4 +17,8 @@ public class FeedbackDto {
     // Getter and setter for feedback
     public String getFeedback() { return feedback; }
     public void setFeedback(String feedback) { this.feedback = feedback; }
+
+    // Getter and setter for hint
+    public String getHint() { return hint; }
+    public void setHint(String hint) { this.hint = hint; }
 }
