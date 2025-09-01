@@ -259,8 +259,24 @@ public class QuizService {
                 .collect(Collectors.toList());
 
         // 1. Fetch old incorrect questions for user and weakTopics
-        List<QuizQuestionDto> oldIncorrectQuestions = userAnswerRepo.findIncorrectQuestionsForUserAndTopics(userId, weakTopics);
+        // 1. Get question IDs for weakTopics
+        List<Long> weakQuestionIds = quizQuestionRepo.findIdsByTopicIn(weakTopics); // You may need such a method
 
+// 2. Get incorrect UserAnswers for this user and these question IDs
+        List<UserAnswer> oldIncorrectAnswers = userAnswerRepo.findByIsCorrectFalseAndQuizSession_UserIdAndQuestionIdIn(userId, weakQuestionIds);
+
+// 3. Map UserAnswer to QuizQuestionDto
+        List<QuizQuestionDto> oldIncorrectQuestions = oldIncorrectAnswers.stream().map(ua -> {
+            QuizQuestion question = quizQuestionRepo.findById(ua.getQuestionId()).orElse(null);
+            if (question == null) return null;
+            QuizQuestionDto dto = new QuizQuestionDto();
+            dto.setId(question.getId());
+            dto.setQuestionText(question.getQuestionText());
+            dto.setChoices(question.getChoices().split(","));
+            dto.setCorrectAnswer(question.getCorrectAnswer());
+            dto.setTopic(question.getTopic());
+            return dto;
+        }).filter(Objects::nonNull).collect(Collectors.toList());
 // 2. Generate new AI questions as before
         List<QuizQuestionDto> aiQuestions = generateQuestionsFromGemini(weakTopics, numQuestions);
 

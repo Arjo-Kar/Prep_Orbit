@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface QuizQuestionRepository extends JpaRepository<QuizQuestion, Long> {
     List<QuizQuestion> findByQuizSession_Id(Long sessionId);
+
+    List<Long> findIdsByTopicIn(List<String> weakTopics);
 }
