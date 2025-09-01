@@ -12,10 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -261,8 +258,21 @@ public class QuizService {
                 .limit(3) // Focus on 3 weakest topics, can be adjusted
                 .collect(Collectors.toList());
 
-        // Generate new quiz questions focused on weak topics
+        // 1. Fetch old incorrect questions for user and weakTopics
+        List<QuizQuestionDto> oldIncorrectQuestions = userAnswerRepo.findIncorrectQuestionsForUserAndTopics(userId, weakTopics);
+
+// 2. Generate new AI questions as before
         List<QuizQuestionDto> aiQuestions = generateQuestionsFromGemini(weakTopics, numQuestions);
+
+// 3. Combine lists
+        List<QuizQuestionDto> allQuestions = new ArrayList<>();
+        allQuestions.addAll(oldIncorrectQuestions);
+        allQuestions.addAll(aiQuestions);
+
+// Optionally shuffle for randomness
+        Collections.shuffle(allQuestions);
+
+// Now use allQuestions for your quiz
 
         // Create new QuizSession
         QuizSession quizSession = new QuizSession();
@@ -273,7 +283,7 @@ public class QuizService {
 
         // Create QuizQuestion entities and link them to session
         List<QuizQuestion> questionEntities = new ArrayList<>();
-        for (QuizQuestionDto dto : aiQuestions) {
+        for (QuizQuestionDto dto : allQuestions) {
             QuizQuestion question = new QuizQuestion();
             question.setQuestionText(dto.getQuestionText());
             question.setChoices(String.join(",", dto.getChoices()));
