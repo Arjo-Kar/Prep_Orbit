@@ -1,10 +1,6 @@
 package com.preporbit.prep_orbit.controller;
 
-import com.preporbit.prep_orbit.dto.QuizQuestionDto;
-import com.preporbit.prep_orbit.dto.QuizResultDto;
-import com.preporbit.prep_orbit.dto.QuizStartRequestDto;
-import com.preporbit.prep_orbit.dto.QuizStartResponseDto;
-import com.preporbit.prep_orbit.dto.QuizSubmitRequestDto;
+import com.preporbit.prep_orbit.dto.*;
 import com.preporbit.prep_orbit.model.UserWeakness;
 import com.preporbit.prep_orbit.repository.UserRepository;
 import com.preporbit.prep_orbit.repository.UserWeaknessRepository;
@@ -57,13 +53,13 @@ public class QuizController {
         return userWeaknessRepository.findByUserIdOrderByIncorrectCountDesc(userId);
     }
     @PostMapping("/weak-areas")
-    public QuizStartResponseDto practiceWeakAreas(@RequestParam(defaultValue = "5") int numQuestions) {
+    public QuizStartResponseDto practiceWeakAreas(@RequestBody PractiseRequestDto request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         System.out.println("Authenticated as: " + authentication.getName());
         String email = authentication.getName();
         Long userId = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"))
                 .getId();
-        return quizService.practiceWeakAreas(userId, numQuestions);
+        return quizService.practiceWeakAreas(userId, request.getNumQuestions());
     }
 }
