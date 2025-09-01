@@ -5,6 +5,9 @@ import com.preporbit.prep_orbit.dto.QuizResultDto;
 import com.preporbit.prep_orbit.dto.QuizStartRequestDto;
 import com.preporbit.prep_orbit.dto.QuizStartResponseDto;
 import com.preporbit.prep_orbit.dto.QuizSubmitRequestDto;
+import com.preporbit.prep_orbit.model.UserWeakness;
+import com.preporbit.prep_orbit.repository.UserRepository;
+import com.preporbit.prep_orbit.repository.UserWeaknessRepository;
 import com.preporbit.prep_orbit.service.QuizService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -20,6 +23,11 @@ public class QuizController {
 
     @Autowired
     private QuizService quizService;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private UserWeaknessRepository userWeaknessRepository;
+
 
     // Start a quiz session and return sessionId and questions
     @PostMapping("/start")
@@ -43,5 +51,19 @@ public class QuizController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         System.out.println("Authenticated as: " + authentication.getName());
         return quizService.submitQuiz(sessionId, request);
+    }
+    @GetMapping("/user/{userId}/weaknesses")
+    public List<UserWeakness> getUserWeaknesses(@PathVariable Long userId) {
+        return userWeaknessRepository.findByUserIdOrderByIncorrectCountDesc(userId);
+    }
+    @PostMapping("/weak-areas")
+    public QuizStartResponseDto practiceWeakAreas(@RequestParam(defaultValue = "5") int numQuestions) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("Authenticated as: " + authentication.getName());
+        String email = authentication.getName();
+        Long userId = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"))
+                .getId();
+        return quizService.practiceWeakAreas(userId, numQuestions);
     }
 }

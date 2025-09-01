@@ -56,5 +56,9 @@ public class User {
     public void setEmail(String email) {
         this.email = email;
     }
+
+    public Long getId() {
+        return this.id;
+    }
 // No getter/setter for password (use Lombok but don't expose it as API)
 }

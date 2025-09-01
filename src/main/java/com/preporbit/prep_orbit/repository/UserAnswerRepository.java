@@ -1,6 +1,11 @@
 package com.preporbit.prep_orbit.repository;
 
+import com.preporbit.prep_orbit.dto.QuizQuestionDto;
 import com.preporbit.prep_orbit.model.UserAnswer;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface UserAnswerRepository extends JpaRepository<UserAnswer, Long> {}
+import java.util.List;
+
+public interface UserAnswerRepository extends JpaRepository<UserAnswer, Long> {
+    List<QuizQuestionDto> findIncorrectQuestionsForUserAndTopics(Long userId, List<String> weakTopics);
+}
