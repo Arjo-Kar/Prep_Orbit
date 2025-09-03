@@ -60,59 +60,7 @@ public class QuizController {
         Long userId = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"))
                 .getId();
-        return quizService.practiceWeakAreas(userId, request.getNumQuestions());
+        return quizService.practiceWeakAreas(userId, email,request.getNumQuestions());
     }
 }
 
-/*
-const url = 'https://judge0-ce.p.rapidapi.com/submissions/batch?base64_encoded=true';
-const options = {
-	method: 'POST',
-	headers: {
-		'x-rapidapi-key': 'f5e382a05bmsh595fddadf76002dp1d7b3ajsnd54ed1519f7d',
-		'x-rapidapi-host': 'judge0-ce.p.rapidapi.com',
-		'Content-Type': 'application/json'
-	},
-	body: {
-		submissions: [
-			{
-				language_id: 46,
-				source_code: 'ZWNobyBoZWxsbyBmcm9tIEJhc2gK'
-			},
-			{
-				language_id: 71,
-				source_code: 'cHJpbnQoImhlbGxvIGZyb20gUHl0aG9uIikK'
-			},
-			{
-				language_id: 72,
-				source_code: 'cHV0cygiaGVsbG8gZnJvbSBSdWJ5IikK'
-			}
-		]
-	}
-};
-
-try {
-	const response = await fetch(url, options);
-	const result = await response.text();
-	console.log(result);
-} catch (error) {
-	console.error(error);
-}
-
-const url = 'https://judge0-ce.p.rapidapi.com/submissions/batch?tokens=dce7bbc5-a8c9-4159-a28f-ac264e48c371%2C1ed737ca-ee34-454d-a06f-bbc73836473e%2C9670af73-519f-4136-869c-340086d406db&base64_encoded=true&fields=*';
-const options = {
-	method: 'GET',
-	headers: {
-		'x-rapidapi-key': 'f5e382a05bmsh595fddadf76002dp1d7b3ajsnd54ed1519f7d',
-		'x-rapidapi-host': 'judge0-ce.p.rapidapi.com'
-	}
-};
-
-try {
-	const response = await fetch(url, options);
-	const result = await response.text();
-	console.log(result);
-} catch (error) {
-	console.error(error);
-}
- */

@@ -133,7 +133,7 @@ public class QuizService {
         String loggedInUsername = authentication.getName();
 
         // Check ownership
-        if (!session.getUsername().equals(loggedInUsername)) {
+        if (!Objects.equals(session.getUsername(), loggedInUsername)) {
             throw new AccessDeniedException("You do not have access to this quiz session.");
         }
 
@@ -249,7 +249,7 @@ public class QuizService {
             return dto;
         }).collect(Collectors.toList());
     }
-    public QuizStartResponseDto practiceWeakAreas(Long userId, int numQuestions) {
+    public QuizStartResponseDto practiceWeakAreas(Long userId, String email, int numQuestions) {
         // Get user's weakest topics
 
         List<UserWeakness> weaknesses = userWeaknessService.getWeaknessesForUser(userId);
@@ -293,6 +293,7 @@ public class QuizService {
         // Create new QuizSession
         QuizSession quizSession = new QuizSession();
         quizSession.setUserId(userId);
+        quizSession.setUsername(email);
         quizSession.setStartedAt(LocalDateTime.now());
         quizSession.setTopics(String.join(",", weakTopics));
         quizSessionRepo.save(quizSession);
@@ -305,7 +306,7 @@ public class QuizService {
             question.setChoices(String.join(",", dto.getChoices()));
             question.setCorrectAnswer(dto.getCorrectAnswer());
             question.setTopic(dto.getTopic());
-
+            question.setQuizSession(quizSession);
             questionEntities.add(question);
         }
         quizQuestionRepo.saveAll(questionEntities);

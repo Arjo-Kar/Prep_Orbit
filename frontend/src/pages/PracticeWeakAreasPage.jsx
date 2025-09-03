@@ -154,12 +154,8 @@ const PracticeWeakAreasPage = () => {
 
       // Use practice session ID if available, otherwise create a generic endpoint
       let submitUrl;
-      if (practiceSessionId) {
-        submitUrl = `http://localhost:8080/api/quiz/${practiceSessionId}/submit`;
-      } else {
-        // Alternative endpoint for practice submissions
-        submitUrl = `http://localhost:8080/api/quiz/practice/submit`;
-      }
+      submitUrl = `http://localhost:8080/api/quiz/${practiceSessionId}/submit`;
+
 
       const response = await fetch(submitUrl, {
         method: "POST",

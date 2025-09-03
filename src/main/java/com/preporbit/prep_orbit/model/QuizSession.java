@@ -13,6 +13,7 @@ public class QuizSession {
     // Add userId for relationship to users table
     private Long userId;
 
+    @Column(nullable = false)
     private String username;
     private String topics;
     private LocalDateTime startedAt;
