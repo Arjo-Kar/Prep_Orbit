@@ -35,6 +35,14 @@ const PracticeWeakAreasPage = () => {
         }
 
         const data = await res.json();
+          if (!data.sessionId || !data.questions || !Array.isArray(data.questions)) {
+            setError("Practice session response invalid! Please refresh or contact support.");
+            setLoading(false);
+            return;
+          }
+          setQuestions(data.questions);
+          setPracticeSessionId(data.sessionId);
+          setLoading(false);
         console.log("Weak areas response:", data);
 
         let questionsList = [];
