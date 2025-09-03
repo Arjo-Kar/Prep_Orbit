@@ -4,6 +4,7 @@ import com.preporbit.prep_orbit.dto.LoginRequest;
 import com.preporbit.prep_orbit.dto.LoginResponse;
 import com.preporbit.prep_orbit.dto.SignupRequest;
 import com.preporbit.prep_orbit.dto.StandardResponse;
+import com.preporbit.prep_orbit.dto.UserDto;
 import com.preporbit.prep_orbit.model.User;
 import com.preporbit.prep_orbit.model.VerificationToken;
 import com.preporbit.prep_orbit.repository.UserRepository;
@@ -34,6 +35,7 @@ public class UserService {
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
     String adminMail = "arjokaraditto1199@gmail.com";
+
     public StandardResponse signup(SignupRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
             return new StandardResponse(409, "Email already exists");
@@ -68,26 +70,28 @@ public class UserService {
             User user = userOpt.get();
             if (!user.isEnabled()) {
                 System.out.println("Name : " + user.getFullName());
-                return new LoginResponse(403, "Email not verified", null);
+                return new LoginResponse(403, "Email not verified", null, null);
             }
             if (passwordEncoder.matches(req.getPassword(), user.getPassword())) {
                 String token = jwtService.generateToken(user.getEmail());
-                return new LoginResponse(200, "Login successful", token);
+                UserDto userDto = new UserDto(user.getId(), user.getFullName(), user.getEmail());
+                return new LoginResponse(200, "Login successful", token, userDto);
             }
         }
-        return new LoginResponse(401, "Invalid credentials", null);
+        return new LoginResponse(401, "Invalid credentials", null, null);
     }
 
     public LoginResponse verifyEmail(String token) {
         VerificationToken verificationToken = verificationTokenRepository.findByToken(token);
         if (verificationToken == null || verificationToken.getExpiryDate().before(new Date())) {
-            return new LoginResponse(400, "Invalid or expired verification token", null);
+            return new LoginResponse(400, "Invalid or expired verification token", null, null);
         }
         User user = verificationToken.getUser();
         user.setEnabled(true);
         userRepository.save(user);
         verificationTokenRepository.delete(verificationToken);
         String jwt = jwtService.generateToken(user.getEmail());
-        return new LoginResponse(200, "Email verified successfully", jwt);
+        UserDto userDto = new UserDto(user.getId(), user.getFullName(), user.getEmail());
+        return new LoginResponse(200, "Email verified successfully", jwt, userDto);
     }
 }

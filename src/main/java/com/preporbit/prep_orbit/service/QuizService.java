@@ -6,11 +6,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.preporbit.prep_orbit.dto.*;
 import com.preporbit.prep_orbit.model.*;
 import com.preporbit.prep_orbit.repository.*;
+import com.preporbit.prep_orbit.util.JsonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -44,7 +46,6 @@ public class QuizService {
         session.setStartedAt(LocalDateTime.now());
         quizSessionRepo.save(session);
 
-        // Assign topic if missing from Gemini output
         List<QuizQuestion> entities = new ArrayList<>();
         for (int i = 0; i < aiQuestions.size(); i++) {
             QuizQuestionDto q = aiQuestions.get(i);
@@ -52,14 +53,11 @@ public class QuizService {
             entity.setQuestionText(q.getQuestionText());
             entity.setChoices(q.getChoices() != null ? String.join(",", q.getChoices()) : null);
             entity.setCorrectAnswer(q.getCorrectAnswer());
-
-            // Assign topic from Gemini output or fallback to provided topics (round-robin)
             String assignedTopic = q.getTopic();
             if (assignedTopic == null || assignedTopic.isEmpty()) {
                 assignedTopic = request.getTopics().get(i % request.getTopics().size());
             }
             entity.setTopic(assignedTopic);
-
             entity.setQuizSession(session);
             entities.add(entity);
         }
@@ -82,7 +80,6 @@ public class QuizService {
         return response;
     }
 
-    // Generates questions using Gemini AI (customize prompt for technical MCQ)
     private List<QuizQuestionDto> generateQuestionsFromGemini(List<String> topics, int numQuestions) {
         String prompt = "Generate " + numQuestions + " technical MCQ questions on these topics: " +
                 String.join(", ", topics) +
@@ -94,10 +91,8 @@ public class QuizService {
 
         String geminiResponse = geminiService.askGemini(prompt);
 
-        // Strip markdown code block if present
         geminiResponse = stripMarkdownCodeBlock(geminiResponse);
 
-        // Check for valid JSON array
         if (geminiResponse == null || geminiResponse.isEmpty() || !geminiResponse.trim().startsWith("[")) {
             System.err.println("Gemini did not return JSON. Raw response: " + geminiResponse);
             return new ArrayList<>();
@@ -124,15 +119,12 @@ public class QuizService {
         }
         return input;
     }
+
     public QuizResultDto submitQuiz(Long sessionId, QuizSubmitRequestDto request) throws AccessDeniedException {
         QuizSession session = quizSessionRepo.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session ID not found: " + sessionId));
-
-        // Get the currently authenticated username
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String loggedInUsername = authentication.getName();
-
-        // Check ownership
         if (!Objects.equals(session.getUsername(), loggedInUsername)) {
             throw new AccessDeniedException("You do not have access to this quiz session.");
         }
@@ -140,11 +132,10 @@ public class QuizService {
         List<FeedbackDto> feedbackList = new ArrayList<>();
         int correct = 0;
         List<UserAnswer> persistedAnswers = new ArrayList<>();
-
-        // Gather user answers and topics for session-level analysis
         List<String> userAnswers = new ArrayList<>();
         List<String> topics = new ArrayList<>();
         List<String> incorrectTopics = new ArrayList<>();
+
         for (UserAnswerDto dto : request.getAnswers()) {
             QuizQuestion question = quizQuestionRepo.findById(dto.getQuestionId())
                     .orElseThrow(() -> new IllegalArgumentException("Question ID not found: " + dto.getQuestionId()));
@@ -154,7 +145,6 @@ public class QuizService {
             if (isCorrect) correct++;
             else incorrectTopics.add(question.getTopic());
 
-            // Generate a hint for each question using Gemini
             String hintPrompt = "Question: " + question.getQuestionText() + "\n"
                     + "Correct Answer: " + question.getCorrectAnswer() + "\n"
                     + "User Answer: " + dto.getUserAnswer() + "\n"
@@ -179,38 +169,44 @@ public class QuizService {
             fdto.setQuestionId(question.getId());
             fdto.setCorrect(isCorrect);
             fdto.setFeedback(feedbackMsg);
-            fdto.setHint(hint); // Set the hint
+            fdto.setHint(hint);
             feedbackList.add(fdto);
 
             userAnswers.add(dto.getUserAnswer());
             topics.add(question.getTopic());
         }
         userAnswerRepo.saveAll(persistedAnswers);
+
         if (!incorrectTopics.isEmpty()) {
             Long userId = session.getUserId();
             if (userId == null) {
-                // Fetch userId from username (email)
                 userId = userRepository.findByEmail(session.getUsername())
                         .orElseThrow(() -> new RuntimeException("User not found"))
                         .getId();
             }
             userWeaknessService.updateUserWeaknesses(userId, incorrectTopics);
         }
-        // Session-level feedback: strengths, weaknesses, suggestions
+
         String sessionPrompt = "Topics: " + String.join(", ", topics) + "\n"
                 + "User Answers: " + String.join(" | ", userAnswers) + "\n"
-                + "Based on these answers and topics, list the user's key strengths, weaknesses, and suggestions for improvement as JSON arrays. " +
-                "The topic with the highest incorrect and skipped questions should be marked as weakness too. Also remember the strong zones in a session should be the one with highest correct. " +
-                "In suggestions tell me to overcome the weakness and relevant topics with the weak zones. Keep these all as concise as possible." +
-                "Example:\n"
+                + "Based on these answers and topics, list the user's key strengths, weaknesses, and suggestions for improvement as JSON arrays. "
+                + "The topic with the highest incorrect and skipped questions should be marked as weakness too. "
+                + "Strong zones should be the one with highest correct. "
+                + "In suggestions, tell me how to overcome the weaknesses and relevant topics for the weak zones. "
+                + "Reply ONLY with a single JSON object and DO NOT write any explanation or text outside the JSON. "
+                + "Example output:\n"
                 + "{ \"strengths\": [\"...\"], \"weaknesses\": [\"...\"], \"suggestions\": [\"...\"] }";
+
         String sessionFeedback = "";
         List<String> strengths = new ArrayList<>();
         List<String> weaknesses = new ArrayList<>();
         List<String> suggestions = new ArrayList<>();
+
         try {
             sessionFeedback = geminiService.askGemini(sessionPrompt);
-            String cleanedJson = stripMarkdownCodeBlock(sessionFeedback); // <-- Use utility here
+            String cleanedJson = stripMarkdownCodeBlock(sessionFeedback);
+            cleanedJson = JsonUtils.extractFirstJsonObject(cleanedJson);
+
             ObjectMapper mapper = new ObjectMapper();
             JsonNode node = mapper.readTree(cleanedJson);
             strengths = mapper.convertValue(node.get("strengths"), new TypeReference<List<String>>() {});
@@ -218,6 +214,10 @@ public class QuizService {
             suggestions = mapper.convertValue(node.get("suggestions"), new TypeReference<List<String>>() {});
         } catch (Exception e) {
             System.err.println("Session feedback parse error: " + e.getMessage());
+            System.err.println("Raw Gemini output: " + sessionFeedback);
+            strengths = new ArrayList<>();
+            weaknesses = new ArrayList<>();
+            suggestions = new ArrayList<>();
         }
 
         double accuracy = 100.0 * correct / request.getAnswers().size();
@@ -236,7 +236,6 @@ public class QuizService {
         return result;
     }
 
-    // Retrieve questions by sessionId
     public List<QuizQuestionDto> getQuizQuestions(Long sessionId) {
         List<QuizQuestion> questions = quizQuestionRepo.findByQuizSession_Id(sessionId);
         return questions.stream().map(q -> {
@@ -249,23 +248,18 @@ public class QuizService {
             return dto;
         }).collect(Collectors.toList());
     }
-    public QuizStartResponseDto practiceWeakAreas(Long userId, String email, int numQuestions) {
-        // Get user's weakest topics
 
+    public QuizStartResponseDto practiceWeakAreas(Long userId, String email, int numQuestions) {
         List<UserWeakness> weaknesses = userWeaknessService.getWeaknessesForUser(userId);
         List<String> weakTopics = weaknesses.stream()
                 .map(UserWeakness::getTopic)
-                .limit(3) // Focus on 3 weakest topics, can be adjusted
+                .limit(3)
                 .collect(Collectors.toList());
 
-        // 1. Fetch old incorrect questions for user and weakTopics
-        // 1. Get question IDs for weakTopics
-        List<Long> weakQuestionIds = quizQuestionRepo.findIdsByTopicIn(weakTopics); // You may need such a method
+        List<Long> weakQuestionIds = quizQuestionRepo.findIdsByTopicIn(weakTopics);
 
-// 2. Get incorrect UserAnswers for this user and these question IDs
         List<UserAnswer> oldIncorrectAnswers = userAnswerRepo.findByIsCorrectFalseAndQuizSession_UserIdAndQuestionIdIn(userId, weakQuestionIds);
 
-// 3. Map UserAnswer to QuizQuestionDto
         List<QuizQuestionDto> oldIncorrectQuestions = oldIncorrectAnswers.stream().map(ua -> {
             QuizQuestion question = quizQuestionRepo.findById(ua.getQuestionId()).orElse(null);
             if (question == null) return null;
@@ -277,20 +271,15 @@ public class QuizService {
             dto.setTopic(question.getTopic());
             return dto;
         }).filter(Objects::nonNull).collect(Collectors.toList());
-// 2. Generate new AI questions as before
+
         List<QuizQuestionDto> aiQuestions = generateQuestionsFromGemini(weakTopics, numQuestions);
 
-// 3. Combine lists
         List<QuizQuestionDto> allQuestions = new ArrayList<>();
         allQuestions.addAll(oldIncorrectQuestions);
         allQuestions.addAll(aiQuestions);
 
-// Optionally shuffle for randomness
         Collections.shuffle(allQuestions);
 
-// Now use allQuestions for your quiz
-
-        // Create new QuizSession
         QuizSession quizSession = new QuizSession();
         quizSession.setUserId(userId);
         quizSession.setUsername(email);
@@ -298,7 +287,6 @@ public class QuizService {
         quizSession.setTopics(String.join(",", weakTopics));
         quizSessionRepo.save(quizSession);
 
-        // Create QuizQuestion entities and link them to session
         List<QuizQuestion> questionEntities = new ArrayList<>();
         for (QuizQuestionDto dto : allQuestions) {
             QuizQuestion question = new QuizQuestion();
@@ -311,7 +299,6 @@ public class QuizService {
         }
         quizQuestionRepo.saveAll(questionEntities);
 
-        // Prepare response DTOs
         List<QuizQuestionDto> responseQuestions = questionEntities.stream().map(q -> {
             QuizQuestionDto dto = new QuizQuestionDto();
             dto.setId(q.getId());

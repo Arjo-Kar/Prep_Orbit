@@ -49,9 +49,18 @@ public class QuizController {
         return quizService.submitQuiz(sessionId, request);
     }
     @GetMapping("/user/{userId}/weaknesses")
-    public List<UserWeakness> getUserWeaknesses(@PathVariable Long userId) {
+    public List<UserWeakness> getUserWeaknesses(@PathVariable Long userId) throws AccessDeniedException {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        Long currentUserId = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"))
+                .getId();
+        if (!currentUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only access your own weaknesses.");
+        }
         return userWeaknessRepository.findByUserIdOrderByIncorrectCountDesc(userId);
     }
+
     @PostMapping("/weak-areas")
     public QuizStartResponseDto practiceWeakAreas(@RequestBody PractiseRequestDto request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

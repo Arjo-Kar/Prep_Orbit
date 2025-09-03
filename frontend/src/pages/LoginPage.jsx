@@ -14,8 +14,18 @@ function LoginPage() {
         try {
             const data = await login(email, password);
             console.log('Login successful:', data);
-            // Store the JWT token, user info, etc., in localStorage or state
+
+            // Store the JWT token and user info in localStorage
             localStorage.setItem('token', data.token);
+
+            // Store user info (expects data.user to contain id, name, email, etc.)
+            if (data.user && data.user.id) {
+                localStorage.setItem('user', JSON.stringify(data.user));
+            } else {
+                setError('Login response missing user info. Please contact support.');
+                return;
+            }
+
             navigate('/dashboard'); // Redirect to dashboard on success
         } catch (err) {
             setError('Login failed. Please check your credentials.');

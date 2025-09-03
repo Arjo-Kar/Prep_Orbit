@@ -49,14 +49,6 @@ function Dashboard() {
     });
   };
 
-  // Practice Weak Areas API call
-  const practiceWeakAreas = async (numQuestions) => {
-    return fetchWithAuth("http://localhost:8080/api/quiz/weak-areas", {
-      method: "POST",
-      body: JSON.stringify({ numQuestions }),
-    });
-  };
-
   // Handle Start Quiz button
   const handleStartQuiz = async (e) => {
     e.preventDefault();
@@ -80,16 +72,9 @@ function Dashboard() {
     }
   };
 
-  // Handle Practice Weak Areas button
-  const handlePracticeWeakAreas = async () => {
-    setMessage("");
-    try {
-      const response = await practiceWeakAreas(parseInt(numWeakQuestions, 10));
-      navigate(`/quiz/${response.sessionId}`);
-    } catch (error) {
-      console.error("Practice weak areas error:", error);
-      setMessage(error.message || "Failed to start weak areas practice.");
-    }
+  // Handle Practice Weak Areas button - Navigate to dedicated page with question count
+  const handlePracticeWeakAreas = () => {
+    navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
   };
 
   const BrainCircuitIcon = () => (

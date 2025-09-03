@@ -18,6 +18,7 @@ function App() {
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/quiz/:sessionId" element={<QuizSessionPage />} />
+                <Route path="/quiz/:sessionId/results" element={<QuizResultPage />} />
                 <Route path="/gemini" element={<GeminiChatPage />} />
                 <Route path="/coding/:challengeId" element={<CodingChallengePage />} />
                 <Route path="/report/weaknesses" element={<WeaknessReportPage />} />

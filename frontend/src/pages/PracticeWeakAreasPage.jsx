@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const PracticeWeakAreasPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null);
   const [practiceSessionId, setPracticeSessionId] = useState(null);
+
+  // Get number of questions from URL params, default to 5
+  const numQuestions = parseInt(searchParams.get("numQuestions") || "5", 10);
 
   // Fetch weak area questions
   useEffect(() => {
@@ -24,7 +27,7 @@ const PracticeWeakAreasPage = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ numQuestions: 5 }), // Default number of questions
+          body: JSON.stringify({ numQuestions }), // Use dynamic number from URL params
         });
 
         if (!res.ok) {
@@ -34,15 +37,12 @@ const PracticeWeakAreasPage = () => {
         const data = await res.json();
         console.log("Weak areas response:", data);
 
-        // Handle different response formats
         let questionsList = [];
         let sessionId = null;
 
         if (Array.isArray(data)) {
-          // Direct array of questions
           questionsList = data;
         } else if (data.questions && Array.isArray(data.questions)) {
-          // Nested under 'questions' property
           questionsList = data.questions;
           sessionId = data.sessionId;
         } else if (data.sessionId && data.questions) {
@@ -61,55 +61,10 @@ const PracticeWeakAreasPage = () => {
     };
 
     fetchWeakAreaQuestions();
-  }, []);
+  }, [numQuestions]);
 
   const handleChange = (questionIndex, value) => {
     setAnswers((prev) => ({ ...prev, [questionIndex]: value }));
-  };
-
-  // Local evaluation function for when backend is not available
-  const evaluateLocally = () => {
-    let correct = 0;
-    const feedback = [];
-
-    questions.forEach((question, index) => {
-      const userAnswer = answers[index];
-      const correctAnswer = question.correctAnswer || question.answer;
-
-      let isCorrect = false;
-      if (userAnswer && correctAnswer) {
-        // Extract letter from user answer
-        const userLetter = userAnswer.match(/^([A-D])\)/)?.[1];
-        // Extract letter from correct answer or compare directly
-        const correctLetter = correctAnswer.match(/^([A-D])\)/)?.[1] || correctAnswer;
-
-        isCorrect = userLetter === correctLetter;
-        if (isCorrect) correct++;
-      }
-
-      feedback.push({
-        questionId: question.id || index,
-        correct: isCorrect,
-        feedback: isCorrect
-          ? "Correct! Well done."
-          : `Incorrect. ${question.explanation || 'Review this topic for better understanding.'}`,
-        hint: question.hint || null
-      });
-    });
-
-    const totalQuestions = questions.length;
-    const accuracy = totalQuestions > 0 ? (correct / totalQuestions) * 100 : 0;
-
-    return {
-      score: correct,
-      accuracy: accuracy,
-      correctAnswers: correct,
-      incorrectAnswers: totalQuestions - correct,
-      feedback: feedback,
-      strengths: correct > totalQuestions * 0.7 ? ['Good improvement in practice areas!'] : [],
-      weaknesses: correct < totalQuestions * 0.5 ? ['Continue practicing these areas'] : [],
-      suggestions: ['Keep practicing to improve your understanding', 'Review explanations for incorrect answers']
-    };
   };
 
   const handleSubmit = async () => {
@@ -130,32 +85,27 @@ const PracticeWeakAreasPage = () => {
       // Format answers according to backend expectation
       const formattedAnswers = questions.map((question, index) => {
         const userAnswer = answers[index];
-
-        // Extract just the letter (A, B, C, D) from the full answer text
         let answerLetter = '';
         if (userAnswer) {
+          // Handle both "A) Option text" and "A" formats
           const match = userAnswer.match(/^([A-D])\)/);
           if (match) {
             answerLetter = match[1];
+          } else if (["A", "B", "C", "D"].includes(userAnswer)) {
+            answerLetter = userAnswer;
           }
         }
-
         return {
           questionId: question.id,
           userAnswer: answerLetter
         };
       }).filter(answer => answer.userAnswer !== ''); // Only include answered questions
 
-      const requestBody = {
-        answers: formattedAnswers
-      };
+      const requestBody = { answers: formattedAnswers };
 
       console.log("Submitting practice answers:", requestBody);
 
-      // Use practice session ID if available, otherwise create a generic endpoint
-      let submitUrl;
-      submitUrl = `http://localhost:8080/api/quiz/${practiceSessionId}/submit`;
-
+      let submitUrl = `http://localhost:8080/api/quiz/${practiceSessionId}/submit`;
 
       const response = await fetch(submitUrl, {
         method: "POST",
@@ -171,7 +121,6 @@ const PracticeWeakAreasPage = () => {
       if (!response.ok) {
         let errorMessage = `Failed to submit practice quiz: ${response.status} ${response.statusText}`;
 
-        // Try to get detailed error message
         try {
           const errorData = await response.json();
           console.log("Error response body:", errorData);
@@ -182,20 +131,14 @@ const PracticeWeakAreasPage = () => {
             errorMessage += ` - ${errorData.error}`;
           }
         } catch (parseError) {
-          console.log("Could not parse error response as JSON");
-          // Try to get response as text
           try {
             const errorText = await response.text();
-            console.log("Error response text:", errorText);
             if (errorText) {
               errorMessage += ` - ${errorText}`;
             }
-          } catch (textError) {
-            console.log("Could not get error response as text");
-          }
+          } catch {}
         }
 
-        // Handle specific error cases
         if (response.status === 403) {
           errorMessage = "Access denied. You may not be authorized to submit this practice quiz.";
         } else if (response.status === 404) {
@@ -209,7 +152,12 @@ const PracticeWeakAreasPage = () => {
 
       const data = await response.json();
       console.log("Practice quiz submitted successfully:", data);
-      setResult(data);
+
+      // Redirect to QuizResultPage with result and questionCount
+      navigate(`/quiz/${practiceSessionId}/results`, {
+        state: { result: data, questionCount: questions.length }
+      });
+
       setError(null); // Clear any previous errors
     } catch (err) {
       console.error("Error submitting practice quiz:", err);
@@ -219,23 +167,10 @@ const PracticeWeakAreasPage = () => {
     }
   };
 
-  // Helper function to safely format accuracy
-  const formatAccuracy = (accuracy) => {
-    if (accuracy === null || accuracy === undefined) return '0.0';
-    if (typeof accuracy === 'string') {
-      // Handle string 'NaN' or convert string numbers
-      if (accuracy === 'NaN' || accuracy.toLowerCase() === 'nan') return '0.0';
-      const numAccuracy = parseFloat(accuracy);
-      return isNaN(numAccuracy) ? '0.0' : numAccuracy.toFixed(1);
-    }
-    if (typeof accuracy === 'number') {
-      return isNaN(accuracy) ? '0.0' : accuracy.toFixed(1);
-    }
-    return '0.0';
-  };
-
   if (loading) return <p>Loading weak area questions...</p>;
+
   if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
+
   if (questions.length === 0) {
     return (
       <div>
@@ -247,219 +182,123 @@ const PracticeWeakAreasPage = () => {
   }
 
   return (
-    <div>
-      <h1>Practice Your Weak Areas</h1>
-      <p style={{ marginBottom: "20px", color: "#666" }}>
-        These questions are based on topics where you need improvement. Take your time and focus on understanding each concept.
-      </p>
-
-      {questions.map((q, index) => (
-        <div
-          key={index}
-          style={{ marginBottom: "20px", padding: "10px", border: "1px solid #ccc", borderRadius: "5px" }}
-        >
-          <p>
-            <strong>Q{index + 1}:</strong> {q.questionText}
-          </p>
-
-          {/* Handle different option formats */}
-          {q.options && q.options.length > 0 ? (
-            q.options.slice(0, 4).map((option, i) => (
-              <div key={i} style={{ marginBottom: "8px" }}>
-                <input
-                  type="radio"
-                  id={`q${index}_opt${i}`}
-                  name={`q${index}`}
-                  value={option}
-                  checked={answers[index] === option}
-                  onChange={() => handleChange(index, option)}
-                />
-                <label htmlFor={`q${index}_opt${i}`} style={{ marginLeft: "8px" }}>
-                  {option}
-                </label>
-              </div>
-            ))
-          ) : q.choices && q.choices.length > 0 ? (
-            q.choices.slice(0, 4).map((choice, i) => (
-              <div key={i} style={{ marginBottom: "8px" }}>
-                <input
-                  type="radio"
-                  id={`q${index}_opt${i}`}
-                  name={`q${index}`}
-                  value={choice}
-                  checked={answers[index] === choice}
-                  onChange={() => handleChange(index, choice)}
-                />
-                <label htmlFor={`q${index}_opt${i}`} style={{ marginLeft: "8px" }}>
-                  {choice}
-                </label>
-              </div>
-            ))
-          ) : (
-            <p style={{ color: "orange" }}>No options available for this question</p>
-          )}
-        </div>
-      ))}
-
-      <button onClick={handleSubmit} disabled={submitting} style={{ marginRight: "10px" }}>
-        {submitting ? "Submitting..." : "Submit Practice Quiz"}
-      </button>
-
-      <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
-
-      {result && (
-        <div id="practice-results" style={{ marginTop: "30px" }}>
-          {/* Overall Results */}
-          <div style={{
-            padding: "20px",
-            border: "2px solid #4CAF50",
-            borderRadius: "10px",
-            backgroundColor: "#f9f9f9",
-            marginBottom: "20px"
-          }}>
-            <h2 style={{ color: "#4CAF50", marginBottom: "15px" }}>Practice Results</h2>
-            <div style={{ display: "flex", gap: "30px", marginBottom: "15px" }}>
-              <div>
-                <strong>Score:</strong> {result.score || 0} / {questions.length}
-              </div>
-              <div>
-                <strong>Accuracy:</strong> {formatAccuracy(result.accuracy)}%
-              </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
             </div>
-            {result.correctAnswers !== undefined && (
-              <div style={{ display: "flex", gap: "30px" }}>
-                <div style={{ color: "#4CAF50" }}>
-                  <strong>Correct:</strong> {result.correctAnswers}
-                </div>
-                <div style={{ color: "#f44336" }}>
-                  <strong>Incorrect:</strong> {result.incorrectAnswers}
-                </div>
-              </div>
-            )}
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Practice Your Weak Areas</h1>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              These {questions.length} questions are based on topics where you need improvement.
+              Take your time and focus on understanding each concept.
+            </p>
           </div>
+        </div>
 
-          {/* Strengths */}
-          {result.strengths && result.strengths.length > 0 && (
-            <div style={{
-              padding: "15px",
-              border: "1px solid #4CAF50",
-              borderRadius: "8px",
-              backgroundColor: "#e8f5e8",
-              marginBottom: "15px"
-            }}>
-              <h3 style={{ color: "#2e7d32", marginBottom: "10px" }}>Your Strengths</h3>
-              <ul style={{ margin: 0, paddingLeft: "20px" }}>
-                {result.strengths.map((strength, index) => (
-                  <li key={index} style={{ marginBottom: "5px" }}>{strength}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Weaknesses */}
-          {result.weaknesses && result.weaknesses.length > 0 && (
-            <div style={{
-              padding: "15px",
-              border: "1px solid #ff9800",
-              borderRadius: "8px",
-              backgroundColor: "#fff3e0",
-              marginBottom: "15px"
-            }}>
-              <h3 style={{ color: "#f57c00", marginBottom: "10px" }}>Areas Still Needing Work</h3>
-              <ul style={{ margin: 0, paddingLeft: "20px" }}>
-                {result.weaknesses.map((weakness, index) => (
-                  <li key={index} style={{ marginBottom: "5px" }}>{weakness}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Suggestions */}
-          {result.suggestions && result.suggestions.length > 0 && (
-            <div style={{
-              padding: "15px",
-              border: "1px solid #2196F3",
-              borderRadius: "8px",
-              backgroundColor: "#e3f2fd",
-              marginBottom: "15px"
-            }}>
-              <h3 style={{ color: "#1976d2", marginBottom: "10px" }}>Study Suggestions</h3>
-              <ul style={{ margin: 0, paddingLeft: "20px" }}>
-                {result.suggestions.map((suggestion, index) => (
-                  <li key={index} style={{ marginBottom: "5px" }}>{suggestion}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Question-by-Question Feedback */}
-          {result.feedback && result.feedback.length > 0 && (
-            <div style={{ marginTop: "20px" }}>
-              <h3 style={{ marginBottom: "15px" }}>Detailed Feedback</h3>
-              {result.feedback.map((fb, index) => (
-                <div key={fb.questionId || index} style={{
-                  padding: "15px",
-                  border: `1px solid ${fb.correct ? '#4CAF50' : '#f44336'}`,
-                  borderRadius: "8px",
-                  backgroundColor: fb.correct ? '#e8f5e8' : '#ffebee',
-                  marginBottom: "10px"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}>
-                    <strong style={{ color: fb.correct ? '#2e7d32' : '#c62828' }}>
-                      Q{index + 1}: {fb.correct ? 'Correct' : 'Incorrect'}
-                    </strong>
+        {/* Questions */}
+        <div className="space-y-6">
+          {questions.map((q, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-md border-2 border-gray-200 p-8">
+              {/* Question Header */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-6 border-l-4 border-green-500">
+                <div className="flex items-center mb-3">
+                  <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold mr-3">
+                    {index + 1}
                   </div>
-                  <p style={{ margin: "5px 0", fontSize: "14px" }}>
-                    <strong>Feedback:</strong> {fb.feedback}
-                  </p>
-                  {fb.hint && (
-                    <p style={{
-                      margin: "8px 0 0 0",
-                      padding: "8px",
-                      backgroundColor: 'rgba(0,0,0,0.05)',
-                      borderRadius: "4px",
-                      fontSize: "14px",
-                      fontStyle: "italic"
-                    }}>
-                      <strong>Hint:</strong> {fb.hint}
-                    </p>
-                  )}
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Question {index + 1}
+                  </h3>
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="text-gray-800 text-lg leading-relaxed pl-11">{q.questionText}</p>
+              </div>
 
-          {/* Action Buttons */}
-          <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
+              {/* Answer Options */}
+              <div className="space-y-4 pl-4">
+                <h4 className="text-sm font-medium text-gray-600 uppercase tracking-wide mb-3">Choose your answer:</h4>
+                {/* Handle both options and choices properties */}
+                {q.options && q.options.length > 0 ? (
+                  q.options.slice(0, 4).map((option, i) => (
+                    <label key={i} className="flex items-start space-x-4 p-4 rounded-lg border-2 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all duration-200 group">
+                      <input
+                        type="radio"
+                        name={`q${index}`}
+                        value={option}
+                        checked={answers[index] === option}
+                        onChange={() => handleChange(index, option)}
+                        className="mt-1.5 h-5 w-5 text-green-600 border-2 border-gray-300 focus:ring-green-500 focus:ring-2"
+                      />
+                      <div className="flex-1">
+                        <span className="text-gray-800 text-base leading-relaxed group-hover:text-green-800 transition-colors">
+                          {option}
+                        </span>
+                      </div>
+                    </label>
+                  ))
+                ) : q.choices && q.choices.length > 0 ? (
+                  q.choices.slice(0, 4).map((choice, i) => (
+                    <label key={i} className="flex items-start space-x-4 p-4 rounded-lg border-2 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all duration-200 group">
+                      <input
+                        type="radio"
+                        name={`q${index}`}
+                        value={choice}
+                        checked={answers[index] === choice}
+                        onChange={() => handleChange(index, choice)}
+                        className="mt-1.5 h-5 w-5 text-green-600 border-2 border-gray-300 focus:ring-green-500 focus:ring-2"
+                      />
+                      <div className="flex-1">
+                        <span className="text-gray-800 text-base leading-relaxed group-hover:text-green-800 transition-colors">
+                          {choice}
+                        </span>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <svg className="h-6 w-6 text-yellow-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      <p className="text-yellow-800 font-medium">No options available for this question</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Submit Section */}
+        <div className="mt-8 bg-white rounded-lg shadow-sm p-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => window.location.reload()}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#ff9800",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer"
-              }}
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Practice More Questions
+              {submitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                "Submit Practice Quiz"
+              )}
             </button>
+
             <button
-              onClick={() => navigate('/dashboard')}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#2196F3",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer"
-              }}
+              onClick={() => navigate("/dashboard")}
+              className="px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
             >
               Back to Dashboard
             </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
