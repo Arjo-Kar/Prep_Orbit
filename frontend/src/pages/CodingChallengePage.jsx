@@ -404,15 +404,14 @@ const submitSolution = async () => {
             'Authorization': `Bearer ${authToken}`
           },
           body: JSON.stringify({
-           source_code: code,
-             language_id: languageId,
-             stdin: ""
+            source_code: code,
+            language_id: languageId,
+            stdin: ""
           })
         }
       );
 
       if (!response.ok) {
-        // Try to get error details from backend
         let errorMessageText = 'Failed to submit solution.';
         try {
           const errorBody = await response.text();
@@ -424,7 +423,9 @@ const submitSolution = async () => {
       }
 
       const result = await response.json();
-      setSubmissionResult(result);
+      navigate('/coding-challenge/result', {
+        state: { result, challenge }
+      });
     } else {
       // Mock challenge logic for challenge-1 and challenge-2
       const results = challenge.visibleTestCases.map(testCase => {
@@ -455,11 +456,16 @@ const submitSolution = async () => {
       const passedTestCases = results.filter(r => r.passed).length;
       const totalTestCases = results.length;
 
-      setSubmissionResult({
-        allPassed: passedTestCases === totalTestCases,
-        passedTestCases,
-        totalTestCases,
-        results
+      navigate('/coding-challenge/result', {
+        state: {
+          result: {
+            allPassed: passedTestCases === totalTestCases,
+            passedTestCases,
+            totalTestCases,
+            results
+          },
+          challenge
+        }
       });
     }
   } catch (error) {
@@ -623,93 +629,133 @@ const submitSolution = async () => {
 
   return (
     <ThemeProvider theme={darkTheme}>
-      <Box
-        sx={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
-          color: 'white',
-          fontFamily: 'system-ui',
-        }}
-      >
+     <Box
+           sx={{
+             minHeight: '100vh',
+             background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
+             color: 'white',
+             fontFamily: 'system-ui',
+           }}
+         >
         <Box
-          sx={{
-            width: '100%',
-            position: 'sticky',
-            top: 0,
-            zIndex: 30,
-            background: 'linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)',
-            backdropFilter: 'blur(8px)',
-            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
-            borderBottom: '1px solid rgba(126, 87, 194, 0.5)',
-            py: 2,
-            px: 3,
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Button
-                onClick={() => navigate('/dashboard')}
-                startIcon={<ArrowLeft size={16} />}
-                sx={{ color: '#ccc', '&:hover': { backgroundColor: '#7b1fa250', color: 'white' } }}
+                sx={{
+                  width: '100%',
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 30,
+                  background: 'linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)',
+                  backdropFilter: 'blur(8px)',
+                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
+                  borderBottom: '1px solid rgba(126, 87, 194, 0.5)',
+                  py: 2,
+                  px: 3,
+                }}
               >
-                Back to Dashboard
-              </Button>
-               <Button
-                      onClick={runSampleTestCases}
-                      disabled={submitting || !challenge}
-                      variant="contained"
-                      sx={{
-                        background: 'linear-gradient(45deg, #2196f3 30%, #64b5f6 90%)',
-                        '&:hover': { background: 'linear-gradient(45deg, #42a5f5 30%, #90caf9 90%)' },
-                        color: 'white', px: 3, py: 1.5, borderRadius: '12px'
-                      }}
-                      startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Play size={16} />}
-                    >
-                      {submitting ? 'Running...' : 'Run'}
-                    </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+                    {/* --- Organized Left Side: Back + Action Buttons --- */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Button
+                        onClick={() => navigate('/dashboard')}
+                        startIcon={<ArrowLeft size={18} />}
+                        sx={{
+                          color: '#fff',
+                          fontWeight: 'bold',
+                          px: 5.5,
+                          py: 1.5,
+                          borderRadius: '12px',
+                          background: 'linear-gradient(90deg, #7b1fa2 0%, #f50057 100%)',
+                          boxShadow: '0 2px 8px rgba(123,31,162,0.20)',
+                          fontSize: '1rem',
+                          letterSpacing: '0.03em',
+                          textTransform: 'none',
+                          '&:hover': {
+                            background: 'linear-gradient(90deg, #f50057 0%, #7b1fa2 100%)',
+                            color: '#fff',
+                            boxShadow: '0 4px 16px rgba(123,31,162,0.30)'
+                          }
+                        }}>
+                        Back to Dashboard
+                      </Button>
+              <Button
+                           onClick={runSampleTestCases}
+                           disabled={submitting || !challenge}
+                           variant="contained"
+                           sx={{
+                             background: 'linear-gradient(90deg,#2196f3 0%, #1769aa 100%)',
+                             color: '#fff',
+                             fontWeight: 'bold',
+                             px: 3.5,
+                             py: 1.5,
+                             borderRadius: '12px',
+                             fontSize: '1rem',
+                             boxShadow: '0 2px 8px rgba(33,150,243,0.16)',
+                             textTransform: 'none',
+                             '&:hover': {
+                               background: 'linear-gradient(90deg,#1769aa 0%, #2196f3 100%)',
+                               color: '#fff'
+                             }
+                           }}
+                           startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Play size={18} />}
+                         >
+                           {submitting ? 'Running...' : 'Run'}
+                         </Button>
                     {/* --- Submit Button (verdict only) --- */}
                     <Button
-                      onClick={submitSolutionWithVerdictOnly}
-                      disabled={submitting || !challenge}
-                      variant="contained"
-                      sx={{
-                        background: 'linear-gradient(45deg, #4caf50 30%, #8bc34a 90%)',
-                        '&:hover': { background: 'linear-gradient(45deg, #66bb6a 30%, #aed581 90%)' },
-                        color: 'white', px: 3, py: 1.5, borderRadius: '12px'
-                      }}
-                      startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircle size={16} />}
-                    >
-                      {submitting ? 'Submitting...' : 'Submit'}
-                    </Button>
-              <Box sx={{ height: 24, width: 1, backgroundColor: '#7b1fa280' }} />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box
-                  sx={{
-                    p: 1,
-                    background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
-                    borderRadius: '8px',
-                  }}
-                >
-                  <Code size={20} color="white" />
-                </Box>
-                <Box>
-                  <Typography
-                    variant="h6"
-                    component="h1"
-                    sx={{
-                      fontWeight: 'bold',
-                      background: 'linear-gradient(to right, #a0d8ff, #ff80ab)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                    }}
-                  >
-                    CodeArena
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#aaa' }}>
-                    {challenge?.title || 'Loading Challenge...'}
-                  </Typography>
-                </Box>
-              </Box>
+                                 onClick={submitSolution}
+                                 disabled={submitting || !challenge}
+                                 variant="contained"
+                                 sx={{
+                                   background: 'linear-gradient(90deg,#4caf50 0%, #1b5e20 100%)',
+                                   color: '#fff',
+                                   fontWeight: 'bold',
+                                   px: 4.5,
+                                   py: 1.5,
+                                   borderRadius: '12px',
+                                   fontSize: '1rem',
+                                   boxShadow: '0 2px 8px rgba(76,175,80,0.16)',
+                                   textTransform: 'none',
+                                   '&:hover': {
+                                     background: 'linear-gradient(90deg,#1b5e20 0%, #4caf50 100%)',
+                                     color: '#fff'
+                                   }
+                                 }}
+                                 startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircle size={18} />}
+                               >
+                                 {submitting ? 'Submitting...' : 'Submit'}
+                               </Button>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                         <Box
+                           sx={{
+                             p: 1,
+                             background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
+                             borderRadius: '8px',
+                             display: 'flex',
+                             alignItems: 'center',
+                             justifyContent: 'center'
+                           }}
+                         >
+                           <Code size={24} color="white" />
+                         </Box>
+               <Box>
+                            <Typography
+                              variant="h6"
+                              component="h1"
+                              sx={{
+                                fontWeight: 'bold',
+                                background: 'linear-gradient(to right, #a0d8ff, #ff80ab)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                fontSize: '1.3rem'
+                              }}
+                            >
+                              CodeArena
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#aaa', fontWeight: 600 }}>
+                              {challenge?.title || 'Loading Challenge...'}
+                            </Typography>
+                          </Box>
+                        </Box>
             </Box>
     {submissionResult && (
           <Box sx={{
@@ -776,98 +822,177 @@ const submitSolution = async () => {
               </>
             )}
             {/* --- Submit Results: Only verdict and summary --- */}
-            {submissionResult.type === "submit" && (
-              <Box sx={{
-                p: 3, borderRadius: '16px', textAlign: 'center', fontWeight: 'bold',
-                background: submissionResult.allPassed ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
-                color: submissionResult.allPassed ? '#4caf50' : '#f44336',
-                fontSize: '1.5rem', border: `2px solid ${submissionResult.allPassed ? '#4caf50' : '#f44336'}`
-              }}>
-                {submissionResult.verdict}
-                <Typography variant="subtitle2" sx={{ color: "#888", mt: 1 }}>
-                  {submissionResult.passedTestCases}/{submissionResult.totalTestCases} test cases passed
-                </Typography>
-                <Typography variant="body2" sx={{ color: "#ccc", mt: 2 }}>
-                  {submissionResult.allPassed
-                    ? "All test cases (including hidden) passed! 🎉"
-                    : "Some test cases (including hidden) failed."}
-                </Typography>
-              </Box>
-            )}
+           {/* --- Submit Results: Only verdict and summary --- */}
+           {submissionResult.type === "submit" && (
+             <Box sx={{
+               mt: 2,
+               mb: 2,
+               width: '100%',
+               maxWidth: 700,
+               mx: 'auto',
+               background: '#232335',
+               boxShadow: '0 6px 24px rgba(0,0,0,0.16)',
+               borderRadius: '18px',
+               border: '1px solid #333',
+               p: 3
+             }}>
+               {/* Verdict Banner */}
+               <Box sx={{
+                 mb: 3,
+                 display: 'flex',
+                 alignItems: 'center',
+                 justifyContent: 'center',
+                 gap: 2,
+                 py: 2,
+                 background: submissionResult.allPassed ? 'rgba(76,175,80,0.10)' : 'rgba(244,67,54,0.10)',
+                 borderRadius: '12px',
+                 border: `2px solid ${submissionResult.allPassed ? '#4caf50' : '#f44336'}`,
+                 color: submissionResult.allPassed ? '#4caf50' : '#f44336'
+               }}>
+                 {submissionResult.allPassed
+                   ? <CheckCircle size={28} style={{ color: '#4caf50' }} />
+                   : <XCircle size={28} style={{ color: '#f44336' }} />}
+                 <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.25rem' }}>
+                   {submissionResult.allPassed ? "All Tests Passed!" : "Some Tests Failed"}
+                 </Typography>
+                 <Typography variant="body2" sx={{ color: '#ccc', ml: 2 }}>
+                   {submissionResult.passedTestCases}/{submissionResult.totalTestCases} passed
+                 </Typography>
+               </Box>
+               {/* Individual Test Cases - Show ALL from backend */}
+               {Array.isArray(submissionResult?.results) && submissionResult.results.map((res, idx) => (
+                 <Paper key={idx} sx={{
+                   p: 2,
+                   mb: 2,
+                   borderRadius: '12px',
+                   background: '#20202a',
+                   border: res.passed ? '2px solid #4caf50' : '2px solid #f44336'
+                 }}>
+                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                       Test Case {idx + 1} {res.visible ? '(Sample)' : '(Hidden)'}
+                     </Typography>
+                     {res.passed
+                       ? <CheckCircle size={20} style={{ color: '#4caf50' }} />
+                       : <XCircle size={20} style={{ color: '#f44336' }} />}
+                   </Box>
+                   <Grid container spacing={2}>
+                     <Grid item xs={12} sm={4}>
+                       <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>Input:</Typography>
+                       <Box component="pre" sx={{
+                         backgroundColor: '#181828', p: 1, borderRadius: '8px', color: '#fff', fontFamily: 'monospace', fontSize: '0.95em'
+                       }}>{res.input}</Box>
+                     </Grid>
+                     <Grid item xs={12} sm={4}>
+                       <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>Expected Output:</Typography>
+                       <Box component="pre" sx={{
+                         backgroundColor: '#181828', p: 1, borderRadius: '8px', color: '#2196f3', fontFamily: 'monospace', fontSize: '0.95em'
+                       }}>{res.expectedOutput}</Box>
+                     </Grid>
+                     <Grid item xs={12} sm={4}>
+                       <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>Your Output:</Typography>
+                       <Box component="pre" sx={{
+                         backgroundColor: '#181828', p: 1, borderRadius: '8px', color: res.passed ? '#4caf50' : '#f44336', fontFamily: 'monospace', fontSize: '0.95em'
+                       }}>{res.actualOutput}</Box>
+                       {!res.passed && res.error && (
+                         <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
+                           Error: {res.error}
+                         </Typography>
+                       )}
+                     </Grid>
+                   </Grid>
+                 </Paper>
+               ))}
+             </Box>
+           )}
           </Box>
         )}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {challenge && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Paper
-                    sx={{
-                      px: 1.5,
-                      py: 0.75,
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      border: '1px solid',
-                      backgroundColor:
-                        selectedDifficulty === 'easy'
-                          ? '#4caf5020'
-                          : selectedDifficulty === 'medium'
-                          ? '#ff980020'
-                          : '#f4433620',
-                      borderColor:
-                        selectedDifficulty === 'easy'
-                          ? '#4caf5050'
-                          : selectedDifficulty === 'medium'
-                          ? '#ff980050'
-                          : '#f4433650',
-                      color:
-                        selectedDifficulty === 'easy'
-                          ? '#a5d6a7'
-                          : selectedDifficulty === 'medium'
-                          ? '#ffcc80'
-                          : '#ef9a9a',
-                    }}
-                  >
-                    {selectedDifficulty.toUpperCase()}
-                  </Paper>
-                  <Paper
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      px: 1.5,
-                      py: 0.75,
-                      backgroundColor: '#333',
-                      border: '1px solid #555',
-                      borderRadius: '8px',
-                    }}
-                  >
-                    <Clock size={16} style={{ color: '#90caf9' }} />
-                    <Typography variant="body2" sx={{ color: '#ccc' }}>
-                      {challenge.timeLimitMs}ms
-                    </Typography>
-                    <Box sx={{ width: 1, height: 16, backgroundColor: '#555' }} />
-                    <Database size={16} style={{ color: '#a5d6a7' }} />
-                    <Typography variant="body2" sx={{ color: '#ccc' }}>
-                      {challenge.memoryLimitKb}KB
-                    </Typography>
-                  </Paper>
-                </Box>
+                       {challenge && (
+                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                           <Paper
+                             sx={{
+                               px: 1.5,
+                               py: 0.75,
+                               borderRadius: '8px',
+                               fontSize: '0.75rem',
+                               fontWeight: 'bold',
+                               border: '1px solid',
+                               backgroundColor:
+                                 selectedDifficulty === 'easy'
+                                   ? '#4caf5020'
+                                   : selectedDifficulty === 'medium'
+                                   ? '#ff980020'
+                                   : '#f4433620',
+                               borderColor:
+                                 selectedDifficulty === 'easy'
+                                   ? '#4caf5050'
+                                   : selectedDifficulty === 'medium'
+                                   ? '#ff980050'
+                                   : '#f4433650',
+                               color:
+                                 selectedDifficulty === 'easy'
+                                   ? '#a5d6a7'
+                                   : selectedDifficulty === 'medium'
+                                   ? '#ffcc80'
+                                   : '#ef9a9a',
+                               minWidth: 85,
+                               textAlign: 'center',
+                             }}
+                           >
+                             {selectedDifficulty.toUpperCase()}
+                           </Paper>
+                           <Paper
+                             sx={{
+                               display: 'flex',
+                               alignItems: 'center',
+                               gap: 1.5,
+                               px: 1.5,
+                               py: 0.75,
+                               backgroundColor: '#333',
+                               border: '1px solid #555',
+                               borderRadius: '8px',
+                               fontWeight: 500,
+                             }}
+                           >
+                             <Clock size={16} style={{ color: '#90caf9' }} />
+                             <Typography variant="body2" sx={{ color: '#ccc', fontWeight: 500 }}>
+                               {challenge.timeLimitMs}ms
+                             </Typography>
+                             <Box sx={{ width: 1, height: 16, backgroundColor: '#555' }} />
+                             <Database size={16} style={{ color: '#a5d6a7' }} />
+                             <Typography variant="body2" sx={{ color: '#ccc', fontWeight: 500 }}>
+                               {challenge.memoryLimitKb}KB
+                             </Typography>
+                           </Paper>
+                         </Box>
+
               )}
-              <Box
-                component="img"
-                src="https://avatars.githubusercontent.com/u/9919?v=4"
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: '50%',
-                  border: '2px solid #7b1fa2',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                }}
-                alt="avatar"
-              />
-            </Box>
-          </Box>
-        </Box>
+             <Box
+                           sx={{
+                             display: 'flex',
+                             alignItems: 'center',
+                             gap: 1,
+                             pl: 2
+                           }}
+                         >
+                           <Box
+                             component="img"
+                             src="https://avatars.githubusercontent.com/u/9919?v=4"
+                             sx={{
+                               width: 42,
+                               height: 42,
+                               borderRadius: '50%',
+                               border: '2px solid #7b1fa2',
+                               boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                               ml: 1
+                             }}
+                             alt="avatar"
+                           />
+                         </Box>
+                       </Box>
+                     </Box>
+                   </Box>
 
         <Box
           id="main-container"
@@ -877,6 +1002,7 @@ const submitSolution = async () => {
             boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
             border: '1px solid rgba(45, 45, 45, 0.5)',
             overflow: 'hidden',
+
             height: isFullscreen ? 'calc(100vh - 80px)' : '85vh',
             backgroundColor: 'rgba(25, 25, 25, 0.8)',
             backdropFilter: 'blur(4px)',
@@ -888,6 +1014,7 @@ const submitSolution = async () => {
               width: paneWidth ? `${paneWidth}%` : '45%',
               height: '100%',
               overflowY: 'auto',
+
               background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
               borderRight: '1px solid #444',
             }}
@@ -899,7 +1026,7 @@ const submitSolution = async () => {
                 background: 'rgba(25, 25, 25, 0.9)',
                 backdropFilter: 'blur(8px)',
                 borderBottom: '1px solid #444',
-                px: 3,
+                px: 3.5,
                 py: 1.5,
                 zIndex: 10,
               }}
@@ -1068,6 +1195,7 @@ const submitSolution = async () => {
                       sx={{
                         backgroundColor: '#333',
                         color: 'white',
+                        fontWeight: 'bold',
                         '& .MuiSelect-icon': { color: 'white' },
                         '&:hover fieldset': { borderColor: '#7b1fa2 !important' },
                         '&.Mui-focused fieldset': { borderColor: '#7b1fa2 !important' },
@@ -1094,6 +1222,7 @@ const submitSolution = async () => {
                       sx={{
                         backgroundColor: '#333',
                         color: 'white',
+                        fontWeight: 'bold',
                         '& .MuiSelect-icon': { color: 'white' },
                         '&:hover fieldset': { borderColor: '#7b1fa2 !important' },
                         '&.Mui-focused fieldset': { borderColor: '#7b1fa2 !important' },
@@ -1113,6 +1242,7 @@ const submitSolution = async () => {
                       sx={{
                         backgroundColor: '#333',
                         color: 'white',
+                        fontWeight: 'bold',
                         '& .MuiSelect-icon': { color: 'white' },
                         '&:hover fieldset': { borderColor: '#7b1fa2 !important' },
                         '&.Mui-focused fieldset': { borderColor: '#7b1fa2 !important' },
@@ -1147,7 +1277,8 @@ const submitSolution = async () => {
                         background: 'linear-gradient(45deg, #66bb6a 30%, #aed581 90%)',
                       },
                       color: 'white',
-                      px: 3,
+                      fontWeight: 'bold',
+                      px: 4,
                       py: 1.5,
                       borderRadius: '12px',
                     }}
