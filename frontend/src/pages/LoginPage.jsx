@@ -166,7 +166,7 @@ function LoginPage() {
       console.log('Login successful:', data);
 
       // Store the JWT token and user info in localStorage
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('authToken', data.token);
 
       // Store user info (expects data.user to contain id, name, email, etc.)
       if (data.user && data.user.id) {

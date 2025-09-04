@@ -34,6 +34,7 @@ public class AICodingChallengeController {
         CodingChallengeDto challenge = aiGenerator.generateChallenge(request.getTopics(), request.getDifficulty());
         CodingChallenge model = codingChallengeRepository.save(challenge.toModel()); // Your mapping here
         challenge.setId(model.getId());
+        System.out.println("Generated challenge id: " + challenge.getId());
         return challenge;
     }
 }

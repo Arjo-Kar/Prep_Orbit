@@ -108,17 +108,14 @@ const MonacoLoader = ({ onMonacoReady, language, value, theme, options, onChange
     };
   }, []);
 
-  useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.setValue(value);
-    }
-  }, [value, editorRef.current]);
+  // Removed the effect that sets editor value on every value change.
+  // Only update the value via explicit handler (e.g. language change or reset).
 
   useEffect(() => {
     if (editorRef.current) {
       window.monaco.editor.setTheme(theme);
     }
-  }, [theme, editorRef.current]);
+  }, [theme]);
 
   return <Box ref={containerRef} sx={{ width: '100%', height: '100%' }} />;
 };
@@ -328,16 +325,44 @@ int main() {
   const fetchChallenge = async (challengeId) => {
     setLoading(true);
     setErrorMessage(null);
-    await new Promise(resolve => setTimeout(resolve, 800));
     try {
-      const challengeData = mockChallenges[challengeId];
-      if (challengeData) {
-        setChallenge(challengeData);
-        setSubmissionResult(null);
-        setCode(languageConfigs[selectedLanguage].template);
-      } else {
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(
+        `http://localhost:8080/api/coding/challenge/${challengeId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+      if (!response.ok) {
         throw new Error("Challenge not found.");
       }
+      const data = await response.json();
+
+      // Normalize challenge data for the frontend
+      const challengeData = {
+        id: data.id,
+        title: data.title,
+        description: data.problem_statement || data.description,
+        inputSpec: data.input_specification || data.inputSpec,
+        outputSpec: data.output_specification || data.outputSpec,
+        timeLimitMs: data.timeLimitMs && data.timeLimitMs > 0 ? data.timeLimitMs : 1000,
+        memoryLimitKb: data.memoryLimitKb && data.memoryLimitKb > 0 ? data.memoryLimitKb : 256000,
+        visibleTestCases: Array.isArray(data.test_cases)
+          ? data.test_cases.filter(tc => tc.visible !== false).map(tc => ({
+              input: tc.input,
+              expectedOutput: tc.expected_output
+            }))
+          : [],
+        difficulty: data.difficulty || 'medium',
+        topics: data.topics || [],
+      };
+
+      setChallenge(challengeData);
+      setSubmissionResult(null);
+      setCode(languageConfigs[selectedLanguage].template);
     } catch (error) {
       setErrorMessage('Failed to load challenge. Please try again.');
     } finally {
@@ -345,21 +370,63 @@ int main() {
     }
   };
 
-  const submitSolution = async () => {
-    if (!challenge || !code.trim()) {
-      setErrorMessage('Please write some code before submitting.');
-      return;
-    }
-    if (!authToken) {
-      setErrorMessage('Authentication token not found. Please log in.');
-      return;
-    }
+const submitSolution = async () => {
+  if (!challenge || !code || typeof code !== 'string' || !code.trim()) {
+    setErrorMessage('Please write some code before submitting.');
+    setSubmissionResult(null);
+    return;
+  }
+  const languageId = languageConfigs[selectedLanguage]?.id;
+  if (!languageId || typeof languageId !== 'number' || languageId <= 0) {
+    setErrorMessage('Please select a valid programming language.');
+    setSubmissionResult(null);
+    return;
+  }
+  const authToken = localStorage.getItem('authToken');
+  if (!authToken) {
+    setErrorMessage('Authentication token not found. Please log in.');
+    setSubmissionResult(null);
+    return;
+  }
 
-    setSubmitting(true);
-    setErrorMessage(null);
+  setSubmitting(true);
+  setErrorMessage(null);
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    try {
+  try {
+    // For backend challenges: numeric id
+    if (typeof challenge.id === 'number') {
+      const response = await fetch(
+        `http://localhost:8080/api/coding/challenge/${challenge.id}/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+           source_code: code,
+             language_id: languageId,
+             stdin: ""
+          })
+        }
+      );
+
+      if (!response.ok) {
+        // Try to get error details from backend
+        let errorMessageText = 'Failed to submit solution.';
+        try {
+          const errorBody = await response.text();
+          errorMessageText = errorBody || errorMessageText;
+        } catch {}
+        setErrorMessage(errorMessageText);
+        setSubmissionResult(null);
+        return;
+      }
+
+      const result = await response.json();
+      setSubmissionResult(result);
+    } else {
+      // Mock challenge logic for challenge-1 and challenge-2
       const results = challenge.visibleTestCases.map(testCase => {
         let actualOutput = "MockOutput";
         let passed = false;
@@ -394,13 +461,14 @@ int main() {
         totalTestCases,
         results
       });
-    } catch (error) {
-      setErrorMessage("Failed to submit solution. Please try again.");
-    } finally {
-      setSubmitting(false);
     }
-  };
-
+  } catch (error) {
+    setErrorMessage("Failed to submit solution. Please try again.");
+    setSubmissionResult(null);
+  } finally {
+    setSubmitting(false);
+  }
+};
   const handleLanguageChange = (newLanguage) => {
     setSelectedLanguage(newLanguage);
     setCode(languageConfigs[newLanguage].template);
@@ -451,6 +519,107 @@ int main() {
           window.removeEventListener('resize', handleResize);
       };
   }, []);
+  const runSampleTestCases = async () => {
+    if (!challenge || !code.trim()) {
+      setErrorMessage('Please write some code before running.');
+      return;
+    }
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      setErrorMessage('Authentication token not found. Please log in.');
+      return;
+    }
+    setSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const languageId = languageConfigs[selectedLanguage].id;
+      const response = await fetch(
+        `http://localhost:8080/api/coding/challenge/${challenge.id}/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+                source_code: code,
+             language_id: languageId,
+             stdin: ""
+          })
+        }
+      );
+      if (!response.ok) {
+        throw new Error('Failed to run sample test cases.');
+      }
+      const result = await response.json();
+      // Filter visible test cases only
+      const visibleResults = result.results.filter(tc => tc.visible);
+      const passedSample = visibleResults.filter(tc => tc.passed).length;
+      const allSamplePassed = passedSample === visibleResults.length;
+
+      setSubmissionResult({
+        verdict: allSamplePassed ? "All Sample Passed" : "Some Sample Failed",
+        sampleResults: visibleResults,
+        totalSample: visibleResults.length,
+        passedSample,
+        type: "run"
+      });
+    } catch (error) {
+      setErrorMessage("Failed to run sample test cases.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitSolutionWithVerdictOnly = async () => {
+    if (!challenge || !code.trim()) {
+      setErrorMessage('Please write some code before submitting.');
+      return;
+    }
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      setErrorMessage('Authentication token not found. Please log in.');
+      return;
+    }
+    setSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const languageId = languageConfigs[selectedLanguage].id;
+      const response = await fetch(
+        `http://localhost:8080/api/coding/challenge/${challenge.id}/submit`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            source_code: code,
+              language_id: languageId,
+              stdin: ""
+          })
+        }
+      );
+      if (!response.ok) {
+        throw new Error('Failed to submit solution.');
+      }
+      const result = await response.json();
+      setSubmissionResult({
+        verdict: result.allPassed ? "Accepted" : "Wrong Answer",
+        allPassed: result.allPassed,
+        totalTestCases: result.totalTestCases,
+        passedTestCases: result.passedTestCases,
+        type: "submit"
+      });
+    } catch (error) {
+      setErrorMessage("Failed to submit solution. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -485,6 +654,33 @@ int main() {
               >
                 Back to Dashboard
               </Button>
+               <Button
+                      onClick={runSampleTestCases}
+                      disabled={submitting || !challenge}
+                      variant="contained"
+                      sx={{
+                        background: 'linear-gradient(45deg, #2196f3 30%, #64b5f6 90%)',
+                        '&:hover': { background: 'linear-gradient(45deg, #42a5f5 30%, #90caf9 90%)' },
+                        color: 'white', px: 3, py: 1.5, borderRadius: '12px'
+                      }}
+                      startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Play size={16} />}
+                    >
+                      {submitting ? 'Running...' : 'Run'}
+                    </Button>
+                    {/* --- Submit Button (verdict only) --- */}
+                    <Button
+                      onClick={submitSolutionWithVerdictOnly}
+                      disabled={submitting || !challenge}
+                      variant="contained"
+                      sx={{
+                        background: 'linear-gradient(45deg, #4caf50 30%, #8bc34a 90%)',
+                        '&:hover': { background: 'linear-gradient(45deg, #66bb6a 30%, #aed581 90%)' },
+                        color: 'white', px: 3, py: 1.5, borderRadius: '12px'
+                      }}
+                      startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircle size={16} />}
+                    >
+                      {submitting ? 'Submitting...' : 'Submit'}
+                    </Button>
               <Box sx={{ height: 24, width: 1, backgroundColor: '#7b1fa280' }} />
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Box
@@ -515,7 +711,91 @@ int main() {
                 </Box>
               </Box>
             </Box>
-
+    {submissionResult && (
+          <Box sx={{
+            borderTop: '1px solid #444',
+            background: 'linear-gradient(90deg, #1c1c1c 0%, #2d2d2d 100%)',
+            backdropFilter: 'blur(8px)',
+            py: 3, px: 2,
+            maxHeight: 400,
+            overflowY: 'auto',
+            transition: 'max-height 0.3s'
+          }}>
+            {/* --- Run Results: Show all visible test cases --- */}
+            {submissionResult.type === "run" && (
+              <>
+                <Box sx={{
+                  mb: 3, p: 2, borderRadius: '12px', textAlign: 'center', fontWeight: 'bold',
+                  background: submissionResult.passedSample === submissionResult.totalSample ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
+                  color: submissionResult.passedSample === submissionResult.totalSample ? '#4caf50' : '#f44336',
+                  fontSize: '1.15rem', border: `2px solid ${submissionResult.passedSample === submissionResult.totalSample ? '#4caf50' : '#f44336'}`
+                }}>
+                  {submissionResult.verdict}
+                </Box>
+                {submissionResult.sampleResults.map((tc, i) => (
+                  <Paper key={i} sx={{
+                    p: 2, mb: 2, borderRadius: '10px', border: '2px solid',
+                    borderColor: tc.passed ? '#4caf50' : '#f44336',
+                    background: tc.passed ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)'
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
+                        Sample Test Case {i + 1}
+                      </Typography>
+                      {tc.passed
+                        ? <Typography sx={{ color: '#4caf50', fontWeight: 'bold' }}>Passed</Typography>
+                        : <Typography sx={{ color: '#f44336', fontWeight: 'bold' }}>Failed</Typography>}
+                    </Box>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={4}>
+                        <Typography sx={{ fontWeight: 'bold', color: '#999' }}>Input:</Typography>
+                        <Box component="pre" sx={{
+                          backgroundColor: '#222', p: 1, borderRadius: '6px', color: '#fff', fontFamily: 'monospace'
+                        }}>{tc.input}</Box>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography sx={{ fontWeight: 'bold', color: '#999' }}>Expected Output:</Typography>
+                        <Box component="pre" sx={{
+                          backgroundColor: '#222', p: 1, borderRadius: '6px', color: '#2196f3', fontFamily: 'monospace'
+                        }}>{tc.expectedOutput}</Box>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography sx={{ fontWeight: 'bold', color: '#999' }}>Your Output:</Typography>
+                        <Box component="pre" sx={{
+                          backgroundColor: '#222', p: 1, borderRadius: '6px', color: tc.passed ? '#4caf50' : '#f44336', fontFamily: 'monospace'
+                        }}>{tc.actualOutput}</Box>
+                        {!tc.passed && tc.error && (
+                          <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
+                            Error: {tc.error}
+                          </Typography>
+                        )}
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                ))}
+              </>
+            )}
+            {/* --- Submit Results: Only verdict and summary --- */}
+            {submissionResult.type === "submit" && (
+              <Box sx={{
+                p: 3, borderRadius: '16px', textAlign: 'center', fontWeight: 'bold',
+                background: submissionResult.allPassed ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
+                color: submissionResult.allPassed ? '#4caf50' : '#f44336',
+                fontSize: '1.5rem', border: `2px solid ${submissionResult.allPassed ? '#4caf50' : '#f44336'}`
+              }}>
+                {submissionResult.verdict}
+                <Typography variant="subtitle2" sx={{ color: "#888", mt: 1 }}>
+                  {submissionResult.passedTestCases}/{submissionResult.totalTestCases} test cases passed
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#ccc", mt: 2 }}>
+                  {submissionResult.allPassed
+                    ? "All test cases (including hidden) passed! 🎉"
+                    : "Some test cases (including hidden) failed."}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               {challenge && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -958,7 +1238,7 @@ int main() {
                   </IconButton>
                 </Box>
                 <Box sx={{ p: 2, overflowY: 'auto', maxHeight: 256, spaceY: 2 }}>
-                  {submissionResult.results.map((res, i) => (
+                  {Array.isArray(submissionResult?.results) && submissionResult.results.map((res, i) => (
                     <Paper key={i} sx={{ p: 2, mb: 2, border: '1px solid', borderColor: res.passed ? '#a5d6a7' : '#ef9a9a', background: res.passed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 'semibold' }}>

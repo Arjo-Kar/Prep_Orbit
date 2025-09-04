@@ -37,8 +37,12 @@ public class CodingChallengeService {
             CodingChallengeDto.TestCaseDto dto = new CodingChallengeDto.TestCaseDto();
             dto.setInput(tc.getInput());
             dto.setExpectedOutput(tc.getExpectedOutput());
+            dto.setVisible(tc.isVisible());
             return dto;
         }).collect(Collectors.toList());
+
+        // Ensure at least 2 visible test cases
+
 
         CodingChallengeDto dto = new CodingChallengeDto();
         dto.setId(challenge.getId());
@@ -48,6 +52,8 @@ public class CodingChallengeService {
         dto.setMemoryLimitKb(challenge.getMemoryLimitKb());
         dto.setInputSpec(challenge.getInputSpec());
         dto.setOutputSpec(challenge.getOutputSpec());
+        dto.setTopics((challenge.getTopics() != null && !challenge.getTopics().isEmpty()) ? challenge.getTopics() : List.of("arrays", "strings"));
+        dto.setDifficulty((challenge.getDifficulty() != null && !challenge.getDifficulty().isEmpty()) ? challenge.getDifficulty() : "medium");
         dto.setVisibleTestCases(visibleTestCases);
 
         return dto;

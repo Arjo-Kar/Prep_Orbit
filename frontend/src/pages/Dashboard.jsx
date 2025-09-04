@@ -175,20 +175,27 @@ function Dashboard() {
     loadDailyChallenge();
   }, []);
 
-  // Load daily coding challenge
+  // Load daily coding challenge, with error handling and id check
   const loadDailyChallenge = async () => {
     try {
       setLoadingChallenge(true);
+      setMessage("");
       const authToken = localStorage.getItem("token");
       if (!authToken) {
-        console.error("Authentication token not found. Please log in.");
+        setMessage("Authentication token not found. Please log in.");
+        setDailyChallenge(null);
         return;
       }
-
       const challenge = await CodingChallengeAPI.generateChallenge(['arrays', 'strings'], 'medium', authToken);
+      if (!challenge || !challenge.id) {
+        setMessage("Failed to load daily challenge. Please try again later.");
+        setDailyChallenge(null);
+        return;
+      }
       setDailyChallenge(challenge);
     } catch (error) {
-      console.error('Error loading daily challenge:', error);
+      setMessage('Error loading daily challenge: ' + (error.message || error));
+      setDailyChallenge(null);
     } finally {
       setLoadingChallenge(false);
     }
@@ -252,7 +259,7 @@ function Dashboard() {
     navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
   };
 
-  // Handle coding challenge navigation
+  // Handle coding challenge navigation (use id param for route)
   const startCodingChallenge = (challengeId = null) => {
     if (challengeId) {
       navigate(`/coding-challenge/${challengeId}`);
@@ -458,7 +465,8 @@ function Dashboard() {
                           variant="contained"
                           startIcon={<Play />}
                           fullWidth
-                          onClick={() => startCodingChallenge(dailyChallenge.id)}
+                          onClick={() => dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)}
+                          disabled={!dailyChallenge || !dailyChallenge.id}
                           sx={{
                             py: 1.5,
                             background: 'linear-gradient(45deg, #4caf50, #8bc34a)',

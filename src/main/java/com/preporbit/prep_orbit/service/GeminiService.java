@@ -22,6 +22,8 @@ public class GeminiService {
                             "gemini-2.5-flash",
                             prompt,
                             null);
+            System.out.println("RAW Gemini output:");
+            System.out.println(response.text());
 
             return response.text();
         } catch (ServerException e) {

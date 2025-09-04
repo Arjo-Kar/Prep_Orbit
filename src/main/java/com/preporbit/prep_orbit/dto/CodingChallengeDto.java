@@ -73,9 +73,8 @@ public class CodingChallengeDto {
         model.setMemoryLimitKb(this.memoryLimitKb);
         model.setInputSpec(this.inputSpec);
         model.setOutputSpec(this.outputSpec);
-        model.setTopics(this.topics);
-        model.setDifficulty(this.difficulty);
-
+        model.setTopics(this.topics != null && !this.topics.isEmpty() ? this.topics : List.of("arrays", "strings"));
+        model.setDifficulty(this.difficulty != null && !this.difficulty.isEmpty() ? this.difficulty : "medium");
         // Convert visibleTestCases to entity test cases
         if (this.visibleTestCases != null) {
             List<ChallengeTestCase> testCases = new ArrayList<>();
@@ -95,13 +94,19 @@ public class CodingChallengeDto {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class TestCaseDto {
+        public TestCaseDto(){}
+        public TestCaseDto(String input, String expectedOutput, boolean visible) {
+            this.input = input;
+            this.expectedOutput = expectedOutput;
+            this.visible = visible;
+        }
         @JsonProperty("input")
         private Object input; // Instead of String
 
         @JsonProperty("expected_output")
         private Object expectedOutput;
 
-        @JsonProperty("is_visible")
+        @JsonProperty("visible") // <-- FIXED: should match Gemini output!
         private boolean visible;
 
         public String getInput() {

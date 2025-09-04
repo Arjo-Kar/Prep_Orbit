@@ -9,4 +9,6 @@ public interface CodingChallengeRepository extends JpaRepository<CodingChallenge
     List<CodingChallenge> findByDifficulty(String difficulty);
     List<CodingChallenge> findByTitleContainingIgnoreCase(String keyword);
     // You can add custom query methods if needed
+
+
 }

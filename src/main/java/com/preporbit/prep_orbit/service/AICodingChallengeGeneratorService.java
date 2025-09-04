@@ -48,11 +48,36 @@ public class AICodingChallengeGeneratorService {
     }
 
     private String buildPrompt(List<String> topics, String difficulty) {
-        return "Generate a coding challenge in JSON format with the following requirements:\n"
-                + "- Topics: " + String.join(", ", topics) + "\n"
-                + "- Difficulty: " + difficulty + "\n"
-                + "- Include: problem statement, constraints (time/memory), input specification, output specification, "
-                + "and 5 test cases (2 visible, 3 hidden), each with input and expected output and a visible boolean for each test case.\n"
-                + "Return only valid JSON for direct deserialization.";
+        return "Generate an interview standard coding challenge in JSON format with the following requirements:\n"
+                + "- \"title\": string\n"
+                + "- \"difficulty\": string; must be one of \"easy\", \"medium\", \"hard\"; this field must always be present\n"
+                + "- \"topics\": array of strings; must be present and non-empty\n"
+                + "- \"problem_statement\": string; clear description\n"
+                + "- \"constraints\": array of strings\n"
+                + "- \"input_specification\": PLAIN string; do not use object or array; this field must always be present\n"
+                + "- \"output_specification\": PLAIN string; do not use object or array; this field must always be present\n"
+                + "- \"test_cases\": array of 5 objects; each object must have:\n"
+                + "    - \"input\": string\n"
+                + "    - \"expected_output\": string\n"
+                + "    - \"visible\": boolean (true/false; first 2 should be true, last 3 false)\n"
+                + "Do NOT include any markdown, comments, code blocks, or extra text before or after the JSON.\n"
+                + "Return ONLY valid JSON, with all fields populated and NO null or missing fields.\n"
+                + "Example format:\n"
+                + "{\n"
+                + "  \"title\": \"Sample Challenge\",\n"
+                + "  \"difficulty\": \"medium\",\n"
+                + "  \"topics\": [\"arrays\", \"strings\"],\n"
+                + "  \"problem_statement\": \"...\",\n"
+                + "  \"constraints\": [\"...\", \"...\"],\n"
+                + "  \"input_specification\": \"...\",\n"
+                + "  \"output_specification\": \"...\",\n"
+                + "  \"test_cases\": [\n"
+                + "    {\"input\": \"input1\", \"expected_output\": \"output1\", \"visible\": true},\n"
+                + "    {\"input\": \"input2\", \"expected_output\": \"output2\", \"visible\": true},\n"
+                + "    {\"input\": \"input3\", \"expected_output\": \"output3\", \"visible\": false},\n"
+                + "    {\"input\": \"input4\", \"expected_output\": \"output4\", \"visible\": false},\n"
+                + "    {\"input\": \"input5\", \"expected_output\": \"output5\", \"visible\": false}\n"
+                + "  ]\n"
+                + "}\n";
     }
 }
