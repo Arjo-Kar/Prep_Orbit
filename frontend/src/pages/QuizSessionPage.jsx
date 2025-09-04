@@ -216,7 +216,6 @@ const QuizSessionPage = () => {
       setConfirmDialog(true);
       return;
     }
-
     performSubmit();
   };
 
@@ -227,25 +226,11 @@ const QuizSessionPage = () => {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("User not authenticated");
 
-      // Format answers for backend
-      const formattedAnswers = quizData.questions
-        .map((question) => {
-          const userAnswer = answers[question.id];
-          let answerLetter = '';
-          if (userAnswer) {
-            const match = userAnswer.match(/^([A-D])\)/);
-            if (match) {
-              answerLetter = match[1];
-            } else if (["A", "B", "C", "D"].includes(userAnswer)) {
-              answerLetter = userAnswer;
-            }
-          }
-          return {
-            questionId: question.id,
-            userAnswer: answerLetter
-          };
-        })
-        .filter(answer => answer.userAnswer !== '');
+      // Format answers for backend: send only letter value
+      const formattedAnswers = quizData.questions.map((question, i) => ({
+        questionId: question.id,
+        userAnswer: answers[question.id] || ''
+      }));
 
       const requestBody = { answers: formattedAnswers };
 
@@ -260,7 +245,6 @@ const QuizSessionPage = () => {
 
       if (!response.ok) {
         let errorMessage = `Failed to submit quiz: ${response.status} ${response.statusText}`;
-
         try {
           const errorData = await response.json();
           if (errorData.message) {
@@ -276,7 +260,6 @@ const QuizSessionPage = () => {
             }
           } catch {}
         }
-
         if (response.status === 403) {
           errorMessage = "Access denied. You may not be authorized to submit this quiz, or your session may have expired. Please try logging in again.";
         } else if (response.status === 404) {
@@ -284,7 +267,6 @@ const QuizSessionPage = () => {
         } else if (response.status === 401) {
           errorMessage = "Your session has expired. Please log in again.";
         }
-
         throw new Error(errorMessage);
       }
 
@@ -523,8 +505,8 @@ const QuizSessionPage = () => {
                                 key={i}
                                 sx={{
                                   p: 2,
-                                  backgroundColor: answers[q.id] === choice ? '#7b1fa230' : '#2a2a2a',
-                                  border: answers[q.id] === choice ? '2px solid #7b1fa2' : '1px solid #444',
+                                  backgroundColor: answers[q.id] === String.fromCharCode(65 + i) ? '#7b1fa230' : '#2a2a2a',
+                                  border: answers[q.id] === String.fromCharCode(65 + i) ? '2px solid #7b1fa2' : '1px solid #444',
                                   borderRadius: '12px',
                                   transition: 'all 0.2s ease',
                                   '&:hover': {
@@ -533,8 +515,9 @@ const QuizSessionPage = () => {
                                   }
                                 }}
                               >
+                                {/* Value is the letter, label is the text (multi-line is fine) */}
                                 <FormControlLabel
-                                  value={choice}
+                                  value={String.fromCharCode(65 + i)} // 'A', 'B', 'C', 'D'
                                   control={
                                     <Radio
                                       sx={{
@@ -550,9 +533,11 @@ const QuizSessionPage = () => {
                                       variant="body1"
                                       sx={{
                                         color: 'white',
-                                        fontWeight: answers[q.id] === choice ? 600 : 400
+                                        fontWeight: answers[q.id] === String.fromCharCode(65 + i) ? 600 : 400
                                       }}
                                     >
+                                      {/* Show letter for reference, and then the option text (multi-line allowed) */}
+                                      <span style={{fontWeight:600, color:'#7b1fa2'}}>{String.fromCharCode(65 + i)}) </span>
                                       {choice}
                                     </Typography>
                                   }

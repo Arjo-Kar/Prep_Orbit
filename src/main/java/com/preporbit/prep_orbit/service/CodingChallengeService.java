@@ -86,6 +86,8 @@ public class CodingChallengeService {
             tcResult.setExpectedOutput(tc.getExpectedOutput());
             tcResult.setActualOutput(actualOutput);
             tcResult.setVisible(tc.isVisible());
+            System.out.println("Actual Output: " + actualOutput);
+            System.out.println("Expected Output: " + tc.getExpectedOutput());
             boolean isPassed = actualOutput != null && actualOutput.trim().equals(tc.getExpectedOutput().trim());
             tcResult.setPassed(isPassed);
             tcResult.setError(isPassed ? null : "Output mismatch");
