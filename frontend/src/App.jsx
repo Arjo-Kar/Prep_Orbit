@@ -20,7 +20,7 @@ function App() {
                 <Route path="/quiz/:sessionId" element={<QuizSessionPage />} />
                 <Route path="/quiz/:sessionId/results" element={<QuizResultPage />} />
                 <Route path="/gemini" element={<GeminiChatPage />} />
-                <Route path="/coding/:challengeId" element={<CodingChallengePage />} />
+                <Route path="/coding-challenge" element={<CodingChallengePage />} />
                 <Route path="/report/weaknesses" element={<WeaknessReportPage />} />
                 <Route path="/quiz/result/:sessionId" element={<QuizResultPage />} />
                 <Route path="/practice-weak-areas" element={<PracticeWeakAreasPage />} />

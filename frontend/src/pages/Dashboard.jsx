@@ -1,14 +1,165 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Box,
+  Container,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Paper,
+  Avatar,
+  Chip,
+  CircularProgress,
+  Alert,
+  IconButton,
+  Stack,
+  Divider
+} from '@mui/material';
+import {
+  Code as CodeIcon,
+  CalendarToday as Calendar,
+  TrendingUp,
+  EmojiEvents as Award,
+  Schedule as Clock,
+  Psychology as Brain,
+  PlayArrow as Play,
+  Refresh as RefreshCw,
+  Assessment as TrendingUpIcon,
+  Chat as ChatIcon,
+  WorkOutline as InterviewIcon,
+  Terminal
+} from '@mui/icons-material';
+import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
+import CodingChallengeAPI from '../api/CodingChallengeAPI';
+
+// Dark theme to match the CodingChallengePage
+const darkTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    background: {
+      default: '#100827',
+      paper: 'rgba(25, 25, 25, 0.8)',
+    },
+    primary: {
+      main: '#7b1fa2',
+    },
+    secondary: {
+      main: '#f50057',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: '#cccccc',
+    },
+  },
+  typography: {
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: '16px',
+          backgroundImage: 'none',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: '12px',
+          textTransform: 'none',
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+          border: '1px solid rgba(45, 45, 45, 0.5)',
+          backdropFilter: 'blur(4px)',
+        },
+      },
+    },
+  },
+});
+
+// Styled components matching the CodingChallengePage aesthetic
+const GradientBox = styled(Box)(({ theme }) => ({
+  background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
+  minHeight: '100vh',
+  color: 'white',
+}));
+
+const StatsCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
+  border: '1px solid #444',
+  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+  '&:hover': {
+    transform: 'translateY(-4px)',
+    boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+    border: '1px solid #7b1fa2',
+  }
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+  height: '56px',
+  borderRadius: '12px',
+  textTransform: 'none',
+  fontSize: '1rem',
+  fontWeight: 600,
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+  }
+}));
+
+const HeaderCard = styled(Card)(({ theme }) => ({
+  background: 'linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)',
+  backdropFilter: 'blur(8px)',
+  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
+  border: '1px solid rgba(126, 87, 194, 0.5)',
+  marginBottom: theme.spacing(4),
+}));
+
+const DailyChallengeCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
+  border: '1px solid #444',
+  overflow: 'hidden',
+}));
+
+const QuizCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
+  border: '1px solid #444',
+}));
 
 function Dashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // Existing state
   const [topics, setTopics] = useState("");
   const [numQuestions, setNumQuestions] = useState(5);
   const [numWeakQuestions, setNumWeakQuestions] = useState(5);
   const [message, setMessage] = useState("");
+
+  // New coding challenge state
+  const [dailyChallenge, setDailyChallenge] = useState(null);
+  const [loadingChallenge, setLoadingChallenge] = useState(true);
+  const [stats, setStats] = useState({
+    totalQuizzesTaken: 0,
+    codingChallengesSolved: 0,
+    streak: 0,
+    rank: '',
+    weeklyTarget: 7,
+    averageScore: 0
+  });
 
   // Pre-fill form if URL has query params
   useEffect(() => {
@@ -18,6 +169,30 @@ function Dashboard() {
     if (urlTopics) setTopics(urlTopics);
     if (urlNumQuestions) setNumQuestions(parseInt(urlNumQuestions, 10));
   }, [searchParams]);
+
+  // Load daily challenge on component mount
+  useEffect(() => {
+    loadDailyChallenge();
+  }, []);
+
+  // Load daily coding challenge
+  const loadDailyChallenge = async () => {
+    try {
+      setLoadingChallenge(true);
+      const authToken = localStorage.getItem("token");
+      if (!authToken) {
+        console.error("Authentication token not found. Please log in.");
+        return;
+      }
+
+      const challenge = await CodingChallengeAPI.generateChallenge(['arrays', 'strings'], 'medium', authToken);
+      setDailyChallenge(challenge);
+    } catch (error) {
+      console.error('Error loading daily challenge:', error);
+    } finally {
+      setLoadingChallenge(false);
+    }
+  };
 
   // Fetch wrapper for secured endpoints
   const fetchWithAuth = async (url, options = {}) => {
@@ -72,129 +247,512 @@ function Dashboard() {
     }
   };
 
-  // Handle Practice Weak Areas button - Navigate to dedicated page with question count
+  // Handle Practice Weak Areas button
   const handlePracticeWeakAreas = () => {
     navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
   };
 
-  const BrainCircuitIcon = () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className="mx-auto h-12 w-12 text-blue-600 animate-pulse"
-    >
-      <path
-        fillRule="evenodd"
-        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2 14c-.55 0-1-.45-1-1v-2h2v1c0 .55-.45 1-1 1zm-4-2c-.55 0-1-.45-1-1v-3h2v3c0 .55-.45 1-1 1zm3-3v-2h-2v2c0 .55-.45 1-1 1h-2v-1c0-.55-.45-1-1-1s-1 .45-1 1v1H8v-1c0-.55-.45-1-1-1s-1 .45-1 1v1c-.55 0-1 .45-1 1s.45 1 1 1h3v2h-2v-1c0-.55-.45-1-1-1s-1 .45-1 1v1H5c-.55 0-1 .45-1 1s.45 1 1 1h2v-2h2v2h2v-2h2v2h2v-2h2v2h2c.55 0 1-.45 1-1s-.45-1-1-1z"
-        clipRule="evenodd"
-      />
-    </svg>
+  // Handle coding challenge navigation
+  const startCodingChallenge = (challengeId = null) => {
+    if (challengeId) {
+      navigate(`/coding-challenge/${challengeId}`);
+    } else {
+      navigate('/coding-challenge');
+    }
+  };
+
+  const StatCard = ({ title, value, icon, color, gradient }) => (
+    <StatsCard>
+      <CardContent sx={{ p: 3 }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Box>
+            <Typography variant="body2" sx={{ color: '#aaa', mb: 1 }}>
+              {title}
+            </Typography>
+            <Typography variant="h4" component="div" fontWeight="bold" sx={{ color: 'white' }}>
+              {value}
+            </Typography>
+          </Box>
+          <Avatar
+            sx={{
+              width: 56,
+              height: 56,
+              background: gradient || `linear-gradient(135deg, ${color}, ${color}90)`,
+            }}
+          >
+            {icon}
+          </Avatar>
+        </Box>
+      </CardContent>
+    </StatsCard>
   );
 
   return (
-    <div className="bg-gray-50 min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
-        <div className="text-center">
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            <BrainCircuitIcon />
-            User Dashboard
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Welcome back! Choose an option to get started with your interview preparation.
-          </p>
-        </div>
-
-        {message && <p className="text-red-500 text-center text-sm font-medium">{message}</p>}
-
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Start Quiz */}
-          <div className="flex-1 border border-gray-200 bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
-            <h3 className="text-xl font-semibold text-gray-800">Start a New Quiz</h3>
-            <form onSubmit={handleStartQuiz} className="mt-4 space-y-4">
-              <div>
-                <label htmlFor="topics" className="block text-sm font-medium text-gray-700">
-                  Topics (comma-separated):
-                </label>
-                <input
-                  id="topics"
-                  type="text"
-                  value={topics}
-                  onChange={(e) => setTopics(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="e.g., java, spring boot, algorithms"
-                  required
+    <ThemeProvider theme={darkTheme}>
+      <GradientBox>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          {/* Header */}
+          <HeaderCard>
+            <CardContent sx={{ p: 4 }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box display="flex" alignItems="center" gap={3}>
+                  <Avatar
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
+                      boxShadow: '0 4px 20px rgba(123, 31, 162, 0.4)',
+                    }}
+                  >
+                    <Brain sx={{ fontSize: 40 }} />
+                  </Avatar>
+                  <Box>
+                    <Typography
+                      variant="h3"
+                      component="h1"
+                      fontWeight="bold"
+                      sx={{
+                        background: 'linear-gradient(to right, #a0d8ff, #ff80ab)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        mb: 1
+                      }}
+                    >
+                      Welcome back, Coder! 👨‍💻
+                    </Typography>
+                    <Typography variant="h6" sx={{ color: '#aaa' }}>
+                      Ready for today's challenge? Choose your path to success.
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box
+                  component="img"
+                  src="https://avatars.githubusercontent.com/u/9919?v=4"
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    border: '3px solid #7b1fa2',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                  }}
+                  alt="avatar"
                 />
-              </div>
-              <div>
-                <label htmlFor="numQuestions" className="block text-sm font-medium text-gray-700">
-                  Number of Questions:
-                </label>
-                <input
-                  id="numQuestions"
-                  type="number"
-                  min="1"
-                  value={numQuestions}
-                  onChange={(e) => setNumQuestions(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
-              >
-                Start Quiz
-              </button>
-            </form>
-          </div>
+              </Box>
+            </CardContent>
+          </HeaderCard>
 
-          {/* Practice Weak Areas */}
-          <div className="flex-1 border border-gray-200 bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
-            <h3 className="text-xl font-semibold text-gray-800">Practice Weak Areas</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Focus on topics you've previously struggled with.
-            </p>
-            <div className="mt-4">
-              <label htmlFor="numWeakQuestions" className="block text-sm font-medium text-gray-700">
-                Number of Questions:
-              </label>
-              <input
-                id="numWeakQuestions"
-                type="number"
-                min="1"
-                value={numWeakQuestions}
-                onChange={(e) => setNumWeakQuestions(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-              />
-            </div>
-            <button
-              onClick={handlePracticeWeakAreas}
-              className="mt-6 w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out"
+          {/* Error Message */}
+          {message && (
+            <Alert
+              severity="error"
+              variant="filled"
+              sx={{
+                mb: 3,
+                borderRadius: '12px',
+                background: 'linear-gradient(45deg, #f44336, #d32f2f)',
+              }}
             >
-              Start Practice Session
-            </button>
-          </div>
-        </div>
+              {message}
+            </Alert>
+          )}
 
-        <hr className="my-8" />
+          {/* Stats Cards */}
+          <Grid container spacing={3} mb={4}>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Quizzes Taken"
+                value={stats.totalQuizzesTaken}
+                icon={<Brain />}
+                gradient="linear-gradient(135deg, #2196F3, #21CBF3)"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Coding Problems"
+                value={stats.codingChallengesSolved}
+                icon={<CodeIcon />}
+                gradient="linear-gradient(135deg, #4caf50, #8bc34a)"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Current Streak"
+                value={`${stats.streak} days`}
+                icon={<TrendingUp />}
+                gradient="linear-gradient(135deg, #ff9800, #ffc107)"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} lg={3}>
+              <StatCard
+                title="Average Score"
+                value={`${stats.averageScore}%`}
+                icon={<Award />}
+                gradient="linear-gradient(135deg, #e91e63, #f06292)"
+              />
+            </Grid>
+          </Grid>
 
-        {/* Navigation */}
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <button
-            onClick={() => navigate("/report/weaknesses")}
-            className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition duration-150 ease-in-out"
-          >
-            View Weakness Report
-          </button>
-          <button
-            onClick={() => navigate("/gemini")}
-            className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition duration-150 ease-in-out"
-          >
-            Chat with Gemini AI
-          </button>
-        </div>
-      </div>
-    </div>
+          {/* Main Content Grid */}
+          <Grid container spacing={3} mb={4}>
+            {/* Daily Coding Challenge */}
+            <Grid item xs={12} lg={4}>
+              <DailyChallengeCard>
+                <Box sx={{ background: 'linear-gradient(135deg, #4caf50, #8bc34a)', p: 3 }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                    <Calendar />
+                    <Typography variant="h6" fontWeight="bold">
+                      Today's Coding Challenge
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    {new Date().toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </Typography>
+                </Box>
+
+                <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                  {loadingChallenge ? (
+                    <Box display="flex" flexDirection="column" alignItems="center" py={4}>
+                      <CircularProgress sx={{ color: '#4caf50', mb: 2 }} />
+                      <Typography variant="body2" sx={{ color: '#aaa' }}>
+                        Loading today's challenge...
+                      </Typography>
+                    </Box>
+                  ) : dailyChallenge ? (
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                        {dailyChallenge.title}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#ccc', mb: 3, lineHeight: 1.6 }}>
+                        {dailyChallenge.description ?
+                          dailyChallenge.description.substring(0, 150) + '...' :
+                          'A new coding challenge awaits!'
+                        }
+                      </Typography>
+
+                      <Stack direction="row" spacing={2} mb={3}>
+                        <Paper sx={{ px: 1.5, py: 0.75, borderRadius: '8px', backgroundColor: '#333', border: '1px solid #555' }}>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Clock sx={{ fontSize: 16, color: '#90caf9' }} />
+                            <Typography variant="body2" sx={{ color: '#ccc' }}>
+                              {dailyChallenge.timeLimitMs || '1000'}ms
+                            </Typography>
+                          </Stack>
+                        </Paper>
+                        <Paper sx={{ px: 1.5, py: 0.75, borderRadius: '8px', backgroundColor: '#333', border: '1px solid #555' }}>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Brain sx={{ fontSize: 16, color: '#ce93d8' }} />
+                            <Typography variant="body2" sx={{ color: '#ccc', textTransform: 'capitalize' }}>
+                              {dailyChallenge.difficulty || 'Medium'}
+                            </Typography>
+                          </Stack>
+                        </Paper>
+                      </Stack>
+
+                      <Stack spacing={2}>
+                        <Button
+                          variant="contained"
+                          startIcon={<Play />}
+                          fullWidth
+                          onClick={() => startCodingChallenge(dailyChallenge.id)}
+                          sx={{
+                            py: 1.5,
+                            background: 'linear-gradient(45deg, #4caf50, #8bc34a)',
+                            '&:hover': {
+                              background: 'linear-gradient(45deg, #66bb6a, #aed581)',
+                            }
+                          }}
+                        >
+                          Start Daily Challenge
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          startIcon={<RefreshCw />}
+                          fullWidth
+                          onClick={loadDailyChallenge}
+                          sx={{
+                            borderColor: '#666',
+                            color: '#ccc',
+                            '&:hover': {
+                              borderColor: '#7b1fa2',
+                              backgroundColor: '#7b1fa220',
+                            }
+                          }}
+                        >
+                          New Challenge
+                        </Button>
+                      </Stack>
+                    </Box>
+                  ) : (
+                    <Box textAlign="center" py={4}>
+                      <Typography sx={{ color: '#aaa', mb: 2 }}>
+                        No daily challenge available
+                      </Typography>
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={loadDailyChallenge}
+                        sx={{ color: '#7b1fa2' }}
+                      >
+                        Try loading again
+                      </Button>
+                    </Box>
+                  )}
+                </CardContent>
+              </DailyChallengeCard>
+            </Grid>
+
+            {/* Start Quiz */}
+            <Grid item xs={12} lg={4}>
+              <QuizCard>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                    Start Knowledge Quiz
+                  </Typography>
+                  <Box component="form" onSubmit={handleStartQuiz} sx={{ mt: 2 }}>
+                    <Stack spacing={3}>
+                      <TextField
+                        fullWidth
+                        label="Topics (comma-separated)"
+                        placeholder="e.g., java, spring boot, algorithms"
+                        value={topics}
+                        onChange={(e) => setTopics(e.target.value)}
+                        required
+                        variant="outlined"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            backgroundColor: '#333',
+                            '& fieldset': {
+                              borderColor: '#555',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: '#7b1fa2',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#7b1fa2',
+                            },
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: '#aaa',
+                          },
+                          '& .MuiOutlinedInput-input': {
+                            color: 'white',
+                          },
+                        }}
+                      />
+                      <TextField
+                        fullWidth
+                        label="Number of Questions"
+                        type="number"
+                        inputProps={{ min: 1 }}
+                        value={numQuestions}
+                        onChange={(e) => setNumQuestions(e.target.value)}
+                        variant="outlined"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            backgroundColor: '#333',
+                            '& fieldset': {
+                              borderColor: '#555',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: '#7b1fa2',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#7b1fa2',
+                            },
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: '#aaa',
+                          },
+                          '& .MuiOutlinedInput-input': {
+                            color: 'white',
+                          },
+                        }}
+                      />
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        size="large"
+                        fullWidth
+                        sx={{
+                          py: 1.5,
+                          background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
+                          '&:hover': {
+                            background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
+                          }
+                        }}
+                      >
+                        Start Quiz
+                      </Button>
+                    </Stack>
+                  </Box>
+                </CardContent>
+              </QuizCard>
+            </Grid>
+
+            {/* Practice Weak Areas */}
+            <Grid item xs={12} lg={4}>
+              <QuizCard>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                    Practice Weak Areas
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#ccc', mb: 3, lineHeight: 1.6 }}>
+                    Focus on topics you've previously struggled with.
+                  </Typography>
+                  <Stack spacing={3}>
+                    <TextField
+                      fullWidth
+                      label="Number of Questions"
+                      type="number"
+                      inputProps={{ min: 1 }}
+                      value={numWeakQuestions}
+                      onChange={(e) => setNumWeakQuestions(e.target.value)}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: '#333',
+                          '& fieldset': {
+                            borderColor: '#555',
+                          },
+                          '&:hover fieldset': {
+                            borderColor: '#4caf50',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#4caf50',
+                          },
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: '#aaa',
+                        },
+                        '& .MuiOutlinedInput-input': {
+                          color: 'white',
+                        },
+                      }}
+                    />
+                    <Button
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      onClick={handlePracticeWeakAreas}
+                      sx={{
+                        py: 1.5,
+                        background: 'linear-gradient(45deg, #4caf50, #8bc34a)',
+                        '&:hover': {
+                          background: 'linear-gradient(45deg, #66bb6a, #aed581)',
+                        }
+                      }}
+                    >
+                      Start Practice Session
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </QuizCard>
+            </Grid>
+          </Grid>
+
+          {/* Quick Actions */}
+          <Card sx={{ mb: 4, background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)', border: '1px solid #444' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white', mb: 3 }}>
+                Quick Actions
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} lg={3}>
+                  <ActionButton
+                    variant="contained"
+                    startIcon={<CodeIcon />}
+                    fullWidth
+                    onClick={() => startCodingChallenge()}
+                    sx={{
+                      background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #42a5f5, #4fc3f7)',
+                      }
+                    }}
+                  >
+                    Random Coding Challenge
+                  </ActionButton>
+                </Grid>
+                <Grid item xs={12} sm={6} lg={3}>
+                  <ActionButton
+                    variant="contained"
+                    startIcon={<TrendingUpIcon />}
+                    fullWidth
+                    onClick={() => navigate("/report/weaknesses")}
+                    sx={{
+                      background: 'linear-gradient(45deg, #9c27b0, #ab47bc)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #ba68c8, #ce93d8)',
+                      }
+                    }}
+                  >
+                    View Reports
+                  </ActionButton>
+                </Grid>
+                <Grid item xs={12} sm={6} lg={3}>
+                  <ActionButton
+                    variant="contained"
+                    startIcon={<ChatIcon />}
+                    fullWidth
+                    onClick={() => navigate("/gemini")}
+                    sx={{
+                      background: 'linear-gradient(45deg, #ff9800, #ffc107)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #ffb74d, #ffcc80)',
+                      }
+                    }}
+                  >
+                    Chat with AI
+                  </ActionButton>
+                </Grid>
+                <Grid item xs={12} sm={6} lg={3}>
+                  <ActionButton
+                    variant="contained"
+                    startIcon={<InterviewIcon />}
+                    fullWidth
+                    onClick={() => navigate("/interview-prep")}
+                    sx={{
+                      background: 'linear-gradient(45deg, #607d8b, #78909c)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #90a4ae, #b0bec5)',
+                      }
+                    }}
+                  >
+                    Interview Prep
+                  </ActionButton>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card sx={{ background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)', border: '1px solid #444' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                Recent Activity
+              </Typography>
+              <Divider sx={{ my: 2, borderColor: '#444' }} />
+              <Box textAlign="center" py={6}>
+                <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, background: 'linear-gradient(135deg, #666, #999)' }}>
+                  <Terminal sx={{ fontSize: 40 }} />
+                </Avatar>
+                <Typography variant="h6" sx={{ color: '#aaa', mb: 1 }}>
+                  Your recent activity will appear here
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#777' }}>
+                  Start solving challenges and taking quizzes to see your progress!
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Container>
+      </GradientBox>
+    </ThemeProvider>
   );
 }
 

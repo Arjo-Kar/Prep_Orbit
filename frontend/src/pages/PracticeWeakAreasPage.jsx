@@ -1,5 +1,27 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Box,
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormControlLabel,
+  Button,
+  CircularProgress,
+  Alert,
+  Paper,
+  Divider,
+  Chip
+} from "@mui/material";
+import {
+  FitnessCenter as PracticeIcon,
+  Dashboard as DashboardIcon,
+  Send as SubmitIcon
+} from "@mui/icons-material";
 
 const PracticeWeakAreasPage = () => {
   const navigate = useNavigate();
@@ -35,31 +57,15 @@ const PracticeWeakAreasPage = () => {
         }
 
         const data = await res.json();
-          if (!data.sessionId || !data.questions || !Array.isArray(data.questions)) {
-            setError("Practice session response invalid! Please refresh or contact support.");
-            setLoading(false);
-            return;
-          }
-          setQuestions(data.questions);
-          setPracticeSessionId(data.sessionId);
-          setLoading(false);
         console.log("Weak areas response:", data);
 
-        let questionsList = [];
-        let sessionId = null;
-
-        if (Array.isArray(data)) {
-          questionsList = data;
-        } else if (data.questions && Array.isArray(data.questions)) {
-          questionsList = data.questions;
-          sessionId = data.sessionId;
-        } else if (data.sessionId && data.questions) {
-          questionsList = data.questions;
-          sessionId = data.sessionId;
+        // Check if we have valid session data
+        if (!data.sessionId || !data.questions || !Array.isArray(data.questions)) {
+          throw new Error("Invalid practice session response. Please try again.");
         }
 
-        setQuestions(questionsList);
-        setPracticeSessionId(sessionId);
+        setQuestions(data.questions);
+        setPracticeSessionId(data.sessionId);
       } catch (err) {
         console.error("Error fetching weak area questions:", err);
         setError(err.message);
@@ -94,15 +100,30 @@ const PracticeWeakAreasPage = () => {
       const formattedAnswers = questions.map((question, index) => {
         const userAnswer = answers[index];
         let answerLetter = '';
+
         if (userAnswer) {
-          // Handle both "A) Option text" and "A" formats
+          // Handle "A) Option text" format
           const match = userAnswer.match(/^([A-D])\)/);
           if (match) {
             answerLetter = match[1];
-          } else if (["A", "B", "C", "D"].includes(userAnswer)) {
+          }
+          // Handle just "A", "B", "C", "D" format
+          else if (["A", "B", "C", "D"].includes(userAnswer)) {
             answerLetter = userAnswer;
           }
+          // Handle case where options don't start with letter format
+          // Find which option index this is and convert to A, B, C, D
+          else {
+            const optionsList = question.options || question.choices || [];
+            const optionIndex = optionsList.findIndex(opt => opt === userAnswer);
+            if (optionIndex >= 0 && optionIndex < 4) {
+              answerLetter = String.fromCharCode(65 + optionIndex); // 65 is 'A'
+            }
+          }
         }
+
+        console.log(`Question ${index}: userAnswer="${userAnswer}", answerLetter="${answerLetter}"`);
+
         return {
           questionId: question.id,
           userAnswer: answerLetter
@@ -175,139 +196,181 @@ const PracticeWeakAreasPage = () => {
     }
   };
 
-  if (loading) return <p>Loading weak area questions...</p>;
+  if (loading) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+          <CircularProgress size={40} />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading weak area questions...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
 
-  if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
+  if (error) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Button
+          variant="contained"
+          startIcon={<DashboardIcon />}
+          onClick={() => navigate("/dashboard")}
+        >
+          Back to Dashboard
+        </Button>
+      </Container>
+    );
+  }
 
   if (questions.length === 0) {
     return (
-      <div>
-        <h1>Practice Your Weak Areas</h1>
-        <p>No weak area questions available. Complete some quizzes first to identify areas for improvement.</p>
-        <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
-      </div>
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
+          <PracticeIcon sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+          <Typography variant="h4" gutterBottom>
+            Practice Your Weak Areas
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            No weak area questions available. Complete some quizzes first to identify areas for improvement.
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<DashboardIcon />}
+            onClick={() => navigate("/dashboard")}
+          >
+            Back to Dashboard
+          </Button>
+        </Paper>
+      </Container>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Practice Your Weak Areas</h1>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              These {questions.length} questions are based on topics where you need improvement.
-              Take your time and focus on understanding each concept.
-            </p>
-          </div>
-        </div>
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      {/* Header Section */}
+      <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: "primary.main", color: "white" }}>
+        <Box display="flex" alignItems="center" mb={1}>
+          <PracticeIcon sx={{ mr: 2, fontSize: 32 }} />
+          <Typography variant="h4" component="h1">
+            Practice Your Weak Areas
+          </Typography>
+        </Box>
+        <Typography variant="body1" sx={{ opacity: 0.9 }}>
+          These questions are based on topics where you need improvement. Take your time and focus on understanding each concept.
+        </Typography>
+        <Box mt={2}>
+          <Chip
+            label={`${questions.length} Questions`}
+            sx={{
+              backgroundColor: "rgba(255, 255, 255, 0.2)",
+              color: "white",
+              fontWeight: "bold"
+            }}
+          />
+        </Box>
+      </Paper>
 
-        {/* Questions */}
-        <div className="space-y-6">
-          {questions.map((q, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-md border-2 border-gray-200 p-8">
-              {/* Question Header */}
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-6 border-l-4 border-green-500">
-                <div className="flex items-center mb-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold mr-3">
-                    {index + 1}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    Question {index + 1}
-                  </h3>
-                </div>
-                <p className="text-gray-800 text-lg leading-relaxed pl-11">{q.questionText}</p>
-              </div>
+      {/* Questions Section */}
+      {questions.map((q, index) => (
+        <Card key={index} elevation={2} sx={{ mb: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Q{index + 1}: {q.questionText}
+            </Typography>
 
-              {/* Answer Options */}
-              <div className="space-y-4 pl-4">
-                <h4 className="text-sm font-medium text-gray-600 uppercase tracking-wide mb-3">Choose your answer:</h4>
-                {/* Handle both options and choices properties */}
-                {q.options && q.options.length > 0 ? (
-                  q.options.slice(0, 4).map((option, i) => (
-                    <label key={i} className="flex items-start space-x-4 p-4 rounded-lg border-2 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all duration-200 group">
-                      <input
-                        type="radio"
-                        name={`q${index}`}
-                        value={option}
-                        checked={answers[index] === option}
-                        onChange={() => handleChange(index, option)}
-                        className="mt-1.5 h-5 w-5 text-green-600 border-2 border-gray-300 focus:ring-green-500 focus:ring-2"
-                      />
-                      <div className="flex-1">
-                        <span className="text-gray-800 text-base leading-relaxed group-hover:text-green-800 transition-colors">
+            <Divider sx={{ mb: 2 }} />
+
+            {q.options && q.options.length > 0 ? (
+              <FormControl component="fieldset" sx={{ width: "100%" }}>
+                <RadioGroup
+                  value={answers[index] || ""}
+                  onChange={(e) => handleChange(index, e.target.value)}
+                >
+                  {q.options.slice(0, 4).map((option, i) => (
+                    <FormControlLabel
+                      key={i}
+                      value={option}
+                      control={<Radio />}
+                      label={
+                        <Typography variant="body1" sx={{ ml: 1 }}>
                           {option}
-                        </span>
-                      </div>
-                    </label>
-                  ))
-                ) : q.choices && q.choices.length > 0 ? (
-                  q.choices.slice(0, 4).map((choice, i) => (
-                    <label key={i} className="flex items-start space-x-4 p-4 rounded-lg border-2 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all duration-200 group">
-                      <input
-                        type="radio"
-                        name={`q${index}`}
-                        value={choice}
-                        checked={answers[index] === choice}
-                        onChange={() => handleChange(index, choice)}
-                        className="mt-1.5 h-5 w-5 text-green-600 border-2 border-gray-300 focus:ring-green-500 focus:ring-2"
-                      />
-                      <div className="flex-1">
-                        <span className="text-gray-800 text-base leading-relaxed group-hover:text-green-800 transition-colors">
+                        </Typography>
+                      }
+                      sx={{
+                        mb: 1,
+                        p: 1,
+                        borderRadius: 1,
+                        "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
+                        transition: "background-color 0.2s"
+                      }}
+                    />
+                  ))}
+                </RadioGroup>
+              </FormControl>
+            ) : q.choices && q.choices.length > 0 ? (
+              <FormControl component="fieldset" sx={{ width: "100%" }}>
+                <RadioGroup
+                  value={answers[index] || ""}
+                  onChange={(e) => handleChange(index, e.target.value)}
+                >
+                  {q.choices.slice(0, 4).map((choice, i) => (
+                    <FormControlLabel
+                      key={i}
+                      value={choice}
+                      control={<Radio />}
+                      label={
+                        <Typography variant="body1" sx={{ ml: 1 }}>
                           {choice}
-                        </span>
-                      </div>
-                    </label>
-                  ))
-                ) : (
-                  <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                    <div className="flex items-center">
-                      <svg className="h-6 w-6 text-yellow-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                      <p className="text-yellow-800 font-medium">No options available for this question</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+                        </Typography>
+                      }
+                      sx={{
+                        mb: 1,
+                        p: 1,
+                        borderRadius: 1,
+                        "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
+                        transition: "background-color 0.2s"
+                      }}
+                    />
+                  ))}
+                </RadioGroup>
+              </FormControl>
+            ) : (
+              <Alert severity="warning">
+                No options available for this question
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      ))}
 
-        {/* Submit Section */}
-        <div className="mt-8 bg-white rounded-lg shadow-sm p-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Submitting...
-                </>
-              ) : (
-                "Submit Practice Quiz"
-              )}
-            </button>
+      {/* Action Buttons */}
+      <Box sx={{ mt: 4, display: "flex", gap: 2, justifyContent: "center" }}>
+        <Button
+          variant="contained"
+          size="large"
+          startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SubmitIcon />}
+          onClick={handleSubmit}
+          disabled={submitting}
+          sx={{ minWidth: 200 }}
+        >
+          {submitting ? "Submitting..." : "Submit Practice Quiz"}
+        </Button>
 
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        <Button
+          variant="outlined"
+          size="large"
+          startIcon={<DashboardIcon />}
+          onClick={() => navigate("/dashboard")}
+        >
+          Back to Dashboard
+        </Button>
+      </Box>
+    </Container>
   );
 };
 
