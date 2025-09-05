@@ -30,7 +30,9 @@ import {
   Assessment as TrendingUpIcon,
   Chat as ChatIcon,
   WorkOutline as InterviewIcon,
-  Terminal
+  Terminal,
+   Mic as MicIcon
+
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import CodingChallengeAPI from '../api/CodingChallengeAPI';
@@ -180,7 +182,7 @@ function Dashboard() {
     try {
       setLoadingChallenge(true);
       setMessage("");
-      const authToken = localStorage.getItem("token");
+      const authToken = localStorage.getItem("authToken");
       if (!authToken) {
         setMessage("Authentication token not found. Please log in.");
         setDailyChallenge(null);
@@ -325,7 +327,7 @@ function Dashboard() {
                         mb: 1
                       }}
                     >
-                      Welcome back, Coder! 👨‍💻
+                       Welcome back, {localStorage.getItem('username') || 'Arjo-Kar'}! 👨‍💻
                     </Typography>
                     <Typography variant="h6" sx={{ color: '#aaa' }}>
                       Ready for today's challenge? Choose your path to success.
@@ -721,7 +723,7 @@ function Dashboard() {
                 <Grid item xs={12} sm={6} lg={3}>
                   <ActionButton
                     variant="contained"
-                    startIcon={<InterviewIcon />}
+                    startIcon={<MicIcon />}  // ✅ Changed from InterviewIcon to MicIcon
                     fullWidth
                     onClick={() => navigate("/interview-prep")}
                     sx={{

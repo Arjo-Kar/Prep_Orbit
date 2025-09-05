@@ -14,11 +14,19 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:3000") // must match frontend URL exactly
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        // ✅ Added your ngrok URL and other necessary origins
+                        .allowedOrigins(
+                                "http://localhost:3000", // your current frontend
+                                "http://localhost:3001", // backup frontend port
+                                "https://5cf353e9e749.ngrok-free.app", // your current ngrok URL
+                                "https://api.vapi.ai", // VAPI API calls
+                                "https://dashboard.vapi.ai" // VAPI dashboard
+                        )
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH") // ✅ Added HEAD and PATCH
                         .allowedHeaders("*")
-                        .exposedHeaders("*") // optional: expose headers to frontend
-                        .allowCredentials(true);
+                        .exposedHeaders("*")
+                        .allowCredentials(true)
+                        .maxAge(3600); // ✅ Added cache time for preflight requests
             }
         };
     }

@@ -10,6 +10,11 @@ import WeaknessReportPage from './pages/WeaknessReportPage';
 import QuizResultPage from './pages/QuizResultPage';
 import PracticeWeakAreasPage from "./pages/PracticeWeakAreasPage";
 import CodingChallengeResultPage from "./pages/CodingChallengeResultPage"
+import InterviewPrepPage from './pages/InterviewPrepPage';
+import InterviewGeneratorPage from './pages/InterviewGeneratorPage';
+import InterviewSessionPage from './pages/InterviewSessionPage';
+import InterviewFeedbackPage from './pages/InterviewFeedbackPage';
+import InterviewFeedbackListPage from './pages/InterviewFeedbackListPage';
 
 function App() {
     return (
@@ -25,7 +30,19 @@ function App() {
                 <Route path="/report/weaknesses" element={<WeaknessReportPage />} />
                 <Route path="/quiz/result/:sessionId" element={<QuizResultPage />} />
                 <Route path="/practice-weak-areas" element={<PracticeWeakAreasPage />} />
-                 <Route path="/coding-challenge/result" element={<CodingChallengeResultPage />} />
+                <Route path="/coding-challenge/result" element={<CodingChallengeResultPage />} />
+
+                {/* Interview-related routes */}
+                <Route path="/interview-prep" element={<InterviewPrepPage />} />
+                <Route path="/interview/new" element={<InterviewGeneratorPage />} />
+                <Route path="/interview/:interviewId" element={<InterviewSessionPage />} />
+
+                {/* ✅ Fixed feedback routes - both patterns for flexibility */}
+                <Route path="/feedback/:interviewId" element={<InterviewFeedbackPage />} />
+                <Route path="/feedback/:interviewId/user/:userId" element={<InterviewFeedbackPage />} />
+                <Route path="/interview/:interviewId/feedback" element={<InterviewFeedbackPage />} />
+                <Route path="/feedback-history" element={<InterviewFeedbackListPage />} />
+
                 <Route path="/" element={<LoginPage />} />
             </Routes>
         </BrowserRouter>

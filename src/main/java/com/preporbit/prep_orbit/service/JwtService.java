@@ -52,4 +52,6 @@ public class JwtService {
                 .build();
         return parser.parseSignedClaims(token).getPayload().getSubject();
     }
+    // Add to your JwtService class
+
 }
