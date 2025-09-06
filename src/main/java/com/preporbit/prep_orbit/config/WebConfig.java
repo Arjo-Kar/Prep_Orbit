@@ -18,7 +18,7 @@ public class WebConfig {
                         .allowedOrigins(
                                 "http://localhost:3000", // your current frontend
                                 "http://localhost:3001", // backup frontend port
-                                "https://5cf353e9e749.ngrok-free.app", // your current ngrok URL
+                                "https://*.ngrok-free.app", // your current ngrok URL
                                 "https://api.vapi.ai", // VAPI API calls
                                 "https://dashboard.vapi.ai" // VAPI dashboard
                         )

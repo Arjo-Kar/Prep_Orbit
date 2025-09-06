@@ -156,6 +156,21 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // For debugging: logs user info from localStorage
+  const logStoredUser = () => {
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+      try {
+        const parsed = JSON.parse(rawUser);
+        console.log('[Login Debug] Stored user object:', parsed);
+      } catch (e) {
+        console.log('[Login Debug] Error parsing user from localStorage:', e, 'raw value:', rawUser);
+      }
+    } else {
+      console.log('[Login Debug] No user found in localStorage.');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -171,6 +186,7 @@ function LoginPage() {
       // Store user info (expects data.user to contain id, name, email, etc.)
       if (data.user && data.user.id) {
         localStorage.setItem('user', JSON.stringify(data.user));
+        logStoredUser(); // Log the stored user after saving
       } else {
         setError('Login response missing user info. Please contact support.');
         setLoading(false);

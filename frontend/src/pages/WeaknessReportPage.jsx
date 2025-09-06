@@ -10,7 +10,7 @@ const WeaknessReportPage = () => {
 
   useEffect(() => {
     const fetchWeaknesses = async () => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("authToken");
       if (!token) {
         setError("No user logged in. Please sign in to view your weaknesses.");
         setIsLoading(false);

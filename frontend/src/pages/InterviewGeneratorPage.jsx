@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,7 +19,8 @@ import {
   Paper,
   CircularProgress,
   IconButton,
-  Divider
+  Divider,
+  LinearProgress
 } from '@mui/material';
 import {
   Mic as MicIcon,
@@ -31,16 +32,18 @@ import {
   Refresh as RefreshIcon,
   BugReport as BugReportIcon,
   Psychology as PsychologyIcon,
-  AutoAwesome as AutoAwesomeIcon
+  AutoAwesome as AutoAwesomeIcon,
+  CheckCircle
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import Vapi from '@vapi-ai/web';
 
-// Constants - ✅ Updated with current info
-const VAPI_PUBLIC_KEY = '32044a48-5854-4f51-805f-5e0f0dc1c157';
-const NGROK_URL = 'https://70a547ab4135.ngrok-free.app';
-const CURRENT_TIME = '2025-09-05 17:30:39'; // ✅ Updated to current UTC time
-const CURRENT_USER = 'Arjo-Kar'; // ✅ Current user
+
+// Constants - ✅ Current timestamp
+const VAPI_PUBLIC_KEY = '38c20db5-f2e5-49e7-915f-aa304605fec4';
+const NGROK_URL = 'https://ae3c273ae5e6.ngrok-free.app';
+const CURRENT_TIME = '2025-09-05 17:56:41'; // ✅ Current UTC time
+ // ✅ Current authenticated user
 
 // Dark theme
 const darkTheme = createTheme({
@@ -55,6 +58,9 @@ const darkTheme = createTheme({
     },
     secondary: {
       main: '#f50057',
+    },
+    success: {
+      main: '#4caf50',
     },
     text: {
       primary: '#ffffff',
@@ -104,8 +110,71 @@ const GlowingButton = styled(Button)(({ theme }) => ({
 
 function InterviewGeneratorPage() {
   const navigate = useNavigate();
+   const [interviewIdState, setInterviewIdState] = useState(null);
+    const [interviewCreationStatus, setInterviewCreationStatus] = useState('idle');
+    const extractInterviewRequirements = (transcript) => {
+       let role = '';
+       let type = '';
+       let level = '';
+       let techstackArr = [];
+       let amount = '';
+       transcript.forEach(msg => {
+         if (msg.role === 'user') {
+           // ROLE (look for "role", "job", "position")
+           const roleMatch = msg.content.match(/(?:role|job|position)[^\w]?[:\-]?\s*([a-zA-Z0-9 \-]+)/i);
+           if (roleMatch && roleMatch[1]) role = roleMatch[1].trim();
 
-  // Basic state
+           // TYPE
+           const typeMatch = msg.content.match(/\b(technical|behavioral|mixed)\b/i);
+           if (typeMatch && typeMatch[1]) type = typeMatch[1].toLowerCase();
+
+           // LEVEL
+           const levelMatch = msg.content.match(/\b(junior|mid|senior)\b/i);
+           if (levelMatch && levelMatch[1]) level = levelMatch[1].toLowerCase();
+
+           // TECHSTACK
+           if (msg.content.match(/react|node\.?js|python|aws|java|typescript|angular|django|flask|spring|mongo|mysql|postgres|cloud|docker|kubernetes/i)) {
+             techstackArr = techstackArr.concat(
+               msg.content
+                 .split(/,|and|&/i)
+                 .map(t => t.trim())
+                 .filter(t =>
+                   t.length > 1 &&
+                   t.match(/react|node\.?js|python|aws|java|typescript|angular|django|flask|spring|mongo|mysql|postgres|cloud|docker|kubernetes/i)
+                 )
+             );
+           }
+
+           // AMOUNT
+           const amountMatch = msg.content.match(/\b(3|5|7|10)\b/);
+           if (amountMatch && amountMatch[1]) amount = amountMatch[1];
+         }
+       });
+       techstackArr = Array.from(new Set(techstackArr.filter(Boolean)));
+       return { role, type, level, techstack: techstackArr.join(','), amount };
+     };
+    const handleManualFunctionCallFromTranscript = () => {
+        if (!vapi) return;
+        const userInfo = getUserInfo();
+        const params = extractInterviewRequirements(conversationTranscript);
+        if (!params.role || !params.type || !params.level || !params.amount) {
+          setError('Requirements incomplete in transcript.');
+          return;
+        }
+        vapi.emit('function-call', {
+          name: 'generateInterview',
+          parameters: {
+            role: params.role,
+            type: params.type,
+            level: params.level,
+            techstack: params.techstack,
+            amount: params.amount,
+            userId: userInfo.userId
+          }
+        });
+        setSuccess('Function-call emitted using transcript!');
+      };
+  // ✅ Enhanced state management
   const [vapi, setVapi] = useState(null);
   const [formData, setFormData] = useState({
     role: '',
@@ -125,30 +194,29 @@ function InterviewGeneratorPage() {
   const [currentStep, setCurrentStep] = useState('');
   const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [feedbackProcessing, setFeedbackProcessing] = useState(false);
 
-  // ✅ Enhanced user info check
+  // ✅ Enhanced user info with authentication
   const getUserInfo = () => {
-    const userId = localStorage.getItem('userId') || '1';
-    const username = localStorage.getItem('username') || CURRENT_USER;
-    const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const userId = storedUser.id || localStorage.getItem('userId') || '1';
+      const username = storedUser.name || storedUser.username || 'Guest';
+      const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
+      if (!authToken) {
+        console.error('❌ No authentication token found for user:', username, 'at', CURRENT_TIME);
+        setError('Authentication required. Please login again.');
+      }
+      console.log('🔐 User Info for interview at', CURRENT_TIME, ':', {
+        userId,
+        username,
+        hasToken: !!authToken,
+        tokenLength: authToken?.length || 0
+      });
+      return { userId, username, authToken };
+    };
+    const { username } = getUserInfo();
 
-    if (!authToken) {
-      console.error('❌ No authentication token found for user:', username);
-      setError('Authentication required. Please login again.');
-    }
-
-    console.log('🔐 User Info for interview:', {
-      userId,
-      username,
-      hasToken: !!authToken,
-      tokenLength: authToken?.length || 0,
-      timestamp: CURRENT_TIME
-    });
-
-    return { userId, username, authToken };
-  };
-
-  // ✅ Helper function for API requests
+  // ✅ Enhanced API request helper
   const makeApiRequest = async (endpoint, options = {}) => {
     const userInfo = getUserInfo();
 
@@ -163,136 +231,392 @@ function InterviewGeneratorPage() {
       ...options
     };
 
-    const response = await fetch(`${NGROK_URL}${endpoint}`, defaultOptions);
-    return response;
+    try {
+      const response = await fetch(`${NGROK_URL}${endpoint}`, defaultOptions);
+      console.log(`📡 API ${options.method || 'GET'} ${endpoint} - Status:`, response.status, 'at', CURRENT_TIME);
+      return response;
+    } catch (error) {
+      console.error('❌ API request failed at', CURRENT_TIME, ':', error);
+      throw error;
+    }
+  };
+ const calculateVoiceInterviewScore = (userAnswers, questionsAsked) => {
+    if (userAnswers.length === 0) return 5;
+
+    const responseRate = userAnswers.length / Math.max(questionsAsked.length, 1);
+    const avgResponseLength = userAnswers.reduce((sum, ans) => sum + ans.content.length, 0) / userAnswers.length;
+
+    let score = 5; // Base score
+
+    if (responseRate >= 0.8) score += 2;
+    else if (responseRate >= 0.6) score += 1;
+
+    if (avgResponseLength > 150) score += 2;
+    else if (avgResponseLength > 75) score += 1;
+
+    if (userAnswers.some(ans => ans.content.length > 300)) score += 1;
+
+    return Math.min(10, Math.max(1, score));
   };
 
-  // Initialize VAPI with enhanced event handling
+  const calculateCommunicationScore = (userAnswers) => {
+    if (userAnswers.length === 0) return 6;
+
+    const avgLength = userAnswers.reduce((sum, ans) => sum + ans.content.length, 0) / userAnswers.length;
+    const hasDetailedResponses = userAnswers.some(ans => ans.content.length > 200);
+    const hasVariedResponses = new Set(userAnswers.map(ans => ans.content.substring(0, 50))).size > 1;
+
+    let score = 6;
+    if (avgLength > 100) score += 1;
+    if (hasDetailedResponses) score += 1;
+    if (hasVariedResponses) score += 1;
+    if (userAnswers.length >= 3) score += 1;
+
+    return Math.min(10, Math.max(1, score));
+  };
+
+  const calculateTechnicalScore = (userAnswers, interviewType) => {
+    let baseScore = 7;
+
+    if (interviewType === 'technical') {
+      const technicalKeywords = ['algorithm', 'database', 'api', 'code', 'programming', 'system', 'architecture'];
+      const hasTechnicalContent = userAnswers.some(ans =>
+        technicalKeywords.some(keyword => ans.content.toLowerCase().includes(keyword))
+      );
+
+      if (hasTechnicalContent) baseScore += 1;
+      if (userAnswers.some(ans => ans.content.length > 250)) baseScore += 1;
+    }
+
+    return Math.min(10, Math.max(1, baseScore));
+  };
+
+  const calculateProblemSolvingScore = (userAnswers) => {
+    let score = 7;
+
+    const problemSolvingKeywords = ['approach', 'solution', 'problem', 'resolve', 'analyze', 'strategy', 'method'];
+    const hasProblemSolvingContent = userAnswers.some(ans =>
+      problemSolvingKeywords.some(keyword => ans.content.toLowerCase().includes(keyword))
+    );
+
+    if (hasProblemSolvingContent) score += 1;
+    if (userAnswers.some(ans => ans.content.includes('example') || ans.content.includes('experience'))) score += 1;
+
+    return Math.min(10, Math.max(1, score));
+  };
+
+  const generateStrengthsFromConversation = (userAnswers, questionsAsked) => {
+    const strengths = [];
+
+    if (userAnswers.length >= questionsAsked.length * 0.8) {
+      strengths.push("Excellent response completion rate and engagement during voice interview");
+    }
+
+    if (userAnswers.some(ans => ans.content.length > 200)) {
+      strengths.push("Provided detailed and comprehensive verbal answers");
+    }
+
+    if (userAnswers.length >= 3) {
+      strengths.push("Strong communication skills and active participation");
+    }
+
+    strengths.push(`Successfully completed voice interview session on ${CURRENT_TIME}`);
+    strengths.push("Demonstrated good verbal communication abilities with AI interviewer");
+
+    return strengths.join('\n');
+  };
+
+  const generateImprovementsFromConversation = (userAnswers, formData) => {
+    const improvements = [];
+
+    if (userAnswers.length === 0) {
+      improvements.push("Practice speaking more during voice interviews");
+      improvements.push("Work on providing verbal responses to interview questions");
+    } else {
+      const avgLength = userAnswers.reduce((sum, ans) => sum + ans.content.length, 0) / userAnswers.length;
+
+      if (avgLength < 100) {
+        improvements.push("Practice providing more detailed verbal explanations");
+      }
+
+      improvements.push("Continue practicing voice interviews to build confidence");
+    }
+
+    improvements.push(`Study more about ${formData.role} specific topics and requirements`);
+    improvements.push("Practice articulating technical concepts clearly and concisely");
+    improvements.push("Consider taking more mock interviews to improve fluency");
+
+    return improvements.join('\n');
+  };
+
+  const assessConversationQuality = (transcript) => {
+    if (transcript.length < 5) return 'basic';
+    if (transcript.length < 10) return 'good';
+    if (transcript.length < 20) return 'excellent';
+    return 'outstanding';
+  };
+
+ const generateInterviewFeedback = useCallback(async (triggerSource = 'unknown') => {
+     if (!conversationTranscript || conversationTranscript.length === 0) {
+       setError('Cannot generate feedback: No transcript available.');
+       setFeedbackProcessing(false);
+       return;
+     }
+
+   console.log(`🔄 Generating feedback triggered by: ${triggerSource} at ${CURRENT_TIME} for ${username}`);
+
+   try {
+     setFeedbackProcessing(true);
+
+     // ✅ Multiple ways to get interview ID
+    // ...other code...
+
+    // PATCH: Use parse method for interviewId from localStorage, like user parsing
+    function getParsedInterviewId() {
+      const keys = [
+        'lastGeneratedInterviewId',
+        'currentInterviewId',
+        'interviewId'
+      ];
+      for (const key of keys) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const obj = JSON.parse(raw);
+            // If you stored as JSON: { id: ..., ... }
+            if (typeof obj === 'object' && obj !== null && ('id' in obj || 'interviewId' in obj)) {
+              return obj.id || obj.interviewId;
+            }
+            // If you stored as JSON string: "42"
+            if (typeof obj === 'string' || typeof obj === 'number') {
+              return obj;
+            }
+          } catch {
+            // Not JSON, treat as string
+            return raw;
+          }
+        }
+      }
+      return null;
+    }
+
+    // Usage:
+    let interviewId = interviewIdState || getParsedInterviewId();
+
+     const userInfo = getUserInfo();
+
+     console.log('🔍 Interview ID search at', CURRENT_TIME, ':', {
+       fromState: interviewIdState,
+       fromLocalStorage: localStorage.getItem('lastGeneratedInterviewId'),
+       finalId: interviewId,
+       creationStatus: interviewCreationStatus,
+       triggerSource: triggerSource
+     });
+
+     // ✅ If no interview ID found, try to create a fallback interview
+     if (!interviewId) {
+       console.warn('⚠️ No interview ID found, attempting fallback creation at', CURRENT_TIME);
+
+       if (interviewCreationStatus === 'created' || formData.role) {
+         setCurrentStep('No interview ID found, creating fallback interview...');
+
+         try {
+           const fallbackData = {
+             role: formData.role || "Software Engineer",
+             type: formData.type,
+             level: formData.level,
+             techstack: formData.techstack.length > 0 ? formData.techstack : ["JavaScript", "React"],
+             amount: parseInt(formData.amount),
+             userId: parseInt(userInfo.userId)
+           };
+
+           console.log('🆘 Creating fallback interview at', CURRENT_TIME, ':', fallbackData);
+
+           const response = await makeApiRequest('/api/interviews/generate', {
+             method: 'POST',
+             body: JSON.stringify(fallbackData)
+           });
+
+           if (response.ok) {
+             const responseData = await response.json();
+             interviewId = responseData.interviewId || responseData.id || responseData.data?.id;
+
+             if (interviewId) {
+               localStorage.setItem('lastGeneratedInterviewId', interviewId.toString());
+               setInterviewIdState(interviewId.toString());
+               console.log('✅ Fallback interview created with ID:', interviewId, 'at', CURRENT_TIME);
+             }
+           }
+         } catch (fallbackError) {
+           console.error('❌ Fallback interview creation failed:', fallbackError);
+         }
+       }
+
+       if (!interviewId) {
+         console.error('❌ Still no interview ID after fallback attempt at', CURRENT_TIME);
+         setError('Interview session not found. Unable to generate feedback.');
+         setFeedbackProcessing(false);
+
+         setTimeout(() => {
+           navigate('/interview-prep');
+         }, 3000);
+
+         return false;
+       }
+     }
+
+     console.log('📋 Final Interview ID confirmed:', interviewId, 'for user:', userInfo.username);
+
+     // ✅ Extract conversation data
+     const userAnswers = conversationTranscript.filter(msg =>
+       msg.role === 'user' &&
+       msg.content.length > 20 &&
+       !msg.content.toLowerCase().includes('hello') &&
+       !msg.content.toLowerCase().includes('ready') &&
+       !msg.content.toLowerCase().includes('yes') &&
+       !msg.content.toLowerCase().includes('sure')
+     );
+
+     const questionsAsked = conversationTranscript.filter(msg =>
+       msg.role === 'assistant' &&
+       (msg.content.includes('Question') || msg.content.includes('?'))
+     );
+
+     console.log('📊 Conversation analysis at', CURRENT_TIME, ':', {
+       totalMessages: conversationTranscript.length,
+       userAnswers: userAnswers.length,
+       questionsAsked: questionsAsked.length,
+       interviewId: interviewId,
+       user: userInfo.username,
+       triggerSource: triggerSource
+     });
+
+     setCurrentStep('📊 Analyzing your interview performance...');
+     await new Promise(resolve => setTimeout(resolve, 1000));
+
+     setCurrentStep('🧠 Calculating performance scores...');
+
+     // ✅ Generate comprehensive feedback data
+    const feedbackData = {
+      interviewId: parseInt(interviewId),
+      userId: parseInt(userInfo.userId),
+      transcript: conversationTranscript.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp || new Date().toISOString()
+      })),
+      duration: callDuration,
+      totalQuestions: Math.max(questionsAsked.length, parseInt(formData.amount)),
+      totalAnswers: userAnswers.length,
+      overallScore: calculateVoiceInterviewScore(userAnswers, questionsAsked),
+      communicationScore: calculateCommunicationScore(userAnswers),
+      technicalScore: calculateTechnicalScore(userAnswers, formData.type),
+      problemSolvingScore: calculateProblemSolvingScore(userAnswers),
+      strengths: generateStrengthsFromConversation(userAnswers, questionsAsked),
+      improvements: generateImprovementsFromConversation(userAnswers, formData),
+      interviewMetadata: {
+        role: formData.role,
+        type: formData.type,
+        level: formData.level,
+        techstack: Array.isArray(formData.techstack) ? formData.techstack.join(',') : formData.techstack,
+        completedAt: new Date().toISOString(),
+        user: userInfo.username,
+        mode: 'voice_interview',
+        actualDuration: callDuration,
+        conversationQuality: assessConversationQuality(conversationTranscript),
+        endTrigger: triggerSource,
+        timestamp: CURRENT_TIME,
+        sessionId: Date.now().toString(),
+        creationStatus: interviewCreationStatus
+      }
+    };
+
+     setCurrentStep('💾 Saving feedback to database...');
+     console.log('📊 Sending comprehensive feedback data at', CURRENT_TIME, ':', feedbackData);
+
+     const response = await makeApiRequest(`/api/interviews/${interviewId}/feedback`, {
+       method: 'POST',
+       body: JSON.stringify(feedbackData)
+     });
+
+     if (response.ok) {
+       const responseData = await response.json();
+       console.log('✅ Feedback saved successfully at', CURRENT_TIME, 'for', username, ':', responseData);
+
+       setCurrentStep('✅ Feedback generated successfully!');
+       setSuccess(`✅ Interview analysis complete! Detailed feedback saved. Redirecting...`);
+       setFeedbackProcessing(false);
+
+       setTimeout(() => {
+         navigate(`/feedback/${interviewId}`);
+         localStorage.removeItem('lastGeneratedInterviewId');
+         localStorage.removeItem('currentInterviewId');
+         setInterviewIdState(null);
+       }, 2000);
+
+       return true;
+     } else {
+       const errorText = await response.text();
+       throw new Error(`Failed to save feedback: ${errorText}`);
+     }
+   } catch (error) {
+     console.error('❌ Feedback generation failed at', CURRENT_TIME, ':', error);
+     setFeedbackProcessing(false);
+     setError(`Failed to generate feedback: ${error.message}`);
+
+     setTimeout(() => {
+       navigate('/interview-prep');
+     }, 3000);
+
+     return false;
+   }
+ }, [interviewIdState, interviewCreationStatus, conversationTranscript, callDuration, formData, navigate, calculateVoiceInterviewScore, calculateCommunicationScore, calculateTechnicalScore, calculateProblemSolvingScore, generateStrengthsFromConversation, generateImprovementsFromConversation, assessConversationQuality]);
+
+  // ✅ Helper functions for scoring and analysis
+
+
+  // ✅ Enhanced VAPI initialization
   useEffect(() => {
-    console.log('🚀 Initializing VAPI...');
+    console.log('🚀 Initializing VAPI at', CURRENT_TIME, 'for user', username);
 
     try {
       const vapiInstance = new Vapi(VAPI_PUBLIC_KEY);
       setVapi(vapiInstance);
 
       // ✅ Call start handler
-      vapiInstance.on('call-start', () => {
-        console.log('✅ Call started at', CURRENT_TIME);
-        setCallStatus('active');
-        setIsGenerating(true);
-        setError('');
-        setSuccess('🎤 Connected! Starting your complete interview experience...');
-        setConversationTranscript([]);
-        setCurrentStep('Collecting interview requirements...');
-        setInterviewQuestions([]);
-        setCurrentQuestionIndex(0);
-      });
+    vapiInstance.on('call-start', () => {
+      console.log('✅ Voice interview call started at', CURRENT_TIME, 'for', username);
+      setCallStatus('active');
+      setIsGenerating(true);
+      setError('');
+      setSuccess('🎤 Connected! Starting your complete interview experience...');
+      setConversationTranscript([]);
+      setCurrentStep('Collecting interview requirements...');
+      setInterviewQuestions([]);
+      setCurrentQuestionIndex(0);
+      setFeedbackProcessing(false);
+      setInterviewCreationStatus('idle');
+      setInterviewIdState(null); // Reset state
+    });
 
-      // ✅ Fixed call-end handler - removed undefined 'result' reference
-      vapiInstance.on('call-end', async (endData) => {
-        console.log('📞 Call ended at', CURRENT_TIME, ':', endData);
-        setCallStatus('idle');
-        setIsGenerating(false);
-        setCurrentStep('Processing your interview feedback...');
+      // ✅ Enhanced call-end handler
+     vapiInstance.on('call-end', async (endData) => {
+       console.log('📞 Voice interview call ended at', CURRENT_TIME, 'for', username, ':', endData);
+       setCallStatus('idle');
+       setIsGenerating(false);
+       setCurrentStep('Processing your interview feedback...');
 
-        try {
-          const interviewId = localStorage.getItem('lastGeneratedInterviewId');
-          const userInfo = getUserInfo();
-
-          if (interviewId && conversationTranscript.length > 0) {
-            console.log('💾 Generating detailed feedback for interview:', interviewId);
-            console.log('📋 Conversation transcript length:', conversationTranscript.length);
-
-            // ✅ Extract actual interview data from conversation
-            const userAnswers = conversationTranscript.filter(msg =>
-              msg.role === 'user' &&
-              msg.content.length > 20 &&
-              !msg.content.toLowerCase().includes('hello') &&
-              !msg.content.toLowerCase().includes('ready') &&
-              !msg.content.toLowerCase().includes('yes') &&
-              !msg.content.toLowerCase().includes('sure')
-            );
-
-            const questionsAsked = conversationTranscript.filter(msg =>
-              msg.role === 'assistant' &&
-              (msg.content.includes('Question') || msg.content.includes('?'))
-            );
-
-            // ✅ Prepare comprehensive feedback data
-            const feedbackData = {
-              interviewId: parseInt(interviewId),
-              userId: parseInt(userInfo.userId),
-              transcript: conversationTranscript.map(msg => ({
-                role: msg.role,
-                content: msg.content,
-                timestamp: msg.timestamp
-              })),
-              duration: callDuration,
-              totalQuestions: questionsAsked.length,
-              totalAnswers: userAnswers.length,
-              overallScore: Math.min(10, Math.max(1, Math.round((userAnswers.length / Math.max(questionsAsked.length, 1)) * 8 + 2))),
-              communicationScore: userAnswers.some(a => a.content.length > 100) ? 8 : 6,
-              technicalScore: 7,
-              problemSolvingScore: 7,
-              strengths: `Completed ${userAnswers.length} responses with good engagement`,
-              improvements: "Continue practicing with more complex scenarios",
-              interviewMetadata: {
-                role: formData.role,
-                type: formData.type,
-                level: formData.level,
-                techstack: formData.techstack,
-                completedAt: new Date().toISOString(),
-                user: userInfo.username
-              }
-            };
-
-            console.log('📊 Sending comprehensive feedback data:', feedbackData);
-
-            // ✅ Make API call to save detailed feedback
-            const response = await makeApiRequest(`/api/interviews/${interviewId}/feedback`, {
-              method: 'POST',
-              body: JSON.stringify(feedbackData)
-            });
-
-            if (response.ok) {
-              const responseData = await response.json();
-              console.log('✅ Detailed feedback saved successfully:', responseData);
-              setSuccess(`✅ Interview completed! Detailed feedback has been saved. Redirecting...`);
-
-              // Navigate to feedback page after successful save
-              setTimeout(() => {
-                navigate(`/feedback/${interviewId}`);
-                localStorage.removeItem('lastGeneratedInterviewId');
-              }, 3000);
-            } else {
-              const errorText = await response.text();
-              console.error('❌ Failed to save feedback:', response.status, errorText);
-              setError(`Failed to save interview feedback: ${errorText}`);
-
-              // Still navigate but show error
-              setTimeout(() => {
-                navigate('/interview-prep');
-              }, 2000);
-            }
-          } else {
-            console.warn('⚠️ No interview ID or conversation data found');
-            setSuccess('Interview session completed. Redirecting to dashboard...');
-            setTimeout(() => {
-              navigate('/interview-prep');
-            }, 2000);
-          }
-        } catch (error) {
-          console.error('❌ Error processing interview completion:', error);
-          setError(`Error processing interview: ${error.message}`);
-          setTimeout(() => {
-            navigate('/interview-prep');
-          }, 2000);
-        }
-      });
-
-      // ✅ Enhanced error handler
-      vapiInstance.on('error', (error) => {
-        console.log('🔍 VAPI Event:', error);
+       // Only generate feedback if transcript has content
+       if (conversationTranscript && conversationTranscript.length > 0) {
+         await generateInterviewFeedback('call-end-event');
+       } else {
+         setError('Cannot generate feedback: No transcript available.');
+         setFeedbackProcessing(false);
+       }
+     });
+      // ✅ Enhanced error handler with feedback generation
+      vapiInstance.on('error', async (error) => {
+        console.log('🔍 VAPI Event at', CURRENT_TIME, 'for', username, ':', error);
 
         const isNormalEnding =
           error.errorMsg === 'Meeting has ended' ||
@@ -301,166 +625,138 @@ function InterviewGeneratorPage() {
           error.type === 'call-ended';
 
         if (isNormalEnding) {
-          console.log('✅ Call ended normally (via error event)');
+          console.log('✅ Call ended normally via error event at', CURRENT_TIME);
           setCallStatus('idle');
           setIsGenerating(false);
-          setCurrentStep('');
 
-          const interviewId = localStorage.getItem('lastGeneratedInterviewId');
-          if (interviewId) {
-            setSuccess(`✅ Interview completed! Preparing your feedback...`);
-            setTimeout(() => {
-              navigate(`/feedback/${interviewId}`);
-              localStorage.removeItem('lastGeneratedInterviewId');
-            }, 2000);
-          }
+          // ✅ Generate feedback for normal endings
+          await generateInterviewFeedback('error-event-normal-end');
           return;
         }
 
-        console.error('❌ VAPI Error:', error);
+        console.error('❌ VAPI Error at', CURRENT_TIME, ':', error);
         setCallStatus('idle');
         setIsGenerating(false);
         setCurrentStep('');
         setError('Voice call failed. Please try the direct generation option.');
       });
 
-      // ✅ Enhanced function call handler for complete interview flow
-      vapiInstance.on('function-call', async (functionCall) => {
-        console.log('🔧 Function called:', functionCall);
+      // ✅ Enhanced function call handler
+//      const [interviewIdState, setInterviewIdState] = useState(null);
+//      const [interviewCreationStatus, setInterviewCreationStatus] = useState('idle'); // idle, creating, created, failed
 
-        if (functionCall.name === 'generateInterview') {
-          try {
-            setCurrentStep('Generating interview questions...');
-            const params = functionCall.parameters;
-            const userInfo = getUserInfo();
+     // ✅ Enhanced function call handler with better error handling
+     vapiInstance.on('function-call', async (functionCall) => {
+       console.log('🔧 VAPI function called at', CURRENT_TIME, ':', functionCall);
 
-            const requestData = {
-              role: params.role || formData.role || 'Software Engineer',
-              type: params.type || formData.type,
-              level: params.level || formData.level,
-              techstack: params.techstack ? params.techstack.split(',').map(s => s.trim()) : formData.techstack,
-              amount: parseInt(params.amount) || parseInt(formData.amount),
-              userId: parseInt(userInfo.userId)
-            };
+       if (functionCall.name === 'generateInterview') {
+         try {
+           setCurrentStep('Generating interview questions...');
+           setInterviewCreationStatus('creating');
 
-            console.log('📤 Generating interview with:', requestData);
+           const params = functionCall.parameters;
+           const userInfo = getUserInfo();
 
-            const response = await makeApiRequest('/api/interviews/generate', {
-              method: 'POST',
-              body: JSON.stringify(requestData)
-            });
+           const requestData = {
+             role: params.role || formData.role || 'Software Engineer',
+             type: params.type || formData.type,
+             level: params.level || formData.level,
+             techstack: params.techstack ? params.techstack.split(',').map(s => s.trim()) : formData.techstack,
+             amount: parseInt(params.amount) || parseInt(formData.amount),
+             userId: parseInt(userInfo.userId)
+           };
 
-            if (response.ok) {
-              const responseData = await response.json();
-              console.log('✅ Interview generated:', responseData);
+           console.log('📤 VAPI generating interview at', CURRENT_TIME, 'with data:', requestData);
 
-              localStorage.setItem('lastGeneratedInterviewId', responseData.interviewId);
-              setInterviewQuestions(responseData.interview.questions || []);
-              setCurrentStep('Interview ready! Starting questions...');
+           const response = await makeApiRequest('/api/interviews/generate', {
+             method: 'POST',
+             body: JSON.stringify(requestData)
+           });
+        console.log("Triggering interview generation API call...");
+        console.log("API response:", response);
+           if (response.ok) {
+             const responseData = await response.json();
+             console.log('✅ VAPI interview generated at', CURRENT_TIME, ':', responseData);
+             console.log('RAW RESPONSE DATA:', responseData);
+             const questions = responseData.interview?.questions || responseData.questions || [];
 
-              // ✅ Return the first question to start the actual interview
-              const firstQuestion = responseData.interview.questions?.[0];
-              if (firstQuestion) {
-                setCurrentQuestionIndex(1);
-                return {
-                  result: `Perfect! I've generated your ${requestData.amount}-question ${requestData.type} interview for the ${requestData.role} position. Let's begin with your first question:\n\nQuestion 1: ${firstQuestion}\n\nPlease take your time to answer thoroughly.`
-                };
-              } else {
-                throw new Error('No questions generated');
-              }
-            } else if (response.status === 401) {
-              throw new Error('Authentication failed. Please login again.');
-            } else {
-              const errorText = await response.text();
-              throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-          } catch (error) {
-            console.error('❌ Interview generation error:', error);
-            setCurrentStep('Authentication error...');
-            return { error: `Sorry, I couldn't generate the interview: ${error.message}` };
-          }
-        }
+             // Log the generated questions
+             console.log('Generated interview questions:', questions);
+             questions.forEach((q, i) => console.log(`Question ${i + 1}:`, q));
 
-        if (functionCall.name === 'generateFeedback') {
-          try {
-            setCurrentStep('Analyzing your interview performance...');
-            const params = functionCall.parameters;
-            const userInfo = getUserInfo();
-            const interviewId = localStorage.getItem('lastGeneratedInterviewId');
 
-            // ✅ Collect actual user answers from conversation
-            const userAnswers = conversationTranscript.filter(msg =>
-              msg.role === 'user' &&
-              msg.content.length > 20 &&
-              !msg.content.toLowerCase().includes('hello') &&
-              !msg.content.toLowerCase().includes('ready')
-            );
+             // ✅ CRITICAL: Multiple ways to extract interview ID
+             const interviewId = responseData.interviewId ||
+                                responseData.id ||
+                                responseData.data?.id ||
+                                responseData.interview?.id ||
+                                responseData.data?.interviewId;
 
-            const questionsAsked = conversationTranscript.filter(msg =>
-              msg.role === 'assistant' &&
-              msg.content.includes('Question')
-            );
+             if (interviewId) {
+               // ✅ Store in both localStorage AND state
+               const idString = interviewId.toString();
+               localStorage.setItem('lastGeneratedInterviewId', idString);
+               setInterviewIdState(idString);
+               setInterviewCreationStatus('created');
 
-            const feedbackData = {
-              interviewId: parseInt(interviewId),
-              userId: parseInt(userInfo.userId),
-              transcript: [
-                ...questionsAsked.map(q => ({ role: "assistant", content: q.content })),
-                ...userAnswers.map(a => ({ role: "user", content: a.content }))
-              ],
-              overallScore: userAnswers.length >= 3 ? 8 : 6,
-              communicationScore: userAnswers.some(a => a.content.length > 100) ? 8 : 6,
-              technicalScore: 7,
-              problemSolvingScore: 7,
-              strengths: `Clear communication, ${userAnswers.length} comprehensive responses provided`,
-              improvements: "Continue practicing with more complex scenarios",
-              duration: callDuration,
-              totalQuestions: questionsAsked.length,
-              totalAnswers: userAnswers.length
-            };
+               console.log('💾 STORED Interview ID (MULTIPLE LOCATIONS):', idString, 'at', CURRENT_TIME);
 
-            console.log('📋 Generating authenticated feedback:', feedbackData);
+               // ✅ Double verification
+               const storedId = localStorage.getItem('lastGeneratedInterviewId');
+               console.log('🔍 VERIFICATION - Stored ID:', storedId, 'State ID:', idString, 'at', CURRENT_TIME);
 
-            const response = await makeApiRequest(`/api/interviews/${interviewId}/feedback`, {
-              method: 'POST',
-              body: JSON.stringify(feedbackData)
-            });
+               setInterviewQuestions(responseData.interview?.questions || responseData.questions || []);
+               setCurrentStep('Interview ready! Starting questions...');
 
-            if (response.ok) {
-              const responseData = await response.json();
-              console.log('✅ Authenticated feedback saved successfully:', responseData);
-              setCurrentStep('Performance analysis complete!');
+               // ✅ Update form data
+               setFormData(prev => ({
+                 ...prev,
+                 role: params.role || prev.role,
+                 type: params.type || prev.type,
+                 level: params.level || prev.level,
+                 techstack: params.techstack ? params.techstack.split(',').map(s => s.trim()) : prev.techstack,
+                 amount: params.amount || prev.amount
+               }));
 
-              // ✅ Auto-hangup after feedback
-              setTimeout(() => {
-                if (vapi) {
-                  vapi.stop();
-                }
-              }, 3000);
+               const questions = responseData.interview?.questions || responseData.questions || [];
+               const firstQuestion = questions[0];
 
-              return {
-                result: "Perfect! Your interview performance has been thoroughly analyzed and detailed feedback has been saved. You demonstrated excellent communication skills. Your complete feedback report is now available. Thank you for participating - goodbye!"
-              };
-            } else if (response.status === 401) {
-              throw new Error('Authentication failed. Please login again.');
-            } else {
-              const errorText = await response.text();
-              throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-          } catch (error) {
-            console.error('❌ Feedback generation error:', error);
-            return { error: `Feedback generation failed: ${error.message}` };
-          }
-        }
+               if (firstQuestion) {
+                 setCurrentQuestionIndex(1);
+                 return {
+                   result: `Perfect! I've generated your ${requestData.amount}-question ${requestData.type} interview for the ${requestData.role} position (ID: ${interviewId}). Let's begin with your first question:\n\nQuestion 1: ${firstQuestion}\n\nPlease take your time to answer thoroughly.`
+                 };
+               } else {
+                 throw new Error('No questions generated in response');
+               }
+             } else {
+               setInterviewCreationStatus('failed');
+               console.error('❌ No interview ID found in API response:', responseData);
+               throw new Error('No interview ID found in API response');
+             }
+           } else if (response.status === 401) {
+             setInterviewCreationStatus('failed');
+             throw new Error('Authentication failed. Please login again.');
+           } else {
+             setInterviewCreationStatus('failed');
+             const errorText = await response.text();
+             throw new Error(`HTTP ${response.status}: ${errorText}`);
+           }
+         } catch (error) {
+           console.error('❌ VAPI interview generation error at', CURRENT_TIME, ':', error);
+           setInterviewCreationStatus('failed');
+           setCurrentStep('Interview generation failed...');
+           return { error: `Sorry, I couldn't generate the interview: ${error.message}. Please try the direct generation option.` };
+         }
+       }
 
-        return { result: "Function completed" };
-      });
+       return { result: "Function completed successfully" };
+     });
 
-      // ✅ Enhanced conversation tracking for interview flow
+      // ✅ Enhanced conversation tracking
       vapiInstance.on('message', (message) => {
-        console.log('💬 Interview Message:', message);
+        console.log('💬 Interview message at', CURRENT_TIME, ':', message);
 
-        // Track all messages including questions and answers
         const newMessage = {
           role: message.role || 'assistant',
           content: message.content || message.text || '',
@@ -483,23 +779,24 @@ function InterviewGeneratorPage() {
         }
       });
 
-      // ✅ Speech events for better interview UX
+      // ✅ Speech events
       vapiInstance.on('speech-start', () => {
-        console.log('🎤 User started speaking');
+        console.log('🎤 User started speaking at', CURRENT_TIME);
         setCurrentStep(`Listening to your answer for Question ${currentQuestionIndex}...`);
       });
 
       vapiInstance.on('speech-end', () => {
-        console.log('🔇 User stopped speaking');
+        console.log('🔇 User stopped speaking at', CURRENT_TIME);
         setCurrentStep(`Processing your response...`);
       });
 
-      console.log('✅ VAPI initialized successfully for complete interview flow at', CURRENT_TIME);
+      console.log('✅ VAPI initialized successfully at', CURRENT_TIME, 'for complete interview flow');
 
     } catch (error) {
-      console.error('❌ Failed to initialize VAPI:', error);
+      console.error('❌ Failed to initialize VAPI at', CURRENT_TIME, ':', error);
       setError('Voice service initialization failed. Please use direct generation.');
     }
+      // ✅ Extract interview requirements from transcript
 
     return () => {
       if (vapi) {
@@ -508,7 +805,7 @@ function InterviewGeneratorPage() {
     };
   }, [navigate, currentQuestionIndex, formData.amount, interviewQuestions.length]);
 
-  // Call duration timer
+  // ✅ Call duration timer
   useEffect(() => {
     let interval;
     if (callStatus === 'active') {
@@ -521,7 +818,7 @@ function InterviewGeneratorPage() {
     return () => clearInterval(interval);
   }, [callStatus]);
 
-  // Form handlers
+  // ✅ Form handlers
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
@@ -552,149 +849,22 @@ function InterviewGeneratorPage() {
     }
   };
 
-  // ✅ Enhanced VAPI start function for complete interview experience
+  // ✅ Enhanced VAPI start function
+  // ... your existing code above remains unchanged ...
+
   const handleStartVoiceInterview = async () => {
     if (!vapi) {
       setError('Voice service not ready. Please refresh the page.');
       return;
     }
-
     try {
       setError('');
       setCallStatus('connecting');
       setIsGenerating(true);
-      setCurrentStep('Connecting...');
+      setCurrentStep('Generating interview questions...');
 
+      // --- MOVE the function-call logic here ---
       const userInfo = getUserInfo();
-      console.log('🚀 Starting complete interview experience for:', userInfo.username, 'at', CURRENT_TIME);
-
-      const config = {
-        firstMessage: `Hello ${userInfo.username}! I'm your AI Interview Assistant from Prep Orbit. I'll conduct a complete mock interview experience with you today. First, I'll ask about your preferences, then I'll ask you the actual interview questions and provide detailed feedback. Are you ready to begin?`,
-
-        model: {
-          provider: "openai",
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content: `You are an AI interview assistant conducting a COMPLETE mock interview for ${userInfo.username} (current time: ${CURRENT_TIME} UTC).
-
-COMPLETE INTERVIEW PROCESS - 3 PHASES:
-
-PHASE 1 - Requirements Collection:
-1. Greet user and explain the complete process
-2. Ask: "What job role are you preparing for?"
-3. Ask: "Would you like a technical, behavioral, or mixed interview?"
-4. Ask: "What's your experience level - junior, mid, or senior?"
-5. Ask: "Any specific technologies you want to focus on?"
-6. Ask: "How many questions - 3, 5, 7, or 10?"
-7. Call generateInterview function
-
-PHASE 2 - ACTUAL INTERVIEW (CRITICAL):
-8. After receiving questions, say: "Great! Now let's begin your actual interview."
-9. Ask EACH question from the generated list ONE BY ONE
-10. Wait for complete answers before moving to next question
-11. Be encouraging: "Great answer! Let's move to the next question."
-12. Ask follow-up clarification if needed
-13. Track all Q&A for feedback
-
-PHASE 3 - Completion & AUTO-HANGUP:
-14. After all questions: "Thank you! That completes your interview."
-15. Call generateFeedback function with collected responses
-16. Say: "Your interview analysis is complete! Your detailed feedback has been saved and you'll see it shortly. Thank you for using Prep Orbit - goodbye!"
-17. IMMEDIATELY end the conversation after saying goodbye
-
-CRITICAL RULES:
-- MUST ask all generated interview questions
-- One question at a time, wait for full answers
-- Be professional but encouraging
-- Take detailed notes for feedback
-- Never skip the actual interview phase
-- MUST end call immediately after saying goodbye
-- Current user ID: ${userInfo.userId}`
-            }
-          ],
-          temperature: 0.7
-        },
-
-        voice: {
-          provider: "11labs",
-          voiceId: "21m00Tcm4TlvDq8ikWAM"
-        },
-
-        // ✅ Enhanced ending configuration for auto-hangup
-        silenceTimeoutSeconds: 60,
-        maxDurationSeconds: 2400, // 40 minutes max
-        endCallMessage: null, // Let AI control the ending
-
-        // ✅ Enhanced functions for real interview experience
-        functions: [
-          {
-            name: "generateInterview",
-            description: "Generate interview questions based on requirements - returns questions to ask user",
-            parameters: {
-              type: "object",
-              properties: {
-                role: { type: "string", description: "Job role for interview" },
-                type: { type: "string", description: "Interview type: technical, behavioral, or mixed" },
-                level: { type: "string", description: "Experience level: junior, mid, or senior" },
-                techstack: { type: "string", description: "Technologies (comma-separated)" },
-                amount: { type: "string", description: "Number of questions: 3, 5, 7, or 10" },
-                userId: { type: "string", description: "User ID" }
-              },
-              required: ["role", "type", "level", "amount", "userId"]
-            }
-          },
-          {
-            name: "generateFeedback",
-            description: "Generate detailed feedback and END CALL - this triggers call termination",
-            parameters: {
-              type: "object",
-              properties: {
-                interviewId: { type: "string", description: "Interview ID from generateInterview" },
-                userAnswers: { type: "string", description: "Summary of all user's answers" },
-                questionsAsked: { type: "string", description: "All questions that were asked" },
-                performanceNotes: { type: "string", description: "Detailed performance observations" }
-              },
-              required: ["interviewId", "userAnswers", "questionsAsked", "performanceNotes"]
-            }
-          }
-        ]
-      };
-
-      console.log('📋 Starting complete interview experience with auto-hangup at', CURRENT_TIME);
-      await vapi.start(config);
-
-    } catch (error) {
-      console.error('❌ Failed to start VAPI:', error);
-      setCallStatus('idle');
-      setIsGenerating(false);
-      setCurrentStep('');
-
-      if (error.message?.includes('400') || error.type === 'start-method-error') {
-        setError('Voice assistant configuration error. Using direct generation...');
-        setTimeout(() => {
-          handleDirectGeneration();
-        }, 1000);
-      } else {
-        setError(`Failed to start voice assistant: ${error.message}`);
-      }
-    }
-  };
-
-  // ✅ Enhanced direct generation handler
-  const handleDirectGeneration = async () => {
-    try {
-      setError('');
-      setSuccess('Generating interview (direct mode - no voice interaction)...');
-
-      const userInfo = getUserInfo();
-
-      if (!formData.role.trim()) {
-        setError('❌ Please enter a job role before generating.');
-        return;
-      }
-
       const requestData = {
         role: formData.role || "Software Engineer",
         type: formData.type,
@@ -704,91 +874,269 @@ CRITICAL RULES:
         userId: parseInt(userInfo.userId)
       };
 
-      console.log('🧪 Direct generation with:', requestData, 'at', CURRENT_TIME);
+      console.log('📤 Interview generation before start at', CURRENT_TIME, 'with data:', requestData);
 
       const response = await makeApiRequest('/api/interviews/generate', {
         method: 'POST',
         body: JSON.stringify(requestData)
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please login again.');
-        }
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
+      console.log("Triggering interview generation API call...");
+      console.log("API response:", response);
 
-      const responseData = await response.json();
-      console.log('🧪 Direct generation result:', responseData);
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('✅ Interview generated at', CURRENT_TIME, ':', responseData);
+        console.log('RAW RESPONSE DATA:', responseData);
+        const questions = responseData.interview?.questions || responseData.questions || [];
 
-      if (responseData.success) {
-        setSuccess(`✅ Interview generated! ID: ${responseData.interviewId}. Generating sample feedback...`);
-        localStorage.setItem('lastGeneratedInterviewId', responseData.interviewId);
+        // Log the generated questions
+        console.log('Generated interview questions:', questions);
+        questions.forEach((q, i) => console.log(`Question ${i + 1}:`, q));
 
-        // ✅ Generate sample feedback for direct mode - fixed data structure
-        const feedbackData = {
-          interviewId: parseInt(responseData.interviewId),
-          userId: parseInt(userInfo.userId),
-          transcript: [
-            { role: "assistant", content: "Sample interview questions were prepared for direct generation mode", timestamp: new Date().toISOString() },
-            { role: "user", content: "User used direct generation mode to create interview questions", timestamp: new Date().toISOString() }
-          ],
-          overallScore: 7,
-          communicationScore: 7,
-          technicalScore: 7,
-          problemSolvingScore: 7,
-          strengths: "Successfully completed interview generation process",
-          improvements: "Try the voice interview mode for a more comprehensive experience",
-          duration: 300, // 5 minutes estimated
-          totalQuestions: parseInt(formData.amount),
-          totalAnswers: 0 // Direct generation has no answers
-        };
+        // Extract interview ID
+        const interviewId = responseData.interviewId ||
+          responseData.id ||
+          responseData.data?.id ||
+          responseData.interview?.id ||
+          responseData.data?.interviewId;
 
-        const feedbackResponse = await makeApiRequest(`/api/interviews/${responseData.interviewId}/feedback`, {
-          method: 'POST',
-          body: JSON.stringify(feedbackData)
-        });
+        if (interviewId) {
+          // Store in both localStorage AND state
+          const idString = interviewId.toString();
+          localStorage.setItem('lastGeneratedInterviewId', idString);
+          setInterviewIdState(idString);
+          setInterviewCreationStatus('created');
 
-        if (feedbackResponse.ok) {
-          console.log('✅ Sample feedback generated for direct mode');
+          console.log('💾 STORED Interview ID (MULTIPLE LOCATIONS):', idString, 'at', CURRENT_TIME);
+
+          // Double verification
+          const storedId = localStorage.getItem('lastGeneratedInterviewId');
+          console.log('🔍 VERIFICATION - Stored ID:', storedId, 'State ID:', idString, 'at', CURRENT_TIME);
+
+          setInterviewQuestions(questions);
+          setCurrentStep('Interview ready! Starting questions...');
+
+          // Update form data
+          setFormData(prev => ({
+            ...prev,
+            role: requestData.role,
+            type: requestData.type,
+            level: requestData.level,
+            techstack: requestData.techstack,
+            amount: requestData.amount
+          }));
+
+          // Now start Vapi with the generated questions!
+          const config = {
+            firstMessage: `Hello ${userInfo.username}! I'm your AI Interview Assistant from Prep Orbit. It's ${CURRENT_TIME} and I'll conduct a complete mock interview experience with you today. First, I'll ask your preferences, then the actual interview questions and provide feedback. Are you ready to begin?`,
+            model: {
+              provider: "openai",
+              model: "gpt-3.5-turbo",
+              messages: [
+                {
+                  role: "system",
+                  content: `
+  You are an AI interview assistant conducting a COMPLETE mock interview for ${userInfo.username} at ${CURRENT_TIME} UTC.
+  Here is the list of interview questions you MUST ask, ONE BY ONE, in order:
+  ${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+  - Ask each question, wait for a full answer, then move to the next.
+  - After all questions, end the interview and say feedback will be generated.`
+                }
+              ],
+              temperature: 0.7
+            },
+            voice: {
+              provider: "11labs",
+              voiceId: "21m00Tcm4TlvDq8ikWAM"
+            },
+            silenceTimeoutSeconds: 60,
+            maxDurationSeconds: 2400,
+            endCallMessage: null
+          };
+          await vapi.start(config);
+
+          setIsGenerating(false);
+          setCurrentQuestionIndex(1);
+
         } else {
-          console.warn('⚠️ Failed to generate sample feedback, but interview created successfully');
+          setInterviewCreationStatus('failed');
+          setError('No interview ID found in API response');
+          setIsGenerating(false);
+          setCurrentStep('Interview generation failed...');
+          return;
         }
-
-        setTimeout(() => {
-          navigate(`/feedback/${responseData.interviewId}`);
-          localStorage.removeItem('lastGeneratedInterviewId');
-        }, 2000);
-
-        return responseData;
+      } else if (response.status === 401) {
+        setInterviewCreationStatus('failed');
+        setError('Authentication failed. Please login again.');
+        setIsGenerating(false);
+        setCurrentStep('Interview generation failed...');
+        return;
       } else {
-        setError(`❌ Generation failed: ${responseData.message || 'Unknown error'}`);
-        return null;
+        setInterviewCreationStatus('failed');
+        const errorText = await response.text();
+        setError(`HTTP ${response.status}: ${errorText}`);
+        setIsGenerating(false);
+        setCurrentStep('Interview generation failed...');
+        return;
       }
-
     } catch (error) {
-      console.error('🧪 Direct generation failed:', error);
-      if (error.message.includes('Authentication failed')) {
-        setError('❌ Authentication failed. Please login again.');
-      } else {
-        setError(`❌ Generation failed: ${error.message}`);
-      }
-      return null;
+      setInterviewCreationStatus('failed');
+      setError(`Sorry, I couldn't generate the interview: ${error.message}. Please try the direct generation option.`);
+      setIsGenerating(false);
+      setCurrentStep('Interview generation failed...');
+      return;
     }
   };
 
-  const handleStopCall = () => {
-    if (vapi && callStatus !== 'idle') {
-      console.log('🔚 Stopping call at', CURRENT_TIME);
-      vapi.stop();
-    }
-  };
+  // ... rest of your file unchanged ...
+
+  // ✅ Enhanced direct generation
+ const handleDirectGeneration = async () => {
+   try {
+     setError('');
+     setSuccess('Generating interview (direct mode - no voice interaction)...');
+
+     const userInfo = getUserInfo();
+
+     if (!formData.role.trim()) {
+       setError('❌ Please enter a job role before generating.');
+       return;
+     }
+
+     const requestData = {
+       role: formData.role || "Software Engineer",
+       type: formData.type,
+       level: formData.level,
+       techstack: formData.techstack.length > 0 ? formData.techstack : ["JavaScript", "React"],
+       amount: parseInt(formData.amount),
+       userId: parseInt(userInfo.userId)
+     };
+
+     console.log('🧪 Direct generation at', CURRENT_TIME, 'with data:', requestData);
+
+     const response = await makeApiRequest('/api/interviews/generate', {
+       method: 'POST',
+       body: JSON.stringify(requestData)
+     });
+     console.log("Triggering interview generation API call...");
+         console.log("API response:", response);
+
+     if (!response.ok) {
+       const errorText = await response.text();
+       console.error('❌ Interview creation failed: raw response:', errorText);
+       if (response.status === 401) {
+         setError('❌ Authentication failed. Please login again.');
+         throw new Error('Authentication failed. Please login again.');
+       }
+       setError(`❌ Generation failed (HTTP ${response.status}): ${errorText}`);
+       return null;
+     }
+
+     const responseData = await response.json();
+     console.log('Interview generation response:', responseData);
+
+     // PATCH: Check for both success and interviewId
+     if (responseData.success && responseData.interviewId) {
+       setSuccess(`✅ Interview generated! ID: ${responseData.interviewId}. Generating comprehensive feedback...`);
+       localStorage.setItem('lastGeneratedInterviewId', responseData.interviewId);
+
+       // Generate feedback as before
+       const feedbackData = {
+         interviewId: parseInt(responseData.interviewId),
+         userId: parseInt(userInfo.userId),
+         transcript: [
+           {
+             role: "assistant",
+             content: `Direct generation interview created for ${userInfo.username} on ${CURRENT_TIME}. Role: ${formData.role}, Type: ${formData.type}, Level: ${formData.level}`,
+             timestamp: new Date().toISOString()
+           },
+           {
+             role: "user",
+             content: `User successfully generated ${formData.amount} ${formData.type} interview questions for ${formData.role} position using direct generation mode at ${CURRENT_TIME}`,
+             timestamp: new Date().toISOString()
+           }
+         ],
+         overallScore: 7,
+         communicationScore: 7,
+         technicalScore: formData.type === 'technical' ? 8 : 7,
+         problemSolvingScore: 7,
+         strengths: `Successfully completed interview generation process for ${formData.role} position\nSelected appropriate ${formData.type} interview type for ${formData.level} level\nChose ${formData.amount} questions for comprehensive assessment\nGenerated on ${CURRENT_TIME} by ${userInfo.username}`,
+         improvements: `Try the voice interview mode for a more comprehensive experience\nPractice answering the generated questions out loud\nConsider scheduling a voice interview session for real-time feedback\nReview the specific technologies: ${formData.techstack.join(', ')}`,
+         duration: 300,
+         totalQuestions: parseInt(formData.amount),
+         totalAnswers: 0,
+         interviewMetadata: {
+           role: formData.role,
+           type: formData.type,
+           level: formData.level,
+           techstack: formData.techstack,
+           completedAt: new Date().toISOString(),
+           user: userInfo.username,
+           mode: 'direct_generation',
+           timestamp: CURRENT_TIME,
+           sessionId: Date.now().toString()
+         }
+       };
+
+       console.log('📊 Generating direct mode feedback at', CURRENT_TIME, ':', feedbackData);
+
+       const feedbackResponse = await makeApiRequest(`/api/interviews/${responseData.interviewId}/feedback`, {
+         method: 'POST',
+         body: JSON.stringify(feedbackData)
+       });
+
+       if (feedbackResponse.ok) {
+         const feedbackResult = await feedbackResponse.json();
+         console.log('✅ Comprehensive feedback generated for direct mode at', CURRENT_TIME, ':', feedbackResult);
+         setSuccess(`✅ Interview and feedback generated successfully! Redirecting...`);
+       } else {
+         const feedbackErrorText = await feedbackResponse.text();
+         console.warn('⚠️ Failed to generate feedback, but interview created successfully. Feedback error:', feedbackErrorText);
+         setSuccess(`✅ Interview generated successfully! Redirecting...`);
+       }
+
+       setTimeout(() => {
+         navigate(`/feedback/${responseData.interviewId}`);
+         localStorage.removeItem('lastGeneratedInterviewId');
+       }, 2000);
+
+       return responseData;
+     } else {
+       // PATCH: Always log the error response
+       setError(`❌ Generation failed: ${responseData.error || responseData.message || 'Unknown error'}`);
+       console.error('Interview creation failed:', responseData);
+       return null;
+     }
+
+   } catch (error) {
+     console.error('🧪 Direct generation failed at', CURRENT_TIME, ':', error);
+     setError(error.message || '❌ Generation failed: Unknown error');
+     return null;
+   }
+ };
+
+  // ✅ Enhanced control handlers
+ const handleStopCall = async () => {
+   console.log('End Interview Clicked');
+   console.log('vapi:', vapi);
+   console.log('callStatus:', callStatus);
+   if (vapi && callStatus !== 'idle') {
+     console.log('Stopping VAPI call...');
+     vapi.stop();
+   } else {
+     console.log('VAPI not ready or callStatus is idle');
+   }
+ };
+    // ✅ Manually emit function-call using transcript
+
+
 
   const handleToggleMute = () => {
     if (vapi) {
       vapi.setMuted(!isMuted);
       setIsMuted(!isMuted);
+      console.log('🔇 Mute toggled at', CURRENT_TIME, '- Muted:', !isMuted);
     }
   };
 
@@ -811,13 +1159,14 @@ CRITICAL RULES:
     setSuccess('');
     setInterviewQuestions([]);
     setCurrentQuestionIndex(0);
+    console.log('🔄 Form reset at', CURRENT_TIME, 'for', CURRENT_USER);
   };
 
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
         <Container maxWidth="md" sx={{ py: 4 }}>
-          {/* Header */}
+          {/* ✅ Enhanced Header */}
           <Box display="flex" alignItems="center" mb={4}>
             <Button
               startIcon={<ArrowBack />}
@@ -841,22 +1190,22 @@ CRITICAL RULES:
             </Typography>
           </Box>
 
-          {/* ✅ Updated Welcome Message with current info */}
+          {/* ✅ Enhanced Welcome Message */}
           <Paper sx={{ p: 3, mb: 3, backgroundColor: 'rgba(123, 31, 162, 0.15)', border: '1px solid rgba(123, 31, 162, 0.3)', borderRadius: '12px' }}>
             <Box display="flex" alignItems="center" gap={2}>
               <AutoAwesomeIcon sx={{ color: '#7b1fa2', fontSize: 30 }} />
               <Box>
                 <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                  Welcome back, {CURRENT_USER}!
+                  Welcome back, {username}! 👋
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#ccc' }}>
-                  Current time: {CURRENT_TIME} UTC • Ready for your complete mock interview experience?
+                  Session time: {CURRENT_TIME} UTC • Ready for your complete mock interview experience?
                 </Typography>
               </Box>
             </Box>
           </Paper>
 
-          {/* Status Messages */}
+          {/* ✅ Status Messages */}
           {error && (
             <Alert
               severity="error"
@@ -877,9 +1226,39 @@ CRITICAL RULES:
             </Alert>
           )}
 
-          {/* Main Content */}
-          {!isGenerating ? (
-            /* Form */
+          {/* ✅ Enhanced Feedback Processing Display */}
+          {feedbackProcessing && (
+            <Paper sx={{ p: 4, mb: 3, textAlign: 'center', backgroundColor: 'rgba(76, 175, 80, 0.1)', border: '1px solid rgba(76, 175, 80, 0.3)', borderRadius: '16px' }}>
+              <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, backgroundColor: '#4caf50' }}>
+                <CheckCircle sx={{ fontSize: 40 }} />
+              </Avatar>
+              <Typography variant="h6" sx={{ color: '#4caf50', mb: 1, fontWeight: 'bold' }}>
+                🧠 Generating Your Interview Feedback
+              </Typography>
+              <Typography variant="body1" sx={{ color: '#ccc', mb: 2 }}>
+                {currentStep}
+              </Typography>
+              <LinearProgress
+                sx={{
+                  mb: 2,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: '#4caf50',
+                    borderRadius: 4,
+                  }
+                }}
+              />
+              <Typography variant="caption" sx={{ color: '#888' }}>
+                Processing at {CURRENT_TIME} for {userInfo.username} • Usually takes 3-5 seconds
+              </Typography>
+            </Paper>
+          )}
+
+          {/* ✅ Main Content */}
+          {!isGenerating && !feedbackProcessing ? (
+            /* Interview Form */
             <StyledCard>
               <CardContent sx={{ p: 4 }}>
                 <Box display="flex" alignItems="center" gap={2} mb={3}>
@@ -1042,26 +1421,26 @@ CRITICAL RULES:
                     {/* Primary Generation Buttons */}
                     <Stack direction="row" spacing={2}>
                       <GlowingButton
-                        variant="contained"
-                        size="large"
-                        fullWidth
-                        startIcon={vapi ? <MicIcon /> : <CircularProgress size={20} />}
-                        onClick={handleStartVoiceInterview}
-                        disabled={!vapi}
-                        sx={{
-                          py: 2,
-                          background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
-                          '&:hover': {
-                            background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
-                          },
-                          '&:disabled': {
-                            background: '#555',
-                            color: '#999',
-                          }
-                        }}
-                      >
-                        {vapi ? '🎤 Complete Interview Experience' : 'Initializing Voice...'}
-                      </GlowingButton>
+                                           variant="contained"
+                                           size="large"
+                                           fullWidth
+                                           startIcon={vapi ? <MicIcon /> : <CircularProgress size={20} />}
+                                           onClick={handleStartVoiceInterview}
+                                           disabled={!vapi}
+                                           sx={{
+                                             py: 2,
+                                             background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
+                                             '&:hover': {
+                                               background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
+                                             },
+                                             '&:disabled': {
+                                               background: '#555',
+                                               color: '#999',
+                                             }
+                                           }}
+                                         >
+                                           {vapi ? '🎤 Complete Interview Experience' : 'Initializing Voice...'}
+                                         </GlowingButton>
 
                       <GlowingButton
                         variant="outlined"
@@ -1132,6 +1511,7 @@ CRITICAL RULES:
                     </Stack>
                   </Stack>
 
+
                   {/* Info Boxes */}
                   <Stack spacing={2}>
                     <Paper sx={{ p: 2, backgroundColor: 'rgba(123, 31, 162, 0.1)', border: '1px solid rgba(123, 31, 162, 0.3)', borderRadius: '8px' }}>
@@ -1150,7 +1530,7 @@ CRITICAL RULES:
               </CardContent>
             </StyledCard>
           ) : (
-            /* Active Interview UI */
+            /* ✅ Enhanced Active Interview UI */
             <Paper
               sx={{
                 p: 6,
@@ -1183,6 +1563,28 @@ CRITICAL RULES:
                   : currentStep || 'Conducting your mock interview session'
                 }
               </Typography>
+             {(callStatus === 'active' || callStatus === 'connecting') && (
+               <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 3 }}>
+                 <Button
+                   variant="outlined"
+                   size="medium"
+                   startIcon={<BugReportIcon />}
+                   onClick={handleManualFunctionCallFromTranscript}
+                   disabled={!vapi}
+                   sx={{
+                     borderColor: '#4caf50',
+                     color: '#4caf50',
+                     '&:hover': {
+                       borderColor: '#388e3c',
+                       color: '#388e3c',
+                       backgroundColor: 'rgba(76, 175, 80, 0.1)'
+                     }
+                   }}
+                 >
+                   🛠 Emit Function Call from Transcript
+                 </Button>
+               </Stack>
+             )}
 
               {callStatus === 'active' && (
                 <>
@@ -1198,17 +1600,20 @@ CRITICAL RULES:
                       <Typography variant="h6" fontWeight="bold">
                         Question {currentQuestionIndex} of {formData.amount}
                       </Typography>
-                      <Box sx={{ width: '100%', mt: 1 }}>
-                        <Box
-                          sx={{
-                            width: `${(currentQuestionIndex / parseInt(formData.amount)) * 100}%`,
-                            height: 4,
+                      <LinearProgress
+                        variant="determinate"
+                        value={(currentQuestionIndex / parseInt(formData.amount)) * 100}
+                        sx={{
+                          mt: 1,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          '& .MuiLinearProgress-bar': {
                             backgroundColor: 'rgba(255,255,255,0.8)',
-                            borderRadius: 2,
-                            transition: 'width 0.3s ease'
-                          }}
-                        />
-                      </Box>
+                            borderRadius: 4,
+                          }
+                        }}
+                      />
                     </Box>
                   )}
 
@@ -1262,6 +1667,11 @@ CRITICAL RULES:
                   End Interview
                 </Button>
               </Stack>
+
+              {/* Session Info */}
+              <Typography variant="caption" sx={{ opacity: 0.7, mt: 3, display: 'block' }}>
+                Session: {CURRENT_TIME} • User: {username} • Auto-feedback enabled
+              </Typography>
 
               {/* Progress indicator */}
               <Box sx={{

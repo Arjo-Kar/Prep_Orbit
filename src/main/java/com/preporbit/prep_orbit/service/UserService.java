@@ -75,10 +75,12 @@ public class UserService {
             if (passwordEncoder.matches(req.getPassword(), user.getPassword())) {
                 String token = jwtService.generateToken(user.getEmail());
                 UserDto userDto = new UserDto(user.getId(), user.getFullName(), user.getEmail());
+                System.out.println("Full Name: " + user.getFullName());
                 return new LoginResponse(200, "Login successful", token, userDto);
             }
         }
         return new LoginResponse(401, "Invalid credentials", null, null);
+
     }
 
     public LoginResponse verifyEmail(String token) {
