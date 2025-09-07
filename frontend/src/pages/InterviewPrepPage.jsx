@@ -44,10 +44,8 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
-// Constants - ✅ Updated with current info
-const NGROK_URL = 'https://70a547ab4135.ngrok-free.app';
-const CURRENT_TIME = '2025-09-05 17:25:38'; // ✅ Current UTC time
-const CURRENT_USER = 'Arjo-Kar'; // ✅ Current user
+const NGROK_URL = 'https://a5d42a36fb75.ngrok-free.app';
+const CURRENT_TIME = '2025-09-05 17:25:38';
 
 // Dark theme with enhanced styling
 const darkTheme = createTheme({
@@ -200,30 +198,22 @@ function InterviewPrepPage() {
   const [stats, setStats] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ Enhanced getUserInfo with current authentication
+  // Enhanced getUserInfo with JSON user object from localStorage
   const getUserInfo = () => {
-    const userId = localStorage.getItem('userId') || '1';
-    const username = localStorage.getItem('username') || CURRENT_USER;
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = storedUser.id || '1';
+    const username = storedUser.name || storedUser.username || 'Guest';
     const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
-
-    console.log('🔐 User info loaded:', {
-      userId,
-      username,
-      hasToken: !!authToken,
-      tokenLength: authToken?.length || 0,
-      currentTime: CURRENT_TIME
-    });
-
     return { userId, username, authToken };
   };
+  const { username, userId } = getUserInfo();
 
-  // Initialize data loading
   useEffect(() => {
     fetchInterviews();
     fetchUserStats();
+    // eslint-disable-next-line
   }, []);
 
-  // ✅ Enhanced fetchInterviews with comprehensive error handling
   const fetchInterviews = async () => {
     try {
       setLoading(true);
@@ -237,8 +227,6 @@ function InterviewPrepPage() {
         return;
       }
 
-      console.log(`🔍 Fetching interviews for authenticated user ${userInfo.username} at ${CURRENT_TIME}`);
-
       const response = await fetch(`${NGROK_URL}/api/interviews/my-interviews`, {
         method: 'GET',
         headers: {
@@ -249,8 +237,6 @@ function InterviewPrepPage() {
         },
         credentials: 'include'
       });
-
-      console.log('📡 API Response status:', response.status);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -265,10 +251,7 @@ function InterviewPrepPage() {
       }
 
       const data = await response.json();
-      console.log('✅ API Response data:', data);
-
       if (data.success && Array.isArray(data.interviews)) {
-        // ✅ Enhanced interview data processing
         const processedInterviews = data.interviews.map(interview => ({
           ...interview,
           techstack: Array.isArray(interview.techstack)
@@ -279,18 +262,13 @@ function InterviewPrepPage() {
         }));
 
         setInterviews(processedInterviews);
-        console.log(`📋 Loaded ${processedInterviews.length} interviews for ${userInfo.username} at ${CURRENT_TIME}`);
       } else {
         throw new Error(data.message || 'Invalid response format from server');
       }
 
     } catch (err) {
-      console.error('❌ Error fetching interviews:', err);
       setError(err.message || 'Failed to load interviews. Please try again.');
-
-      // ✅ Enhanced development fallback with current data
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🧪 Development mode: Using enhanced mock data for ${CURRENT_USER}`);
         const mockInterviews = [
           {
             id: 1,
@@ -340,7 +318,6 @@ function InterviewPrepPage() {
     }
   };
 
-  // ✅ Fetch user statistics
   const fetchUserStats = async () => {
     try {
       const userInfo = getUserInfo();
@@ -358,9 +335,7 @@ function InterviewPrepPage() {
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);
-        console.log('✅ User stats loaded:', data.stats);
       } else {
-        // ✅ Enhanced fallback stats
         const fallbackStats = {
           totalFeedbacks: interviews.filter(i => i.hasFeedback).length,
           averageOverallScore: 7.8,
@@ -373,8 +348,6 @@ function InterviewPrepPage() {
         setStats(fallbackStats);
       }
     } catch (err) {
-      console.error('❌ Error fetching stats:', err);
-      // Set fallback stats
       setStats({
         totalFeedbacks: interviews.filter(i => i.hasFeedback).length,
         averageOverallScore: 7.8,
@@ -387,22 +360,17 @@ function InterviewPrepPage() {
     }
   };
 
-  // ✅ Enhanced refresh function
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([fetchInterviews(), fetchUserStats()]);
     setRefreshing(false);
   };
 
-  // ✅ Enhanced navigation handlers
   const handleStartNewInterview = () => {
-    console.log(`🚀 Starting new interview for ${CURRENT_USER} at ${CURRENT_TIME}`);
     navigate('/interview/new');
   };
 
   const handleViewInterview = (interview) => {
-    console.log('🔍 Viewing interview:', interview);
-
     if (interview.hasFeedback) {
       navigate(`/feedback/${interview.id}`);
     } else {
@@ -411,11 +379,9 @@ function InterviewPrepPage() {
   };
 
   const handleViewAllFeedback = () => {
-    console.log(`📊 Viewing all feedback for ${CURRENT_USER} at ${CURRENT_TIME}`);
     navigate('/feedback-history');
   };
 
-  // ✅ Enhanced utility functions
   const getTypeColor = (type) => {
     const colors = {
       'technical': '#2196F3',
@@ -470,7 +436,7 @@ function InterviewPrepPage() {
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          {/* ✅ Enhanced Header */}
+          {/* Header */}
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={4}>
             <Box display="flex" alignItems="center">
               <Tooltip title="Back to Dashboard">
@@ -502,7 +468,7 @@ function InterviewPrepPage() {
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Chip
                     icon={<Person />}
-                    label={CURRENT_USER}
+                    label={username}
                     sx={{ backgroundColor: '#7b1fa2', color: 'white' }}
                   />
                   <Chip
@@ -523,8 +489,6 @@ function InterviewPrepPage() {
                 </Stack>
               </Box>
             </Box>
-
-            {/* ✅ Quick Action Buttons */}
             <Stack direction="row" spacing={2}>
               <Tooltip title="View detailed feedback history">
                 <ActionButton
@@ -565,7 +529,7 @@ function InterviewPrepPage() {
             </Stack>
           </Box>
 
-          {/* ✅ Enhanced Welcome & Stats Section */}
+          {/* Welcome & Stats Section */}
           <Grid container spacing={3} mb={4}>
             {/* Welcome Message */}
             <Grid item xs={12} lg={8}>
@@ -581,7 +545,7 @@ function InterviewPrepPage() {
                   </Avatar>
                   <Box>
                     <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', mb: 1 }}>
-                      Welcome back, {CURRENT_USER}! 👋
+                      Welcome back, {username}! 👋
                     </Typography>
                     <Typography variant="body1" sx={{ color: '#ccc', mb: 1 }}>
                       Ready to advance your interview skills? Track your progress and practice with AI-powered mock interviews.
@@ -593,8 +557,6 @@ function InterviewPrepPage() {
                 </Box>
               </Paper>
             </Grid>
-
-            {/* Quick Stats */}
             <Grid item xs={12} lg={4}>
               <StatsCard>
                 <CardContent sx={{ p: 3 }}>
@@ -636,7 +598,7 @@ function InterviewPrepPage() {
             </Grid>
           </Grid>
 
-          {/* ✅ Performance Overview Cards */}
+          {/* Performance Overview Cards */}
           {stats && (
             <Grid container spacing={3} mb={4}>
               <Grid item xs={12} sm={6} md={3}>
@@ -718,7 +680,7 @@ function InterviewPrepPage() {
             </Grid>
           )}
 
-          {/* ✅ Enhanced Start New Interview Section */}
+          {/* Start New Interview Section */}
           <HeroCard sx={{ p: 5, mb: 4, position: 'relative' }}>
             <Avatar
               sx={{
@@ -741,7 +703,6 @@ function InterviewPrepPage() {
             <Typography variant="body1" sx={{ opacity: 0.8, mb: 4, position: 'relative', zIndex: 1 }}>
               Choose from technical, behavioral, or mixed interviews • Get real-time AI feedback • Track your progress
             </Typography>
-
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="center" sx={{ position: 'relative', zIndex: 1 }}>
               <ActionButton
                 variant="contained"
@@ -783,8 +744,6 @@ function InterviewPrepPage() {
                 📊 View Feedback History
               </ActionButton>
             </Stack>
-
-            {/* Hero stats */}
             <Box mt={4} pt={3} sx={{ borderTop: '1px solid rgba(255,255,255,0.3)', position: 'relative', zIndex: 1 }}>
               <Grid container spacing={4} textAlign="center">
                 <Grid item xs={4}>
@@ -836,7 +795,7 @@ function InterviewPrepPage() {
             </Alert>
           )}
 
-          {/* ✅ Enhanced Interview History Section */}
+          {/* Interview History Section */}
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
             <Typography variant="h4" fontWeight="bold">
               Your Interview Journey 📚
@@ -865,11 +824,10 @@ function InterviewPrepPage() {
                 Loading your interview history...
               </Typography>
               <Typography variant="body2" sx={{ color: '#777' }}>
-                Fetching data for {CURRENT_USER} • {CURRENT_TIME}
+                Fetching data for {username} • {CURRENT_TIME}
               </Typography>
             </Box>
           ) : interviews.length === 0 ? (
-            /* ✅ Enhanced Empty State */
             <Paper
               sx={{
                 p: 8,
@@ -914,13 +872,11 @@ function InterviewPrepPage() {
               </ActionButton>
             </Paper>
           ) : (
-            /* ✅ Enhanced Interview Grid */
             <Grid container spacing={3}>
               {interviews.map((interview) => (
                 <Grid item xs={12} sm={6} lg={4} key={interview.id}>
                   <InterviewCard onClick={() => handleViewInterview(interview)}>
                     <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-                      {/* Header with Status */}
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
                         <Stack direction="row" spacing={1}>
                           <Chip
@@ -945,8 +901,6 @@ function InterviewPrepPage() {
                           {new Date(interview.createdAt).toLocaleDateString()}
                         </Typography>
                       </Box>
-
-                      {/* Status Indicator */}
                       {interview.hasFeedback && (
                         <Box sx={{
                           mb: 2,
@@ -963,13 +917,9 @@ function InterviewPrepPage() {
                           </Box>
                         </Box>
                       )}
-
-                      {/* Title */}
                       <Typography variant="h6" fontWeight="bold" mb={2} sx={{ color: 'white' }}>
                         {interview.role}
                       </Typography>
-
-                      {/* Interview Details */}
                       <Stack spacing={1} mb={3}>
                         <Box display="flex" justifyContent="space-between" alignItems="center">
                           <Typography variant="body2" sx={{ color: '#ccc', display: 'flex', alignItems: 'center' }}>
@@ -989,8 +939,6 @@ function InterviewPrepPage() {
                           </Typography>
                         </Box>
                       </Stack>
-
-                      {/* ✅ Enhanced Technology Stack */}
                       <Box mb={3}>
                         <Typography variant="caption" sx={{ color: '#aaa', mb: 1, display: 'block' }}>
                           Technologies ({interview.techstack?.length || 0}):
@@ -1026,10 +974,7 @@ function InterviewPrepPage() {
                           )}
                         </Stack>
                       </Box>
-
                       <Divider sx={{ mb: 3, borderColor: '#555' }} />
-
-                      {/* ✅ Enhanced Action Button */}
                       <ActionButton
                         variant="contained"
                         fullWidth
@@ -1055,7 +1000,7 @@ function InterviewPrepPage() {
             </Grid>
           )}
 
-          {/* ✅ Enhanced Footer Information */}
+          {/* Footer Information */}
           {interviews.length > 0 && (
             <Paper sx={{
               p: 4,
@@ -1084,7 +1029,7 @@ function InterviewPrepPage() {
                 </Grid>
                 <Grid item xs={12} sm={3}>
                   <Typography variant="h6" fontWeight="bold" sx={{ color: '#ff9800' }}>
-                    {CURRENT_USER}
+                    {username}
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#aaa' }}>
                     Current User
@@ -1107,7 +1052,7 @@ function InterviewPrepPage() {
           )}
         </Container>
 
-        {/* ✅ CSS Animations */}
+        {/* CSS Animations */}
         <style jsx global>{`
           @keyframes spin {
             from { transform: rotate(0deg); }

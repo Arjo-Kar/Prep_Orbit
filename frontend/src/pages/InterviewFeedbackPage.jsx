@@ -50,8 +50,8 @@ import {
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
 // Constants
-const NGROK_URL = 'https://70a547ab4135.ngrok-free.app'; // Updated to current ngrok URL
-const CURRENT_USER = 'Arjo-Kar';
+const NGROK_URL = 'https://a5d42a36fb75.ngrok-free.app'; // Updated to current ngrok URL
+
 const CURRENT_TIME = '2025-09-05 13:50:18';
 
 // Dark theme with enhanced styling
@@ -203,11 +203,13 @@ function InterviewFeedbackPage() {
 
   // ✅ Get user info from localStorage with fallback
   const getUserInfo = () => {
-    const userId = localStorage.getItem('userId') || paramUserId || '1';
-    const username = localStorage.getItem('username') || CURRENT_USER;
-    const authToken = localStorage.getItem('authToken');
-    return { userId, username, authToken };
-  };
+      const parsedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = parsedUser.id || localStorage.getItem('userId') || paramUserId || '1';
+      const username = parsedUser.name || parsedUser.username || localStorage.getItem('username') || 'Guest';
+      const authToken = localStorage.getItem('authToken');
+      return { userId, username, authToken };
+    };
+    const userInfo = getUserInfo();
 
   useEffect(() => {
     fetchData();
@@ -525,7 +527,7 @@ ${feedback.finalAssessment}
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `interview-feedback-${interviewId}-${CURRENT_USER}.txt`;
+      a.download = `interview-feedback-${interviewId}-${userInfo.username}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -708,7 +710,7 @@ ${feedback.finalAssessment}
                     sx={{ borderColor: '#7b1fa2', color: '#7b1fa2' }}
                   />
                   <Typography variant="body2" sx={{ color: '#aaa' }}>
-                    Generated: {new Date(feedback.createdAt).toLocaleDateString()} • User: {CURRENT_USER}
+                    Generated: {new Date(feedback.createdAt).toLocaleDateString()} • User: {userInfo.username}
                   </Typography>
                 </Stack>
               </Box>
@@ -1219,7 +1221,7 @@ ${feedback.finalAssessment}
                                     textTransform: 'capitalize'
                                   }}
                                 >
-                                  {message.role === 'assistant' ? 'AI Interviewer' : CURRENT_USER}
+                                  {message.role === 'assistant' ? 'AI Interviewer' : userInfo.username}
                                 </Typography>
                               </Box>
                               {message.timestamp && (

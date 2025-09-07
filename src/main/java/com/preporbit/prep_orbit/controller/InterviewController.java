@@ -75,16 +75,31 @@ public class InterviewController {
     @PostMapping("/generate")
     public ResponseEntity<Map<String, Object>> generateInterview(@Valid @RequestBody InterviewRequestDto request) {
         try {
+            System.out.println("🚨 ENTERED /generate CONTROLLER 🚨");
+            System.out.println("Request DTO: " + request);
+            if (request.getAmount() == null || request.getAmount() < 3 || request.getAmount() > 15) {
+                throw new RuntimeException("Amount is not defined or out of range");
+            }
             // ✅ Get authenticated username and set user ID for Arjo-Kar
             String authenticatedUsername = getAuthenticatedUsername();
             Long authenticatedUserId = interviewService.getUserIdByUsername(authenticatedUsername);
             request.setUserId(authenticatedUserId);
 
+
             logger.info("🚀 Generating interview for authenticated user: {} (ID: {}) with role: {}",
                     authenticatedUsername, authenticatedUserId, request.getRole());
 
             InterviewResponseDto interview = interviewService.generateInterview(request);
-
+            if (interview == null) {
+                System.out.println("ERROR: interview is null!");
+            } else {
+                System.out.println("Interview ID: " + interview.getId());
+            }
+            System.out.println("Request userId: " + request.getUserId());
+            if (request.getUserId() == null) {
+                System.out.println("ERROR: userId is null in request!");
+                // Optionally return an error response early
+            }
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Interview generated successfully for " + authenticatedUsername);

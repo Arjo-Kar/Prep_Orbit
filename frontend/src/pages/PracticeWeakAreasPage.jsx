@@ -79,7 +79,7 @@ const PracticeWeakAreasPage = () => {
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("authToken");
       if (!token) throw new Error("User not authenticated");
 
       // Format answers according to backend expectation

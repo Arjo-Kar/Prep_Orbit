@@ -156,42 +156,50 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setError(null);
-      setLoading(true);
-
+  // For debugging: logs user info from localStorage
+  const logStoredUser = () => {
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
       try {
-        const data = await login(email, password);
-        console.log('Login successful:', data);
-
-        // Store the JWT token
-        if (data.token) {
-          localStorage.setItem('authToken', data.token);
-        } else {
-          setError('Login response missing token. Please contact support.');
-          setLoading(false);
-          return;
-        }
-
-        // Store user info
-        if (data.user && data.user.id) {
-          localStorage.setItem('user', JSON.stringify(data.user));
-        } else {
-          setError('Login response missing user info. Please contact support.');
-          setLoading(false);
-          return;
-        }
-
-        navigate('/dashboard'); // Redirect to dashboard on success
-      } catch (err) {
-        setError('Login failed. Please check your credentials.');
-        console.error('Login error:', err);
-        setLoading(false);
+        const parsed = JSON.parse(rawUser);
+        console.log('[Login Debug] Stored user object:', parsed);
+      } catch (e) {
+        console.log('[Login Debug] Error parsing user from localStorage:', e, 'raw value:', rawUser);
       }
-    };
+    } else {
+      console.log('[Login Debug] No user found in localStorage.');
+    }
+  };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
 
+    try {
+      const data = await login(email, password);
+      console.log('Login successful:', data);
+
+      // Store the JWT token and user info in localStorage
+      localStorage.setItem('authToken', data.token);
+
+      // Store user info (expects data.user to contain id, name, email, etc.)
+      if (data.user && data.user.id) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        logStoredUser(); // Log the stored user after saving
+      } else {
+        setError('Login response missing user info. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
+      navigate('/dashboard'); // Redirect to dashboard on success
+    } catch (err) {
+      setError('Login failed. Please check your credentials.');
+      console.error('Login error:', err);
+      setLoading(false);
+    }
+  };
 
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);

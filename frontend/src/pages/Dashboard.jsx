@@ -31,13 +31,10 @@ import {
   Chat as ChatIcon,
   WorkOutline as InterviewIcon,
   Terminal,
-   Mic as MicIcon
-
+  Mic as MicIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import CodingChallengeAPI from '../api/CodingChallengeAPI';
-
-const storedUser = JSON.parse(localStorage.getItem("user"));
 
 // Dark theme to match the CodingChallengePage
 const darkTheme = createTheme({
@@ -164,6 +161,13 @@ function Dashboard() {
     weeklyTarget: 7,
     averageScore: 0
   });
+
+  // Get current user from localStorage, fallback to "Guest"
+  const getCurrentUsername = () => {
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    return storedUser.name || storedUser.username || "Guest";
+  };
+  const username = getCurrentUsername();
 
   // Pre-fill form if URL has query params
   useEffect(() => {
@@ -329,7 +333,7 @@ function Dashboard() {
                         mb: 1
                       }}
                     >
-                       Welcome back, {storedUser?.name || 'Arjo-Kar'}! 👨‍💻
+                       Welcome back, {username}! 👨‍💻
                     </Typography>
                     <Typography variant="h6" sx={{ color: '#aaa' }}>
                       Ready for today's challenge? Choose your path to success.
@@ -725,7 +729,7 @@ function Dashboard() {
                 <Grid item xs={12} sm={6} lg={3}>
                   <ActionButton
                     variant="contained"
-                    startIcon={<MicIcon />}  // ✅ Changed from InterviewIcon to MicIcon
+                    startIcon={<MicIcon />}
                     fullWidth
                     onClick={() => navigate("/interview-prep")}
                     sx={{

@@ -22,11 +22,10 @@ import {
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import Vapi from '@vapi-ai/web';
 
-// Constants - ✅ Updated with current info
-const VAPI_PUBLIC_KEY = '32044a48-5854-4f51-805f-5e0f0dc1c157';
-const NGROK_URL = 'https://70a547ab4135.ngrok-free.app';
+// Constants
+const VAPI_PUBLIC_KEY ='38c20db5-f2e5-49e7-915f-aa304605fec4';
+const NGROK_URL = 'https://a5d42a36fb75.ngrok-free.ap';
 const CURRENT_TIME = '2025-09-05 15:28:13';
-const CURRENT_USER = 'Arjo-Kar';
 
 // Dark theme
 const darkTheme = createTheme({
@@ -95,19 +94,22 @@ function InterviewSessionPage() {
 
   // ✅ Get user info with enhanced authentication
   const getUserInfo = () => {
-    const userName = localStorage.getItem('username') || CURRENT_USER;
-    const userId = localStorage.getItem('userId') || '1';
+    // Parse from localStorage if present
+    const parsedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = parsedUser.name || parsedUser.username || localStorage.getItem('username') || 'Guest';
+    const userId = parsedUser.id || localStorage.getItem('userId') || '1';
     const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
 
     console.log('👤 User info for session:', { userName, userId, hasToken: !!authToken, timestamp: CURRENT_TIME });
     return { userName, userId, authToken };
   };
+  const userInfo = getUserInfo();
 
   useEffect(() => {
     // ✅ Fetch interview details with authentication
     const fetchInterview = async () => {
       try {
-        const { authToken } = getUserInfo();
+        const { authToken } = userInfo;
 
         console.log('🔍 Fetching interview details for ID:', interviewId);
 
@@ -174,6 +176,7 @@ function InterviewSessionPage() {
     };
 
     fetchInterview();
+    // eslint-disable-next-line
   }, [interviewId]);
 
   useEffect(() => {
@@ -183,12 +186,12 @@ function InterviewSessionPage() {
 
       // ✅ Enhanced event listeners
       const onCallStart = () => {
-        console.log('✅ Interview call started for', CURRENT_USER);
+        console.log('✅ Interview call started for', userInfo.userName);
         setCallStatus(CallStatus.ACTIVE);
       };
 
       const onCallEnd = () => {
-        console.log('📞 Interview call ended for', CURRENT_USER);
+        console.log('📞 Interview call ended for', userInfo.userName);
         setCallStatus(CallStatus.FINISHED);
         // Navigate to feedback page after call ends
         setTimeout(() => {
@@ -215,7 +218,7 @@ function InterviewSessionPage() {
       };
 
       const onError = (error) => {
-        console.error('❌ VAPI Error for', CURRENT_USER, ':', error);
+        console.error('❌ VAPI Error for', userInfo.userName, ':', error);
         setCallStatus(CallStatus.INACTIVE);
       };
 
@@ -236,7 +239,7 @@ function InterviewSessionPage() {
         vapiInstance.stop();
       };
     }
-  }, [interviewId, navigate]);
+  }, [interviewId, navigate, userInfo.userName]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -249,9 +252,8 @@ function InterviewSessionPage() {
 
     try {
       setCallStatus(CallStatus.CONNECTING);
-      const { userName } = getUserInfo();
 
-      console.log('🚀 Starting interview call for', userName, 'at', CURRENT_TIME);
+      console.log('🚀 Starting interview call for', userInfo.userName, 'at', CURRENT_TIME);
 
       // ✅ Enhanced interview assistant configuration
       const interviewAssistant = {
@@ -261,7 +263,7 @@ function InterviewSessionPage() {
           messages: [
             {
               role: "system",
-              content: `You are an AI interviewer conducting a ${interview.type.toLowerCase()} interview for a ${interview.role} position with ${userName} (current time: ${CURRENT_TIME}).
+              content: `You are an AI interviewer conducting a ${interview.type.toLowerCase()} interview for a ${interview.role} position with ${userInfo.userName} (current time: ${CURRENT_TIME}).
 
 Interview Details:
 - Role: ${interview.role}
@@ -291,7 +293,7 @@ Guidelines:
 - Maintain a conversational tone
 - End positively and mention they'll receive feedback soon
 
-Current candidate: ${userName}
+Current candidate: ${userInfo.userName}
 Interview session started: ${CURRENT_TIME}`
             }
           ],
@@ -301,26 +303,25 @@ Interview session started: ${CURRENT_TIME}`
           provider: "deepgram",
           voiceId: "aura-asteria-en"
         },
-        firstMessage: `Hello ${userName}! Welcome to your ${interview.role} interview session. I'm excited to assess your ${interview.type.toLowerCase()} skills today. We'll be covering questions related to ${interview.techstack.join(', ')} and I have ${interview.questions.length} questions prepared for you. This should take about ${interview.questions.length * 3} minutes. Are you ready to begin?`,
+        firstMessage: `Hello ${userInfo.userName}! Welcome to your ${interview.role} interview session. I'm excited to assess your ${interview.type.toLowerCase()} skills today. We'll be covering questions related to ${interview.techstack.join(', ')} and I have ${interview.questions.length} questions prepared for you. This should take about ${interview.questions.length * 3} minutes. Are you ready to begin?`,
 
-        // ✅ Enhanced session configuration
         silenceTimeoutSeconds: 45,
         maxDurationSeconds: interview.questions.length * 180, // 3 minutes per question
-        endCallMessage: `Thank you ${userName} for completing your ${interview.role} interview! You'll receive detailed feedback shortly. Have a great day!`
+        endCallMessage: `Thank you ${userInfo.userName} for completing your ${interview.role} interview! You'll receive detailed feedback shortly. Have a great day!`
       };
 
       console.log('📋 Starting interview with configuration:', interviewAssistant);
       await vapi.start(interviewAssistant);
 
     } catch (error) {
-      console.error('❌ Error starting interview for', CURRENT_USER, ':', error);
+      console.error('❌ Error starting interview for', userInfo.userName, ':', error);
       setCallStatus(CallStatus.INACTIVE);
     }
   };
 
   const handleEndCall = () => {
     if (vapi) {
-      console.log('🔚 Ending interview call for', CURRENT_USER);
+      console.log('🔚 Ending interview call for', userInfo.userName);
       vapi.stop();
       setCallStatus(CallStatus.FINISHED);
     }
@@ -427,7 +428,7 @@ Interview session started: ${CURRENT_TIME}`
               {/* ✅ Session Info */}
               <Box mt={2} pt={2} sx={{ borderTop: '1px solid #555' }}>
                 <Typography variant="caption" sx={{ color: '#888' }}>
-                  Session for: {CURRENT_USER} • Started: {CURRENT_TIME}
+                  Session for: {userInfo.userName} • Started: {CURRENT_TIME}
                 </Typography>
               </Box>
             </CardContent>
@@ -497,7 +498,7 @@ Interview session started: ${CURRENT_TIME}`
                   <PersonIcon sx={{ fontSize: 40 }} />
                 </Avatar>
                 <Typography variant="h6" fontWeight="bold" textAlign="center" sx={{ color: 'white' }}>
-                  {CURRENT_USER}
+                  {userInfo.userName}
                 </Typography>
               </CardContent>
             </CallCard>
