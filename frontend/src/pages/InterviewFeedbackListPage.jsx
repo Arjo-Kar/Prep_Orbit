@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
-const NGROK_URL = 'https://ae3c273ae5e6.ngrok-free.app';
+const NGROK_URL = 'https://0e00ca316d9b.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 17:18:59';
 const CURRENT_USER = 'Arjo-Kar';
 

@@ -50,7 +50,7 @@ import {
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
 // Constants
-const NGROK_URL = 'https://ae3c273ae5e6.ngrok-free.app'; // Updated to current ngrok URL
+const NGROK_URL = 'https://a5d42a36fb75.ngrok-free.app'; // Updated to current ngrok URL
 
 const CURRENT_TIME = '2025-09-05 13:50:18';
 

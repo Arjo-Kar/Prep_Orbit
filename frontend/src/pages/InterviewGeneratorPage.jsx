@@ -41,7 +41,7 @@ import Vapi from '@vapi-ai/web';
 
 // Constants - ✅ Current timestamp
 const VAPI_PUBLIC_KEY = '38c20db5-f2e5-49e7-915f-aa304605fec4';
-const NGROK_URL = 'https://ae3c273ae5e6.ngrok-free.app';
+const NGROK_URL = 'https://a5d42a36fb75.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 17:56:41'; // ✅ Current UTC time
  // ✅ Current authenticated user
 
@@ -426,7 +426,7 @@ function InterviewGeneratorPage() {
              type: formData.type,
              level: formData.level,
              techstack: formData.techstack.length > 0 ? formData.techstack : ["JavaScript", "React"],
-             amount: parseInt(formData.amount),
+             amount: parseInt(formData.amount) || 5,
              userId: parseInt(userInfo.userId)
            };
 
@@ -590,7 +590,7 @@ function InterviewGeneratorPage() {
       setIsGenerating(true);
       setError('');
       setSuccess('🎤 Connected! Starting your complete interview experience...');
-      setConversationTranscript([]);
+      //setConversationTranscript([]);
       setCurrentStep('Collecting interview requirements...');
       setInterviewQuestions([]);
       setCurrentQuestionIndex(0);
@@ -646,112 +646,6 @@ function InterviewGeneratorPage() {
 //      const [interviewCreationStatus, setInterviewCreationStatus] = useState('idle'); // idle, creating, created, failed
 
      // ✅ Enhanced function call handler with better error handling
-     vapiInstance.on('function-call', async (functionCall) => {
-       console.log('🔧 VAPI function called at', CURRENT_TIME, ':', functionCall);
-
-       if (functionCall.name === 'generateInterview') {
-         try {
-           setCurrentStep('Generating interview questions...');
-           setInterviewCreationStatus('creating');
-
-           const params = functionCall.parameters;
-           const userInfo = getUserInfo();
-
-           const requestData = {
-             role: params.role || formData.role || 'Software Engineer',
-             type: params.type || formData.type,
-             level: params.level || formData.level,
-             techstack: params.techstack ? params.techstack.split(',').map(s => s.trim()) : formData.techstack,
-             amount: parseInt(params.amount) || parseInt(formData.amount),
-             userId: parseInt(userInfo.userId)
-           };
-
-           console.log('📤 VAPI generating interview at', CURRENT_TIME, 'with data:', requestData);
-
-           const response = await makeApiRequest('/api/interviews/generate', {
-             method: 'POST',
-             body: JSON.stringify(requestData)
-           });
-        console.log("Triggering interview generation API call...");
-        console.log("API response:", response);
-           if (response.ok) {
-             const responseData = await response.json();
-             console.log('✅ VAPI interview generated at', CURRENT_TIME, ':', responseData);
-             console.log('RAW RESPONSE DATA:', responseData);
-             const questions = responseData.interview?.questions || responseData.questions || [];
-
-             // Log the generated questions
-             console.log('Generated interview questions:', questions);
-             questions.forEach((q, i) => console.log(`Question ${i + 1}:`, q));
-
-
-             // ✅ CRITICAL: Multiple ways to extract interview ID
-             const interviewId = responseData.interviewId ||
-                                responseData.id ||
-                                responseData.data?.id ||
-                                responseData.interview?.id ||
-                                responseData.data?.interviewId;
-
-             if (interviewId) {
-               // ✅ Store in both localStorage AND state
-               const idString = interviewId.toString();
-               localStorage.setItem('lastGeneratedInterviewId', idString);
-               setInterviewIdState(idString);
-               setInterviewCreationStatus('created');
-
-               console.log('💾 STORED Interview ID (MULTIPLE LOCATIONS):', idString, 'at', CURRENT_TIME);
-
-               // ✅ Double verification
-               const storedId = localStorage.getItem('lastGeneratedInterviewId');
-               console.log('🔍 VERIFICATION - Stored ID:', storedId, 'State ID:', idString, 'at', CURRENT_TIME);
-
-               setInterviewQuestions(responseData.interview?.questions || responseData.questions || []);
-               setCurrentStep('Interview ready! Starting questions...');
-
-               // ✅ Update form data
-               setFormData(prev => ({
-                 ...prev,
-                 role: params.role || prev.role,
-                 type: params.type || prev.type,
-                 level: params.level || prev.level,
-                 techstack: params.techstack ? params.techstack.split(',').map(s => s.trim()) : prev.techstack,
-                 amount: params.amount || prev.amount
-               }));
-
-               const questions = responseData.interview?.questions || responseData.questions || [];
-               const firstQuestion = questions[0];
-
-               if (firstQuestion) {
-                 setCurrentQuestionIndex(1);
-                 return {
-                   result: `Perfect! I've generated your ${requestData.amount}-question ${requestData.type} interview for the ${requestData.role} position (ID: ${interviewId}). Let's begin with your first question:\n\nQuestion 1: ${firstQuestion}\n\nPlease take your time to answer thoroughly.`
-                 };
-               } else {
-                 throw new Error('No questions generated in response');
-               }
-             } else {
-               setInterviewCreationStatus('failed');
-               console.error('❌ No interview ID found in API response:', responseData);
-               throw new Error('No interview ID found in API response');
-             }
-           } else if (response.status === 401) {
-             setInterviewCreationStatus('failed');
-             throw new Error('Authentication failed. Please login again.');
-           } else {
-             setInterviewCreationStatus('failed');
-             const errorText = await response.text();
-             throw new Error(`HTTP ${response.status}: ${errorText}`);
-           }
-         } catch (error) {
-           console.error('❌ VAPI interview generation error at', CURRENT_TIME, ':', error);
-           setInterviewCreationStatus('failed');
-           setCurrentStep('Interview generation failed...');
-           return { error: `Sorry, I couldn't generate the interview: ${error.message}. Please try the direct generation option.` };
-         }
-       }
-
-       return { result: "Function completed successfully" };
-     });
 
       // ✅ Enhanced conversation tracking
       vapiInstance.on('message', (message) => {
@@ -853,6 +747,10 @@ function InterviewGeneratorPage() {
   // ... your existing code above remains unchanged ...
 
   const handleStartVoiceInterview = async () => {
+  if (!formData.amount || isNaN(parseInt(formData.amount))) {
+    setError("Please select a valid number of questions.");
+    return;
+  }
     if (!vapi) {
       setError('Voice service not ready. Please refresh the page.');
       return;
@@ -870,12 +768,15 @@ function InterviewGeneratorPage() {
         type: formData.type,
         level: formData.level,
         techstack: formData.techstack.length > 0 ? formData.techstack : ["JavaScript", "React"],
-        amount: parseInt(formData.amount),
+        amount: parseInt(formData.amount) || 5,
         userId: parseInt(userInfo.userId)
       };
 
       console.log('📤 Interview generation before start at', CURRENT_TIME, 'with data:', requestData);
-
+        if (!formData.amount || isNaN(parseInt(formData.amount))) {
+          setError("Please select a valid number of questions.");
+          return;
+        }
       const response = await makeApiRequest('/api/interviews/generate', {
         method: 'POST',
         body: JSON.stringify(requestData)
@@ -915,7 +816,9 @@ function InterviewGeneratorPage() {
           console.log('🔍 VERIFICATION - Stored ID:', storedId, 'State ID:', idString, 'at', CURRENT_TIME);
 
           setInterviewQuestions(questions);
+          console.log("Questions are set!");
           setCurrentStep('Interview ready! Starting questions...');
+          console.log("Interview Ready!");
 
           // Update form data
           setFormData(prev => ({
@@ -926,10 +829,14 @@ function InterviewGeneratorPage() {
             techstack: requestData.techstack,
             amount: requestData.amount
           }));
-
+            console.log(requestData.amount);
           // Now start Vapi with the generated questions!
           const config = {
-            firstMessage: `Hello ${userInfo.username}! I'm your AI Interview Assistant from Prep Orbit. It's ${CURRENT_TIME} and I'll conduct a complete mock interview experience with you today. First, I'll ask your preferences, then the actual interview questions and provide feedback. Are you ready to begin?`,
+
+            firstMessage: `Hello ${userInfo.username}! I'm your AI Interview Assistant from Prep Orbit.
+            It's ${CURRENT_TIME} and I'll conduct a complete mock interview experience with you today.
+            I'll ask ${requestData.amount} questions for ${requestData.level} for the role of ${requestData.role} and provide a complete feedback.
+             Are you ready to begin?`,
             model: {
               provider: "openai",
               model: "gpt-3.5-turbo",
@@ -993,6 +900,10 @@ function InterviewGeneratorPage() {
 
   // ✅ Enhanced direct generation
  const handleDirectGeneration = async () => {
+ if (!formData.amount || isNaN(parseInt(formData.amount))) {
+   setError("Please select a valid number of questions.");
+   return;
+ }
    try {
      setError('');
      setSuccess('Generating interview (direct mode - no voice interaction)...');
@@ -1407,10 +1318,10 @@ function InterviewGeneratorPage() {
                         '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' },
                       }}
                     >
-                      <MenuItem value="3">3 Questions (Quick - 10 min)</MenuItem>
-                      <MenuItem value="5">5 Questions (Standard - 15 min)</MenuItem>
-                      <MenuItem value="7">7 Questions (Detailed - 25 min)</MenuItem>
-                      <MenuItem value="10">10 Questions (Comprehensive - 35 min)</MenuItem>
+                      <MenuItem value={3}>3 Questions (Quick - 10 min)</MenuItem>
+                      <MenuItem value={5}>5 Questions (Standard - 15 min)</MenuItem>
+                      <MenuItem value={7}>7 Questions (Detailed - 25 min)</MenuItem>
+                      <MenuItem value={10}>10 Questions (Comprehensive - 35 min)</MenuItem>
                     </Select>
                   </FormControl>
 

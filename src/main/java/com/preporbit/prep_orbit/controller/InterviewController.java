@@ -76,6 +76,10 @@ public class InterviewController {
     public ResponseEntity<Map<String, Object>> generateInterview(@Valid @RequestBody InterviewRequestDto request) {
         try {
             System.out.println("🚨 ENTERED /generate CONTROLLER 🚨");
+            System.out.println("Request DTO: " + request);
+            if (request.getAmount() == null || request.getAmount() < 3 || request.getAmount() > 15) {
+                throw new RuntimeException("Amount is not defined or out of range");
+            }
             // ✅ Get authenticated username and set user ID for Arjo-Kar
             String authenticatedUsername = getAuthenticatedUsername();
             Long authenticatedUserId = interviewService.getUserIdByUsername(authenticatedUsername);
