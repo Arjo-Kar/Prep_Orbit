@@ -167,7 +167,7 @@ const QuizSessionPage = () => {
   useEffect(() => {
     const fetchQuizQuestions = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("authToken");
         if (!token) throw new Error("User not authenticated");
 
         const res = await fetch(`http://localhost:8080/api/quiz/${sessionId}/questions`, {

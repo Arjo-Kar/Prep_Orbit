@@ -156,34 +156,42 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setError(null);
+      setLoading(true);
 
-    try {
-      const data = await login(email, password);
-      console.log('Login successful:', data);
+      try {
+        const data = await login(email, password);
+        console.log('Login successful:', data);
 
-      // Store the JWT token and user info in localStorage
-      localStorage.setItem('authToken', data.token);
+        // Store the JWT token
+        if (data.token) {
+          localStorage.setItem('authToken', data.token);
+        } else {
+          setError('Login response missing token. Please contact support.');
+          setLoading(false);
+          return;
+        }
 
-      // Store user info (expects data.user to contain id, name, email, etc.)
-      if (data.user && data.user.id) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } else {
-        setError('Login response missing user info. Please contact support.');
+        // Store user info
+        if (data.user && data.user.id) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+        } else {
+          setError('Login response missing user info. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
+        navigate('/dashboard'); // Redirect to dashboard on success
+      } catch (err) {
+        setError('Login failed. Please check your credentials.');
+        console.error('Login error:', err);
         setLoading(false);
-        return;
       }
+    };
 
-      navigate('/dashboard'); // Redirect to dashboard on success
-    } catch (err) {
-      setError('Login failed. Please check your credentials.');
-      console.error('Login error:', err);
-      setLoading(false);
-    }
-  };
+
 
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);

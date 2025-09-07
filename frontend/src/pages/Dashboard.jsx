@@ -37,6 +37,8 @@ import {
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import CodingChallengeAPI from '../api/CodingChallengeAPI';
 
+const storedUser = JSON.parse(localStorage.getItem("user"));
+
 // Dark theme to match the CodingChallengePage
 const darkTheme = createTheme({
   palette: {
@@ -205,7 +207,7 @@ function Dashboard() {
 
   // Fetch wrapper for secured endpoints
   const fetchWithAuth = async (url, options = {}) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("authToken");
     if (!token) throw new Error("Authentication token not found. Please log in.");
 
     const res = await fetch(url, {
@@ -327,7 +329,7 @@ function Dashboard() {
                         mb: 1
                       }}
                     >
-                       Welcome back, {localStorage.getItem('username') || 'Arjo-Kar'}! 👨‍💻
+                       Welcome back, {storedUser?.name || 'Arjo-Kar'}! 👨‍💻
                     </Typography>
                     <Typography variant="h6" sx={{ color: '#aaa' }}>
                       Ready for today's challenge? Choose your path to success.
