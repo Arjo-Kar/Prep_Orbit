@@ -40,8 +40,8 @@ import Vapi from '@vapi-ai/web';
 
 
 // Constants - ✅ Current timestamp
-const VAPI_PUBLIC_KEY = '38c20db5-f2e5-49e7-915f-aa304605fec4';
-const NGROK_URL = 'https://a5d42a36fb75.ngrok-free.app';
+const VAPI_PUBLIC_KEY = '04195762-bc96-4d8b-8edf-2defb70a65e2';
+const NGROK_URL = ' https://d8adc0d2d46e.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 17:56:41'; // ✅ Current UTC time
  // ✅ Current authenticated user
 

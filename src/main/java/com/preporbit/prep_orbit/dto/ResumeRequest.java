@@ -1,4 +1,6 @@
 package com.preporbit.prep_orbit.dto;
 
-public class ResumeRequest {
+public record ResumeRequest(
+        String userDescription
+) {
 }

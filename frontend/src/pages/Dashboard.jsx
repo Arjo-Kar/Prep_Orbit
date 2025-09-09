@@ -16,8 +16,8 @@ import {
   Alert,
   IconButton,
   Stack,
-  Divider
-} from '@mui/material';
+  Divider,
+} from "@mui/material";
 import {
   Code as CodeIcon,
   CalendarToday as Calendar,
@@ -31,47 +31,49 @@ import {
   Chat as ChatIcon,
   WorkOutline as InterviewIcon,
   Terminal,
-  Mic as MicIcon
-} from '@mui/icons-material';
-import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
-import CodingChallengeAPI from '../api/CodingChallengeAPI';
+  Mic as MicIcon,
+  Description as DescriptionIcon, // Added missing import
+} from "@mui/icons-material";
+import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
+import CodingChallengeAPI from "../api/CodingChallengeAPI";
 
 // Dark theme to match the CodingChallengePage
 const darkTheme = createTheme({
   palette: {
-    mode: 'dark',
+    mode: "dark",
     background: {
-      default: '#100827',
-      paper: 'rgba(25, 25, 25, 0.8)',
+      default: "#100827",
+      paper: "rgba(25, 25, 25, 0.8)",
     },
     primary: {
-      main: '#7b1fa2',
+      main: "#7b1fa2",
     },
     secondary: {
-      main: '#f50057',
+      main: "#f50057",
     },
     text: {
-      primary: '#ffffff',
-      secondary: '#cccccc',
+      primary: "#ffffff",
+      secondary: "#cccccc",
     },
   },
   typography: {
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    fontFamily:
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   components: {
     MuiPaper: {
       styleOverrides: {
         root: {
-          borderRadius: '16px',
-          backgroundImage: 'none',
+          borderRadius: "16px",
+          backgroundImage: "none",
         },
       },
     },
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: '12px',
-          textTransform: 'none',
+          borderRadius: "12px",
+          textTransform: "none",
           fontWeight: 600,
         },
       },
@@ -79,9 +81,9 @@ const darkTheme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundImage: 'none',
-          border: '1px solid rgba(45, 45, 45, 0.5)',
-          backdropFilter: 'blur(4px)',
+          backgroundImage: "none",
+          border: "1px solid rgba(45, 45, 45, 0.5)",
+          backdropFilter: "blur(4px)",
         },
       },
     },
@@ -90,55 +92,92 @@ const darkTheme = createTheme({
 
 // Styled components matching the CodingChallengePage aesthetic
 const GradientBox = styled(Box)(({ theme }) => ({
-  background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
-  minHeight: '100vh',
-  color: 'white',
+  background: "linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)",
+  minHeight: "100vh",
+  color: "white",
 }));
 
 const StatsCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
-  border: '1px solid #444',
-  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-    border: '1px solid #7b1fa2',
-  }
+  height: "100%",
+  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+  border: "1px solid #444",
+  transition: "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
+    border: "1px solid #7b1fa2",
+  },
 }));
 
 const ActionButton = styled(Button)(({ theme }) => ({
-  height: '56px',
-  borderRadius: '12px',
-  textTransform: 'none',
-  fontSize: '1rem',
+  height: "56px",
+  borderRadius: "12px",
+  textTransform: "none",
+  fontSize: "1rem",
   fontWeight: 600,
-  transition: 'all 0.3s ease',
-  '&:hover': {
-    transform: 'translateY(-2px)',
-  }
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+  },
 }));
 
 const HeaderCard = styled(Card)(({ theme }) => ({
-  background: 'linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)',
-  backdropFilter: 'blur(8px)',
-  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
-  border: '1px solid rgba(126, 87, 194, 0.5)',
+  background: "linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)",
+  backdropFilter: "blur(8px)",
+  boxShadow: "0 4px 30px rgba(0, 0, 0, 0.5)",
+  border: "1px solid rgba(126, 87, 194, 0.5)",
   marginBottom: theme.spacing(4),
 }));
 
 const DailyChallengeCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
-  border: '1px solid #444',
-  overflow: 'hidden',
+  height: "100%",
+  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+  border: "1px solid #444",
+  overflow: "hidden",
 }));
 
 const QuizCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
-  border: '1px solid #444',
+  height: "100%",
+  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+  border: "1px solid #444",
 }));
+
+// StatCard component definition (moved outside and properly structured)
+const StatCard = ({ title, value, icon, color, gradient }) => (
+  <StatsCard>
+    <CardContent sx={{ p: 3 }}>
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Box>
+          <Typography variant="body2" sx={{ color: "#aaa", mb: 1 }}>
+            {title}
+          </Typography>
+          <Typography
+            variant="h4"
+            component="div"
+            fontWeight="bold"
+            sx={{ color: "white" }}
+          >
+            {value}
+          </Typography>
+        </Box>
+        <Avatar
+          sx={{
+            width: 56,
+            height: 56,
+            background:
+              gradient || `linear-gradient(135deg, ${color}, ${color}90)`,
+          }}
+        >
+          {icon}
+        </Avatar>
+      </Box>
+    </CardContent>
+  </StatsCard>
+);
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -157,9 +196,9 @@ function Dashboard() {
     totalQuizzesTaken: 0,
     codingChallengesSolved: 0,
     streak: 0,
-    rank: '',
+    rank: "",
     weeklyTarget: 7,
-    averageScore: 0
+    averageScore: 0,
   });
 
   // Get current user from localStorage, fallback to "Guest"
@@ -194,7 +233,11 @@ function Dashboard() {
         setDailyChallenge(null);
         return;
       }
-      const challenge = await CodingChallengeAPI.generateChallenge(['arrays', 'strings'], 'medium', authToken);
+      const challenge = await CodingChallengeAPI.generateChallenge(
+        ["arrays", "strings"],
+        "medium",
+        authToken
+      );
       if (!challenge || !challenge.id) {
         setMessage("Failed to load daily challenge. Please try again later.");
         setDailyChallenge(null);
@@ -202,7 +245,7 @@ function Dashboard() {
       }
       setDailyChallenge(challenge);
     } catch (error) {
-      setMessage('Error loading daily challenge: ' + (error.message || error));
+      setMessage("Error loading daily challenge: " + (error.message || error));
       setDailyChallenge(null);
     } finally {
       setLoadingChallenge(false);
@@ -212,7 +255,8 @@ function Dashboard() {
   // Fetch wrapper for secured endpoints
   const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem("authToken");
-    if (!token) throw new Error("Authentication token not found. Please log in.");
+    if (!token)
+      throw new Error("Authentication token not found. Please log in.");
 
     const res = await fetch(url, {
       ...options,
@@ -267,40 +311,15 @@ function Dashboard() {
     navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
   };
 
-  // Handle coding challenge navigation (use id param for route)
-  const startCodingChallenge = (challengeId = null) => {
-    if (challengeId) {
-      navigate(`/coding-challenge/${challengeId}`);
-    } else {
-      navigate('/coding-challenge');
-    }
+  // Start coding challenge function (was missing)
+  const startCodingChallenge = (challengeId) => {
+    navigate(`/coding-challenge/${challengeId}`);
   };
 
-  const StatCard = ({ title, value, icon, color, gradient }) => (
-    <StatsCard>
-      <CardContent sx={{ p: 3 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Box>
-            <Typography variant="body2" sx={{ color: '#aaa', mb: 1 }}>
-              {title}
-            </Typography>
-            <Typography variant="h4" component="div" fontWeight="bold" sx={{ color: 'white' }}>
-              {value}
-            </Typography>
-          </Box>
-          <Avatar
-            sx={{
-              width: 56,
-              height: 56,
-              background: gradient || `linear-gradient(135deg, ${color}, ${color}90)`,
-            }}
-          >
-            {icon}
-          </Avatar>
-        </Box>
-      </CardContent>
-    </StatsCard>
-  );
+  // Handle Generate Resume button
+  const handleGenerateResumeClick = () => {
+    navigate("/resume-generate");
+  };
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -309,14 +328,18 @@ function Dashboard() {
           {/* Header */}
           <HeaderCard>
             <CardContent sx={{ p: 4 }}>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box display="flex" alignItems="center" gap={3}>
                   <Avatar
                     sx={{
                       width: 80,
                       height: 80,
-                      background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
-                      boxShadow: '0 4px 20px rgba(123, 31, 162, 0.4)',
+                      background: "linear-gradient(135deg, #7b1fa2, #f50057)",
+                      boxShadow: "0 4px 20px rgba(123, 31, 162, 0.4)",
                     }}
                   >
                     <Brain sx={{ fontSize: 40 }} />
@@ -327,16 +350,18 @@ function Dashboard() {
                       component="h1"
                       fontWeight="bold"
                       sx={{
-                        background: 'linear-gradient(to right, #a0d8ff, #ff80ab)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        mb: 1
+                        background:
+                          "linear-gradient(to right, #a0d8ff, #ff80ab)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        mb: 1,
                       }}
                     >
-                       Welcome back, {username}! 👨‍💻
+                      Welcome back, {username}! 👨‍💻
                     </Typography>
-                    <Typography variant="h6" sx={{ color: '#aaa' }}>
-                      Ready for today's challenge? Choose your path to success.
+                    <Typography variant="h6" sx={{ color: "#aaa" }}>
+                      Ready for today's challenge? Choose your path to
+                      success.
                     </Typography>
                   </Box>
                 </Box>
@@ -346,9 +371,9 @@ function Dashboard() {
                   sx={{
                     width: 64,
                     height: 64,
-                    borderRadius: '50%',
-                    border: '3px solid #7b1fa2',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                    borderRadius: "50%",
+                    border: "3px solid #7b1fa2",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
                   }}
                   alt="avatar"
                 />
@@ -363,8 +388,8 @@ function Dashboard() {
               variant="filled"
               sx={{
                 mb: 3,
-                borderRadius: '12px',
-                background: 'linear-gradient(45deg, #f44336, #d32f2f)',
+                borderRadius: "12px",
+                background: "linear-gradient(45deg, #f44336, #d32f2f)",
               }}
             >
               {message}
@@ -412,57 +437,113 @@ function Dashboard() {
             {/* Daily Coding Challenge */}
             <Grid item xs={12} lg={4}>
               <DailyChallengeCard>
-                <Box sx={{ background: 'linear-gradient(135deg, #4caf50, #8bc34a)', p: 3 }}>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                <Box
+                  sx={{
+                    background: "linear-gradient(135deg, #4caf50, #8bc34a)",
+                    p: 3,
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{ mb: 1 }}
+                  >
                     <Calendar />
                     <Typography variant="h6" fontWeight="bold">
                       Today's Coding Challenge
                     </Typography>
                   </Stack>
                   <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    {new Date().toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
+                    {new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
                     })}
                   </Typography>
                 </Box>
 
                 <CardContent sx={{ flexGrow: 1, p: 3 }}>
                   {loadingChallenge ? (
-                    <Box display="flex" flexDirection="column" alignItems="center" py={4}>
-                      <CircularProgress sx={{ color: '#4caf50', mb: 2 }} />
-                      <Typography variant="body2" sx={{ color: '#aaa' }}>
+                    <Box
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="center"
+                      py={4}
+                    >
+                      <CircularProgress sx={{ color: "#4caf50", mb: 2 }} />
+                      <Typography variant="body2" sx={{ color: "#aaa" }}>
                         Loading today's challenge...
                       </Typography>
                     </Box>
                   ) : dailyChallenge ? (
                     <Box>
-                      <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        gutterBottom
+                        sx={{ color: "white" }}
+                      >
                         {dailyChallenge.title}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: '#ccc', mb: 3, lineHeight: 1.6 }}>
-                        {dailyChallenge.description ?
-                          dailyChallenge.description.substring(0, 150) + '...' :
-                          'A new coding challenge awaits!'
-                        }
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}
+                      >
+                        {dailyChallenge.description
+                          ? dailyChallenge.description.substring(0, 150) +
+                            "..."
+                          : "A new coding challenge awaits!"}
                       </Typography>
 
                       <Stack direction="row" spacing={2} mb={3}>
-                        <Paper sx={{ px: 1.5, py: 0.75, borderRadius: '8px', backgroundColor: '#333', border: '1px solid #555' }}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <Clock sx={{ fontSize: 16, color: '#90caf9' }} />
-                            <Typography variant="body2" sx={{ color: '#ccc' }}>
-                              {dailyChallenge.timeLimitMs || '1000'}ms
+                        <Paper
+                          sx={{
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: "8px",
+                            backgroundColor: "#333",
+                            border: "1px solid #555",
+                          }}
+                        >
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={0.5}
+                          >
+                            <Clock sx={{ fontSize: 16, color: "#90caf9" }} />
+                            <Typography
+                              variant="body2"
+                              sx={{ color: "#ccc" }}
+                            >
+                              {dailyChallenge.timeLimitMs || "1000"}ms
                             </Typography>
                           </Stack>
                         </Paper>
-                        <Paper sx={{ px: 1.5, py: 0.75, borderRadius: '8px', backgroundColor: '#333', border: '1px solid #555' }}>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <Brain sx={{ fontSize: 16, color: '#ce93d8' }} />
-                            <Typography variant="body2" sx={{ color: '#ccc', textTransform: 'capitalize' }}>
-                              {dailyChallenge.difficulty || 'Medium'}
+                        <Paper
+                          sx={{
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: "8px",
+                            backgroundColor: "#333",
+                            border: "1px solid #555",
+                          }}
+                        >
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={0.5}
+                          >
+                            <Brain sx={{ fontSize: 16, color: "#ce93d8" }} />
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "#ccc",
+                                textTransform: "capitalize",
+                              }}
+                            >
+                              {dailyChallenge.difficulty || "Medium"}
                             </Typography>
                           </Stack>
                         </Paper>
@@ -473,14 +554,20 @@ function Dashboard() {
                           variant="contained"
                           startIcon={<Play />}
                           fullWidth
-                          onClick={() => dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)}
+                          onClick={() =>
+                            dailyChallenge &&
+                            dailyChallenge.id &&
+                            startCodingChallenge(dailyChallenge.id)
+                          }
                           disabled={!dailyChallenge || !dailyChallenge.id}
                           sx={{
                             py: 1.5,
-                            background: 'linear-gradient(45deg, #4caf50, #8bc34a)',
-                            '&:hover': {
-                              background: 'linear-gradient(45deg, #66bb6a, #aed581)',
-                            }
+                            background:
+                              "linear-gradient(45deg, #4caf50, #8bc34a)",
+                            "&:hover": {
+                              background:
+                                "linear-gradient(45deg, #66bb6a, #aed581)",
+                            },
                           }}
                         >
                           Start Daily Challenge
@@ -491,12 +578,12 @@ function Dashboard() {
                           fullWidth
                           onClick={loadDailyChallenge}
                           sx={{
-                            borderColor: '#666',
-                            color: '#ccc',
-                            '&:hover': {
-                              borderColor: '#7b1fa2',
-                              backgroundColor: '#7b1fa220',
-                            }
+                            borderColor: "#666",
+                            color: "#ccc",
+                            "&:hover": {
+                              borderColor: "#7b1fa2",
+                              backgroundColor: "#7b1fa220",
+                            },
                           }}
                         >
                           New Challenge
@@ -505,14 +592,14 @@ function Dashboard() {
                     </Box>
                   ) : (
                     <Box textAlign="center" py={4}>
-                      <Typography sx={{ color: '#aaa', mb: 2 }}>
+                      <Typography sx={{ color: "#aaa", mb: 2 }}>
                         No daily challenge available
                       </Typography>
                       <Button
                         variant="text"
                         size="small"
                         onClick={loadDailyChallenge}
-                        sx={{ color: '#7b1fa2' }}
+                        sx={{ color: "#7b1fa2" }}
                       >
                         Try loading again
                       </Button>
@@ -526,10 +613,19 @@ function Dashboard() {
             <Grid item xs={12} lg={4}>
               <QuizCard>
                 <CardContent sx={{ p: 3 }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    gutterBottom
+                    sx={{ color: "white" }}
+                  >
                     Start Knowledge Quiz
                   </Typography>
-                  <Box component="form" onSubmit={handleStartQuiz} sx={{ mt: 2 }}>
+                  <Box
+                    component="form"
+                    onSubmit={handleStartQuiz}
+                    sx={{ mt: 2 }}
+                  >
                     <Stack spacing={3}>
                       <TextField
                         fullWidth
@@ -540,23 +636,23 @@ function Dashboard() {
                         required
                         variant="outlined"
                         sx={{
-                          '& .MuiOutlinedInput-root': {
-                            backgroundColor: '#333',
-                            '& fieldset': {
-                              borderColor: '#555',
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "#333",
+                            "& fieldset": {
+                              borderColor: "#555",
                             },
-                            '&:hover fieldset': {
-                              borderColor: '#7b1fa2',
+                            "&:hover fieldset": {
+                              borderColor: "#7b1fa2",
                             },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#7b1fa2',
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#7b1fa2",
                             },
                           },
-                          '& .MuiInputLabel-root': {
-                            color: '#aaa',
+                          "& .MuiInputLabel-root": {
+                            color: "#aaa",
                           },
-                          '& .MuiOutlinedInput-input': {
-                            color: 'white',
+                          "& .MuiOutlinedInput-input": {
+                            color: "white",
                           },
                         }}
                       />
@@ -569,23 +665,23 @@ function Dashboard() {
                         onChange={(e) => setNumQuestions(e.target.value)}
                         variant="outlined"
                         sx={{
-                          '& .MuiOutlinedInput-root': {
-                            backgroundColor: '#333',
-                            '& fieldset': {
-                              borderColor: '#555',
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "#333",
+                            "& fieldset": {
+                              borderColor: "#555",
                             },
-                            '&:hover fieldset': {
-                              borderColor: '#7b1fa2',
+                            "&:hover fieldset": {
+                              borderColor: "#7b1fa2",
                             },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#7b1fa2',
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#7b1fa2",
                             },
                           },
-                          '& .MuiInputLabel-root': {
-                            color: '#aaa',
+                          "& .MuiInputLabel-root": {
+                            color: "#aaa",
                           },
-                          '& .MuiOutlinedInput-input': {
-                            color: 'white',
+                          "& .MuiOutlinedInput-input": {
+                            color: "white",
                           },
                         }}
                       />
@@ -596,10 +692,12 @@ function Dashboard() {
                         fullWidth
                         sx={{
                           py: 1.5,
-                          background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
-                          '&:hover': {
-                            background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
-                          }
+                          background:
+                            "linear-gradient(45deg, #7b1fa2, #f50057)",
+                          "&:hover": {
+                            background:
+                              "linear-gradient(45deg, #9c27b0, #ff4081)",
+                          },
                         }}
                       >
                         Start Quiz
@@ -614,10 +712,18 @@ function Dashboard() {
             <Grid item xs={12} lg={4}>
               <QuizCard>
                 <CardContent sx={{ p: 3 }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    gutterBottom
+                    sx={{ color: "white" }}
+                  >
                     Practice Weak Areas
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#ccc', mb: 3, lineHeight: 1.6 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}
+                  >
                     Focus on topics you've previously struggled with.
                   </Typography>
                   <Stack spacing={3}>
@@ -630,23 +736,23 @@ function Dashboard() {
                       onChange={(e) => setNumWeakQuestions(e.target.value)}
                       variant="outlined"
                       sx={{
-                        '& .MuiOutlinedInput-root': {
-                          backgroundColor: '#333',
-                          '& fieldset': {
-                            borderColor: '#555',
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "#333",
+                          "& fieldset": {
+                            borderColor: "#555",
                           },
-                          '&:hover fieldset': {
-                            borderColor: '#4caf50',
+                          "&:hover fieldset": {
+                            borderColor: "#4caf50",
                           },
-                          '&.Mui-focused fieldset': {
-                            borderColor: '#4caf50',
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#4caf50",
                           },
                         },
-                        '& .MuiInputLabel-root': {
-                          color: '#aaa',
+                        "& .MuiInputLabel-root": {
+                          color: "#aaa",
                         },
-                        '& .MuiOutlinedInput-input': {
-                          color: 'white',
+                        "& .MuiOutlinedInput-input": {
+                          color: "white",
                         },
                       }}
                     />
@@ -657,10 +763,12 @@ function Dashboard() {
                       onClick={handlePracticeWeakAreas}
                       sx={{
                         py: 1.5,
-                        background: 'linear-gradient(45deg, #4caf50, #8bc34a)',
-                        '&:hover': {
-                          background: 'linear-gradient(45deg, #66bb6a, #aed581)',
-                        }
+                        background:
+                          "linear-gradient(45deg, #4caf50, #8bc34a)",
+                        "&:hover": {
+                          background:
+                            "linear-gradient(45deg, #66bb6a, #aed581)",
+                        },
                       }}
                     >
                       Start Practice Session
@@ -672,26 +780,38 @@ function Dashboard() {
           </Grid>
 
           {/* Quick Actions */}
-          <Card sx={{ mb: 4, background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)', border: '1px solid #444' }}>
+          <Card
+            sx={{
+              mb: 4,
+              background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+              border: "1px solid #444",
+            }}
+          >
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white', mb: 3 }}>
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                gutterBottom
+                sx={{ color: "white", mb: 3 }}
+              >
                 Quick Actions
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} lg={3}>
                   <ActionButton
                     variant="contained"
-                    startIcon={<CodeIcon />}
+                    startIcon={<DescriptionIcon />}
                     fullWidth
-                    onClick={() => startCodingChallenge()}
+                    onClick={handleGenerateResumeClick}
                     sx={{
-                      background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #42a5f5, #4fc3f7)',
-                      }
+                      background: "linear-gradient(45deg, #2196F3, #21CBF3)",
+                      "&:hover": {
+                        background:
+                          "linear-gradient(45deg, #42a5f5, #4fc3f7)",
+                      },
                     }}
                   >
-                    Random Coding Challenge
+                    Generate Resume
                   </ActionButton>
                 </Grid>
                 <Grid item xs={12} sm={6} lg={3}>
@@ -701,10 +821,11 @@ function Dashboard() {
                     fullWidth
                     onClick={() => navigate("/report/weaknesses")}
                     sx={{
-                      background: 'linear-gradient(45deg, #9c27b0, #ab47bc)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #ba68c8, #ce93d8)',
-                      }
+                      background: "linear-gradient(45deg, #9c27b0, #ab47bc)",
+                      "&:hover": {
+                        background:
+                          "linear-gradient(45deg, #ba68c8, #ce93d8)",
+                      },
                     }}
                   >
                     View Reports
@@ -717,10 +838,11 @@ function Dashboard() {
                     fullWidth
                     onClick={() => navigate("/gemini")}
                     sx={{
-                      background: 'linear-gradient(45deg, #ff9800, #ffc107)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #ffb74d, #ffcc80)',
-                      }
+                      background: "linear-gradient(45deg, #ff9800, #ffc107)",
+                      "&:hover": {
+                        background:
+                          "linear-gradient(45deg, #ffb74d, #ffcc80)",
+                      },
                     }}
                   >
                     Chat with AI
@@ -733,10 +855,11 @@ function Dashboard() {
                     fullWidth
                     onClick={() => navigate("/interview-prep")}
                     sx={{
-                      background: 'linear-gradient(45deg, #607d8b, #78909c)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #90a4ae, #b0bec5)',
-                      }
+                      background: "linear-gradient(45deg, #607d8b, #78909c)",
+                      "&:hover": {
+                        background:
+                          "linear-gradient(45deg, #90a4ae, #b0bec5)",
+                      },
                     }}
                   >
                     Interview Prep
@@ -747,21 +870,40 @@ function Dashboard() {
           </Card>
 
           {/* Recent Activity */}
-          <Card sx={{ background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)', border: '1px solid #444' }}>
+          <Card
+            sx={{
+              background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+              border: "1px solid #444",
+            }}
+          >
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                gutterBottom
+                sx={{ color: "white" }}
+              >
                 Recent Activity
               </Typography>
-              <Divider sx={{ my: 2, borderColor: '#444' }} />
+              <Divider sx={{ my: 2, borderColor: "#444" }} />
               <Box textAlign="center" py={6}>
-                <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, background: 'linear-gradient(135deg, #666, #999)' }}>
+                <Avatar
+                  sx={{
+                    width: 80,
+                    height: 80,
+                    mx: "auto",
+                    mb: 2,
+                    background: "linear-gradient(135deg, #666, #999)",
+                  }}
+                >
                   <Terminal sx={{ fontSize: 40 }} />
                 </Avatar>
-                <Typography variant="h6" sx={{ color: '#aaa', mb: 1 }}>
+                <Typography variant="h6" sx={{ color: "#aaa", mb: 1 }}>
                   Your recent activity will appear here
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#777' }}>
-                  Start solving challenges and taking quizzes to see your progress!
+                <Typography variant="body2" sx={{ color: "#777" }}>
+                  Start solving challenges and taking quizzes to see your
+                  progress!
                 </Typography>
               </Box>
             </CardContent>
