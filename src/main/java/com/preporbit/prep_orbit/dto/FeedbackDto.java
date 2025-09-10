@@ -1,5 +1,7 @@
 package com.preporbit.prep_orbit.dto;
 
+import com.preporbit.prep_orbit.model.InterviewAnswer;
+
 public class FeedbackDto {
     private Long questionId;
     private boolean correct;
@@ -21,4 +23,8 @@ public class FeedbackDto {
     // Getter and setter for hint
     public String getHint() { return hint; }
     public void setHint(String hint) { this.hint = hint; }
+
+    public void setQuestion(InterviewAnswer question) {
+
+    }
 }

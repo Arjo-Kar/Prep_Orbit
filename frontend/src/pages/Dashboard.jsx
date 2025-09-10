@@ -864,6 +864,20 @@ function Dashboard() {
                   >
                     Interview Prep
                   </ActionButton>
+                 <ActionButton
+                   variant="contained"
+                   startIcon={<InterviewIcon />}
+                   fullWidth
+                   onClick={() => navigate("/live-interview")}
+                   sx={{
+                     background: "linear-gradient(45deg, #0d47a1, #1a237e)",
+                     "&:hover": {
+                       background: "linear-gradient(45deg, #1976d2, #3949ab)",
+                     },
+                   }}
+                 >
+                   Live Interview
+                 </ActionButton>
                 </Grid>
               </Grid>
             </CardContent>

@@ -85,24 +85,22 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ✅ Public endpoints - no authentication required
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll() // ✅ Added API prefix
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/health", "/actuator/**").permitAll()
-
-                        // ✅ Allow OPTIONS requests for CORS preflight
                         .requestMatchers("OPTIONS", "/**").permitAll()
-
-                        // ✅ VAPI webhook endpoints (no auth needed for webhooks)
                         .requestMatchers("/api/vapi/webhook").permitAll()
                         .requestMatchers("/api/vapi/health").permitAll()
-
-                        // ✅ Interview endpoints - REQUIRE AUTHENTICATION for Arjo-Kar
+                        // ✅ Interview endpoints - REQUIRE AUTHENTICATION
+                        .requestMatchers("/api/live-interviews/**").authenticated()
+                        .requestMatchers("/api/interview/questions/**").authenticated()
+                        .requestMatchers("/api/interview/answers/**").authenticated()
                         .requestMatchers("/api/interviews/**").authenticated()
                         .requestMatchers("/api/vapi/interview/generate").authenticated()
-
                         // ✅ All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new com.preporbit.prep_orbit.config.JwtAuthenticationFilter(jwtService),
+                .addFilterBefore(
+                        new com.preporbit.prep_orbit.config.JwtAuthenticationFilter(jwtService),
                         org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class
                 );
         return http.build();

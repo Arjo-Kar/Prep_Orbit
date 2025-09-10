@@ -297,9 +297,12 @@ const Resume = ({ data }) => {
                   <Typography variant="body1" gutterBottom>
                     {proj.description}
                   </Typography>
-                  <Typography color="text.secondary" gutterBottom>
-                    🛠 Technologies: {proj.technologiesUsed.join(", ")}
-                  </Typography>
+                 <Typography color="text.secondary" gutterBottom>
+                   🛠 Technologies: {Array.isArray(proj.technologiesUsed)
+                     ? proj.technologiesUsed.join(", ")
+                     : proj.technologiesUsed || "N/A"}
+                 </Typography>
+
                   {proj.githubLink && (
                     <Link
                       href={proj.githubLink}

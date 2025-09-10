@@ -3,6 +3,7 @@ package com.preporbit.prep_orbit.controller;
 import com.preporbit.prep_orbit.dto.InterviewRequestDto;
 import com.preporbit.prep_orbit.dto.InterviewResponseDto;
 import com.preporbit.prep_orbit.service.InterviewService;
+import com.preporbit.prep_orbit.service.LiveInterviewService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ public class VAPIController {
 
     @Autowired
     private InterviewService interviewService;
+
+    @Autowired
+    private LiveInterviewService liveInterviewService;
 
     @PostMapping("/webhook")
     public ResponseEntity<Map<String, Object>> handleVAPIWebhook(@RequestBody Map<String, Object> payload) {
@@ -174,4 +178,6 @@ public class VAPIController {
         response.put("user", "Arjo-Kar");
         return ResponseEntity.ok(response);
     }
+
+
 }

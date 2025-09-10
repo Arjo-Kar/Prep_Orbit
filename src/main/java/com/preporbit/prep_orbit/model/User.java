@@ -60,5 +60,9 @@ public class User {
     public Long getId() {
         return this.id;
     }
+
+    public String getUsername() {
+        return this.fullName;
+    }
 // No getter/setter for password (use Lombok but don't expose it as API)
 }
