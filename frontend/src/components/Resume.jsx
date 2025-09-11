@@ -81,16 +81,59 @@ const theme = createTheme({
 const Resume = ({ data }) => {
   const resumeRef = useRef(null);
 
-  const handleDownloadPdf = () => {
-    toPng(resumeRef.current, { quality: 1.0 })
-      .then((dataUrl) => {
-        const pdf = new jsPDF("p", "mm", "a4");
-        pdf.addImage(dataUrl, "PNG", 10, 10, 190, 0);
-        pdf.save(`${data.personalInformation.fullName}.pdf`);
-      })
-      .catch((err) => {
-        console.error("Error generating PDF", err);
+  const handleDownloadPdf = async () => {
+    try {
+      const element = resumeRef.current;
+
+      // Capture the element as an image
+      const dataUrl = await toPng(element, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        width: element.scrollWidth,
+        height: element.scrollHeight,
       });
+
+      // Create image object to get dimensions
+      const img = new Image();
+      img.src = dataUrl;
+
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      // PDF setup
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const imgWidth = pdfWidth - 2 * margin;
+
+      // Calculate image dimensions
+      const imgHeight = (img.height * imgWidth) / img.width;
+      const pageHeight = pdfHeight - 2 * margin;
+
+      let heightLeft = imgHeight;
+      let position = margin;
+
+      // Add first page
+      pdf.addImage(dataUrl, "PNG", margin, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add additional pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + margin;
+        pdf.addPage();
+        pdf.addImage(dataUrl, "PNG", margin, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Save the PDF
+      pdf.save(`${data.personalInformation.fullName}_Resume.pdf`);
+    } catch (err) {
+      console.error("Error generating PDF", err);
+      // You can add toast notification here if needed
+    }
   };
 
   return (
@@ -137,23 +180,24 @@ const Resume = ({ data }) => {
               {data.personalInformation.phoneNumber && (
                 <Box display="flex" alignItems="center" color="text.secondary">
                   <PhoneIcon sx={{ mr: 1 }} />
-                  <Typography>{data.personalInformation.phoneNumber}</Typography>
+                  <Typography>
+                    {data.personalInformation.phoneNumber}
+                  </Typography>
                 </Box>
               )}
             </Stack>
 
-            <Stack
-              direction="row"
-              spacing={2}
-              justifyContent="center"
-              mt={2}
-            >
+            <Stack direction="row" spacing={2} justifyContent="center" mt={2}>
               {data.personalInformation.gitHub && (
                 <Link
                   href={data.personalInformation.gitHub}
                   target="_blank"
                   rel="noopener noreferrer"
-                  sx={{ display: "flex", alignItems: "center", color: "text.secondary" }}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    color: "text.secondary",
+                  }}
                 >
                   <GitHubIcon sx={{ mr: 1 }} />
                   GitHub
@@ -164,7 +208,11 @@ const Resume = ({ data }) => {
                   href={data.personalInformation.linkedIn}
                   target="_blank"
                   rel="noopener noreferrer"
-                  sx={{ display: "flex", alignItems: "center", color: "#0077b5" }}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    color: "#0077b5",
+                  }}
                 >
                   <LinkedInIcon sx={{ mr: 1 }} />
                   LinkedIn
@@ -210,7 +258,11 @@ const Resume = ({ data }) => {
 
           {/* Experience Section */}
           <Box mb={4}>
-            <Typography variant="h2" color="secondary" sx={{ display: "flex", alignItems: "center" }}>
+            <Typography
+              variant="h2"
+              color="secondary"
+              sx={{ display: "flex", alignItems: "center" }}
+            >
               <WorkIcon sx={{ mr: 1 }} />
               Experience
             </Typography>
@@ -223,7 +275,11 @@ const Resume = ({ data }) => {
                   <Typography color="text.secondary" gutterBottom>
                     {exp.company} | {exp.location}
                   </Typography>
-                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                  <Typography
+                    color="text.secondary"
+                    variant="body2"
+                    gutterBottom
+                  >
                     {exp.duration}
                   </Typography>
                   <Typography variant="body1" mt={2}>
@@ -238,7 +294,11 @@ const Resume = ({ data }) => {
 
           {/* Education Section */}
           <Box mb={4}>
-            <Typography variant="h2" color="secondary" sx={{ display: "flex", alignItems: "center" }}>
+            <Typography
+              variant="h2"
+              color="secondary"
+              sx={{ display: "flex", alignItems: "center" }}
+            >
               <SchoolIcon sx={{ mr: 1 }} />
               Education
             </Typography>
@@ -284,7 +344,11 @@ const Resume = ({ data }) => {
 
           {/* Projects Section */}
           <Box mb={4}>
-            <Typography variant="h2" color="secondary" sx={{ display: "flex", alignItems: "center" }}>
+            <Typography
+              variant="h2"
+              color="secondary"
+              sx={{ display: "flex", alignItems: "center" }}
+            >
               <BuildIcon sx={{ mr: 1 }} />
               Projects
             </Typography>
@@ -297,11 +361,12 @@ const Resume = ({ data }) => {
                   <Typography variant="body1" gutterBottom>
                     {proj.description}
                   </Typography>
-                 <Typography color="text.secondary" gutterBottom>
-                   🛠 Technologies: {Array.isArray(proj.technologiesUsed)
-                     ? proj.technologiesUsed.join(", ")
-                     : proj.technologiesUsed || "N/A"}
-                 </Typography>
+                  <Typography color="text.secondary" gutterBottom>
+                    🛠 Technologies:{" "}
+                    {Array.isArray(proj.technologiesUsed)
+                      ? proj.technologiesUsed.join(", ")
+                      : proj.technologiesUsed || "N/A"}
+                  </Typography>
 
                   {proj.githubLink && (
                     <Link
@@ -323,7 +388,11 @@ const Resume = ({ data }) => {
 
           {/* Achievements Section */}
           <Box mb={4}>
-            <Typography variant="h2" color="secondary" sx={{ display: "flex", alignItems: "center" }}>
+            <Typography
+              variant="h2"
+              color="secondary"
+              sx={{ display: "flex", alignItems: "center" }}
+            >
               <AchievementsIcon sx={{ mr: 1 }} />
               Achievements
             </Typography>

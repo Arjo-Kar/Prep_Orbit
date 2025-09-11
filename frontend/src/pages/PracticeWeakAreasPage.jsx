@@ -1,5 +1,191 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Box,
+  Container,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Alert,
+  Avatar,
+  LinearProgress,
+  Stack,
+  Divider,
+  CircularProgress,
+} from "@mui/material";
+import {
+  Psychology as Brain,
+  TrendingUp as Improve,
+  CheckCircle,
+  Warning,
+  ArrowBack,
+} from "@mui/icons-material";
+import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
+
+// Dark theme matching other pages
+const darkTheme = createTheme({
+  palette: {
+    mode: "dark",
+    background: {
+      default: "#100827",
+      paper: "rgba(25, 25, 25, 0.8)",
+    },
+    primary: {
+      main: "#7b1fa2",
+    },
+    secondary: {
+      main: "#f50057",
+    },
+    text: {
+      primary: "#ffffff",
+      secondary: "#cccccc",
+    },
+  },
+  typography: {
+    fontFamily:
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: "16px",
+          backgroundImage: "none",
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: "12px",
+          textTransform: "none",
+          fontWeight: 600,
+          padding: "12px 24px",
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
+          border: "1px solid rgba(45, 45, 45, 0.5)",
+          backdropFilter: "blur(10px)",
+        },
+      },
+    },
+  },
+});
+
+// Styled components
+const GradientBox = styled(Box)(({ theme }) => ({
+  background: "linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)",
+  minHeight: "100vh",
+  color: "white",
+  width: "100%",
+  position: "relative",
+}));
+
+const HeaderCard = styled(Card)(({ theme }) => ({
+  background: "linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)",
+  backdropFilter: "blur(8px)",
+  boxShadow: "0 4px 30px rgba(0, 0, 0, 0.5)",
+  border: "1px solid rgba(126, 87, 194, 0.5)",
+  marginBottom: theme.spacing(4),
+}));
+
+const QuestionCard = styled(Card)(({ theme }) => ({
+  background: "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+  border: "1px solid #444",
+  boxShadow: "0 8px 30px rgba(0, 0, 0, 0.3)",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
+    border: "1px solid #4caf50",
+  },
+}));
+
+const StyledRadio = styled(Radio)(({ theme }) => ({
+  color: "#666",
+  "&.Mui-checked": {
+    color: "#4caf50",
+  },
+  "&:hover": {
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
+  },
+}));
+
+const OptionLabel = styled(FormControlLabel)(({ theme }) => ({
+  margin: 0,
+  padding: "12px 16px",
+  borderRadius: "12px",
+  border: "1px solid #444",
+  transition: "all 0.2s ease",
+  backgroundColor: "rgba(51, 51, 51, 0.5)",
+  "&:hover": {
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
+    border: "1px solid #4caf50",
+  },
+  "& .MuiFormControlLabel-label": {
+    color: "#ccc",
+    fontSize: "1rem",
+    lineHeight: 1.5,
+    flex: 1,
+  },
+}));
+
+const GradientButton = styled(Button)(({ theme }) => ({
+  background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+  height: "48px",
+  fontSize: "1.1rem",
+  "&:hover": {
+    background: "linear-gradient(45deg, #66bb6a, #aed581)",
+    transform: "translateY(-2px)",
+    boxShadow: "0 8px 25px rgba(76, 175, 80, 0.4)",
+  },
+  "&:disabled": {
+    background: "linear-gradient(45deg, #666, #888)",
+  },
+  transition: "all 0.3s ease",
+}));
+
+const BackButton = styled(Button)(({ theme }) => ({
+  position: "absolute",
+  top: "20px",
+  left: "20px",
+  background: "rgba(255, 255, 255, 0.1)",
+  backdropFilter: "blur(10px)",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+  color: "white",
+  zIndex: 1001,
+  "&:hover": {
+    background: "rgba(123, 31, 162, 0.3)",
+    transform: "translateX(-5px)",
+  },
+  transition: "all 0.3s ease",
+}));
+
+const PracticeContainer = styled(Container)(({ theme }) => ({
+  position: "relative",
+  zIndex: 1,
+  width: "100%",
+  maxWidth: "none !important",
+  margin: "0 auto",
+  padding: "20px",
+}));
+
+const LoadingCard = styled(Card)(({ theme }) => ({
+  background: "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+  border: "1px solid #444",
+  minHeight: "300px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+}));
 
 const PracticeWeakAreasPage = () => {
   const navigate = useNavigate();
@@ -11,7 +197,34 @@ const PracticeWeakAreasPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [practiceSessionId, setPracticeSessionId] = useState(null);
 
-  // Get number of questions from URL params, default to 5
+  // Override global styles for this page
+  React.useEffect(() => {
+    const originalRootStyle = document.getElementById('root')?.style.cssText;
+    const originalBodyStyle = document.body.style.cssText;
+
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.maxWidth = 'none';
+      root.style.padding = '0';
+      root.style.margin = '0';
+      root.style.textAlign = 'initial';
+      root.style.height = '100vh';
+      root.style.width = '100vw';
+    }
+
+    document.body.style.display = 'block';
+    document.body.style.placeItems = 'initial';
+
+    return () => {
+      if (root && originalRootStyle !== undefined) {
+        root.style.cssText = originalRootStyle;
+      }
+      if (originalBodyStyle !== undefined) {
+        document.body.style.cssText = originalBodyStyle;
+      }
+    };
+  }, []);
+
   const numQuestions = parseInt(searchParams.get("numQuestions") || "5", 10);
 
   // Fetch weak area questions
@@ -27,7 +240,7 @@ const PracticeWeakAreasPage = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ numQuestions }), // Use dynamic number from URL params
+          body: JSON.stringify({ numQuestions }),
         });
 
         if (!res.ok) {
@@ -68,7 +281,6 @@ const PracticeWeakAreasPage = () => {
   };
 
   const handleSubmit = async () => {
-    // Check if user has answered all questions
     const unansweredQuestions = questions.filter((_, index) => !answers[index]);
     if (unansweredQuestions.length > 0) {
       const proceed = window.confirm(
@@ -82,12 +294,10 @@ const PracticeWeakAreasPage = () => {
       const token = localStorage.getItem("authToken");
       if (!token) throw new Error("User not authenticated");
 
-      // Format answers according to backend expectation
       const formattedAnswers = questions.map((question, index) => {
         const userAnswer = answers[index];
         let answerLetter = '';
         if (userAnswer) {
-          // Handle both "A) Option text" and "A" formats
           const match = userAnswer.match(/^([A-D])\)/);
           if (match) {
             answerLetter = match[1];
@@ -99,10 +309,9 @@ const PracticeWeakAreasPage = () => {
           questionId: question.id,
           userAnswer: answerLetter
         };
-      }).filter(answer => answer.userAnswer !== ''); // Only include answered questions
+      }).filter(answer => answer.userAnswer !== '');
 
       const requestBody = { answers: formattedAnswers };
-
       console.log("Submitting practice answers:", requestBody);
 
       let submitUrl = `http://localhost:8080/api/quiz/${practiceSessionId}/submit`;
@@ -116,19 +325,13 @@ const PracticeWeakAreasPage = () => {
         body: JSON.stringify(requestBody),
       });
 
-      console.log("Practice submit response status:", response.status);
-
       if (!response.ok) {
         let errorMessage = `Failed to submit practice quiz: ${response.status} ${response.statusText}`;
 
         try {
           const errorData = await response.json();
-          console.log("Error response body:", errorData);
-
           if (errorData.message) {
             errorMessage += ` - ${errorData.message}`;
-          } else if (errorData.error) {
-            errorMessage += ` - ${errorData.error}`;
           }
         } catch (parseError) {
           try {
@@ -153,12 +356,11 @@ const PracticeWeakAreasPage = () => {
       const data = await response.json();
       console.log("Practice quiz submitted successfully:", data);
 
-      // Redirect to QuizResultPage with result and questionCount
       navigate(`/quiz/${practiceSessionId}/results`, {
         state: { result: data, questionCount: questions.length }
       });
 
-      setError(null); // Clear any previous errors
+      setError(null);
     } catch (err) {
       console.error("Error submitting practice quiz:", err);
       setError(err.message);
@@ -167,139 +369,312 @@ const PracticeWeakAreasPage = () => {
     }
   };
 
-  if (loading) return <p>Loading weak area questions...</p>;
-
-  if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
-
-  if (questions.length === 0) {
-    return (
-      <div>
-        <h1>Practice Your Weak Areas</h1>
-        <p>No weak area questions available. Complete some quizzes first to identify areas for improvement.</p>
-        <button onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
-      </div>
-    );
-  }
+  const getProgressPercentage = () => {
+    const answeredCount = Object.keys(answers).length;
+    return (answeredCount / questions.length) * 100;
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Practice Your Weak Areas</h1>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              These {questions.length} questions are based on topics where you need improvement.
-              Take your time and focus on understanding each concept.
-            </p>
-          </div>
-        </div>
+    <ThemeProvider theme={darkTheme}>
+      <GradientBox>
+        {/* Back Button */}
+        <BackButton
+          startIcon={<ArrowBack />}
+          onClick={() => navigate("/dashboard")}
+        >
+          Back to Dashboard
+        </BackButton>
 
-        {/* Questions */}
-        <div className="space-y-6">
-          {questions.map((q, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-md border-2 border-gray-200 p-8">
-              {/* Question Header */}
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-6 border-l-4 border-green-500">
-                <div className="flex items-center mb-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold mr-3">
-                    {index + 1}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    Question {index + 1}
-                  </h3>
-                </div>
-                <p className="text-gray-800 text-lg leading-relaxed pl-11">{q.questionText}</p>
-              </div>
+        <PracticeContainer maxWidth="xl" sx={{ py: 4 }}>
+          {loading ? (
+            <LoadingCard>
+              <Box textAlign="center">
+                <CircularProgress sx={{ color: "#4caf50", mb: 2 }} />
+                <Typography variant="h6" sx={{ color: "#ccc" }}>
+                  Loading weak area questions...
+                </Typography>
+              </Box>
+            </LoadingCard>
+          ) : error ? (
+            <Card sx={{
+              background: "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+              border: "1px solid #f44336"
+            }}>
+              <CardContent sx={{ p: 4, textAlign: "center" }}>
+                <Avatar sx={{
+                  width: 80,
+                  height: 80,
+                  mx: "auto",
+                  mb: 2,
+                  background: "linear-gradient(135deg, #f44336, #d32f2f)"
+                }}>
+                  <Warning sx={{ fontSize: 40 }} />
+                </Avatar>
+                <Typography variant="h5" sx={{ color: "#f44336", mb: 2 }}>
+                  Error Loading Questions
+                </Typography>
+                <Typography variant="body1" sx={{ color: "#ccc", mb: 3 }}>
+                  {error}
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => window.location.reload()}
+                  sx={{ mr: 2 }}
+                >
+                  Try Again
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  Back to Dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          ) : questions.length === 0 ? (
+            <Card sx={{
+              background: "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+              border: "1px solid #444"
+            }}>
+              <CardContent sx={{ p: 4, textAlign: "center" }}>
+                <Avatar sx={{
+                  width: 80,
+                  height: 80,
+                  mx: "auto",
+                  mb: 2,
+                  background: "linear-gradient(135deg, #ff9800, #ffc107)"
+                }}>
+                  <Brain sx={{ fontSize: 40 }} />
+                </Avatar>
+                <Typography variant="h5" sx={{ color: "white", mb: 2 }}>
+                  No Weak Areas Found
+                </Typography>
+                <Typography variant="body1" sx={{ color: "#ccc", mb: 3 }}>
+                  No weak area questions available. Complete some quizzes first to identify areas for improvement.
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/dashboard")}
+                  sx={{
+                    background: "linear-gradient(45deg, #7b1fa2, #f50057)",
+                    "&:hover": {
+                      background: "linear-gradient(45deg, #9c27b0, #ff4081)",
+                    },
+                  }}
+                >
+                  Back to Dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Header */}
+              <HeaderCard>
+                <CardContent sx={{ p: 4 }}>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box display="flex" alignItems="center" gap={3}>
+                      <Avatar sx={{
+                        width: 80,
+                        height: 80,
+                        background: "linear-gradient(135deg, #4caf50, #8bc34a)",
+                        boxShadow: "0 4px 20px rgba(76, 175, 80, 0.4)",
+                      }}>
+                        <Improve sx={{ fontSize: 40 }} />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h3" component="h1" fontWeight="bold" sx={{
+                          background: "linear-gradient(to right, #4caf50, #8bc34a)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          mb: 1,
+                        }}>
+                          Practice Your Weak Areas
+                        </Typography>
+                        <Typography variant="h6" sx={{ color: "#aaa" }}>
+                          These {questions.length} questions are based on topics where you need improvement
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
 
-              {/* Answer Options */}
-              <div className="space-y-4 pl-4">
-                <h4 className="text-sm font-medium text-gray-600 uppercase tracking-wide mb-3">Choose your answer:</h4>
-                {/* Handle both options and choices properties */}
-                {q.options && q.options.length > 0 ? (
-                  q.options.slice(0, 4).map((option, i) => (
-                    <label key={i} className="flex items-start space-x-4 p-4 rounded-lg border-2 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all duration-200 group">
-                      <input
-                        type="radio"
-                        name={`q${index}`}
-                        value={option}
-                        checked={answers[index] === option}
-                        onChange={() => handleChange(index, option)}
-                        className="mt-1.5 h-5 w-5 text-green-600 border-2 border-gray-300 focus:ring-green-500 focus:ring-2"
-                      />
-                      <div className="flex-1">
-                        <span className="text-gray-800 text-base leading-relaxed group-hover:text-green-800 transition-colors">
-                          {option}
-                        </span>
-                      </div>
-                    </label>
-                  ))
-                ) : q.choices && q.choices.length > 0 ? (
-                  q.choices.slice(0, 4).map((choice, i) => (
-                    <label key={i} className="flex items-start space-x-4 p-4 rounded-lg border-2 hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all duration-200 group">
-                      <input
-                        type="radio"
-                        name={`q${index}`}
-                        value={choice}
-                        checked={answers[index] === choice}
-                        onChange={() => handleChange(index, choice)}
-                        className="mt-1.5 h-5 w-5 text-green-600 border-2 border-gray-300 focus:ring-green-500 focus:ring-2"
-                      />
-                      <div className="flex-1">
-                        <span className="text-gray-800 text-base leading-relaxed group-hover:text-green-800 transition-colors">
-                          {choice}
-                        </span>
-                      </div>
-                    </label>
-                  ))
-                ) : (
-                  <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                    <div className="flex items-center">
-                      <svg className="h-6 w-6 text-yellow-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                      <p className="text-yellow-800 font-medium">No options available for this question</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+                  {/* Progress Bar */}
+                  <Box mt={3}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Typography variant="body2" sx={{ color: "#aaa" }}>
+                        Progress: {Object.keys(answers).length} of {questions.length} answered
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#4caf50", fontWeight: 600 }}>
+                        {Math.round(getProgressPercentage())}%
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={getProgressPercentage()}
+                      sx={{
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: "#333",
+                        "& .MuiLinearProgress-bar": {
+                          backgroundColor: "#4caf50",
+                          borderRadius: 4,
+                        },
+                      }}
+                    />
+                  </Box>
+                </CardContent>
+              </HeaderCard>
 
-        {/* Submit Section */}
-        <div className="mt-8 bg-white rounded-lg shadow-sm p-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Submitting...
-                </>
-              ) : (
-                "Submit Practice Quiz"
+              {/* Error Message */}
+              {error && (
+                <Alert severity="error" variant="filled" sx={{
+                  mb: 3,
+                  borderRadius: "12px",
+                  background: "linear-gradient(45deg, #f44336, #d32f2f)",
+                }}>
+                  {error}
+                </Alert>
               )}
-            </button>
 
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+              {/* Questions */}
+              <Stack spacing={4} mb={4}>
+                {questions.map((q, index) => (
+                  <QuestionCard key={index}>
+                    <CardContent sx={{ p: 4 }}>
+                      {/* Question Header */}
+                      <Box
+                        sx={{
+                          background: "linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(139, 195, 74, 0.1))",
+                          borderRadius: "12px",
+                          p: 3,
+                          mb: 3,
+                          border: "1px solid rgba(76, 175, 80, 0.3)",
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" mb={2}>
+                          <Avatar
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              background: "linear-gradient(135deg, #4caf50, #8bc34a)",
+                              mr: 2,
+                              fontSize: "0.9rem",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            {index + 1}
+                          </Avatar>
+                          <Typography variant="h6" fontWeight="bold" sx={{ color: "white" }}>
+                            Question {index + 1}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            color: "#e0e0e0",
+                            lineHeight: 1.6,
+                            fontSize: "1.1rem",
+                            pl: 5,
+                          }}
+                        >
+                          {q.questionText}
+                        </Typography>
+                      </Box>
+
+                      {/* Answer Options */}
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "#aaa",
+                            textTransform: "uppercase",
+                            fontWeight: 600,
+                            letterSpacing: 1,
+                            mb: 2,
+                          }}
+                        >
+                          Choose your answer:
+                        </Typography>
+                        <RadioGroup
+                          value={answers[index] || ""}
+                          onChange={(e) => handleChange(index, e.target.value)}
+                        >
+                          <Stack spacing={2}>
+                            {/* Handle both options and choices properties */}
+                            {(q.options || q.choices || []).slice(0, 4).map((option, i) => (
+                              <OptionLabel
+                                key={i}
+                                value={option}
+                                control={<StyledRadio />}
+                                label={option}
+                              />
+                            ))}
+                            {(!q.options && !q.choices) && (
+                              <Box
+                                sx={{
+                                  p: 3,
+                                  background: "rgba(255, 193, 7, 0.1)",
+                                  border: "1px solid rgba(255, 193, 7, 0.3)",
+                                  borderRadius: "12px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                <Warning sx={{ color: "#ffc107", mb: 1 }} />
+                                <Typography sx={{ color: "#ffc107", fontWeight: 600 }}>
+                                  No options available for this question
+                                </Typography>
+                              </Box>
+                            )}
+                          </Stack>
+                        </RadioGroup>
+                      </Box>
+                    </CardContent>
+                  </QuestionCard>
+                ))}
+              </Stack>
+
+              {/* Submit Section */}
+              <Card sx={{
+                background: "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+                border: "1px solid #444",
+              }}>
+                <CardContent sx={{ p: 4 }}>
+                  <Box textAlign="center">
+                    <Typography variant="h6" sx={{ color: "white", mb: 3 }}>
+                      Ready to submit your practice quiz?
+                    </Typography>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center">
+                      <GradientButton
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        size="large"
+                        startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
+                      >
+                        {submitting ? "Submitting..." : "Submit Practice Quiz"}
+                      </GradientButton>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        onClick={() => navigate("/dashboard")}
+                        sx={{
+                          borderColor: "#666",
+                          color: "#ccc",
+                          "&:hover": {
+                            borderColor: "#7b1fa2",
+                            backgroundColor: "rgba(123, 31, 162, 0.1)",
+                          },
+                        }}
+                      >
+                        Back to Dashboard
+                      </Button>
+                    </Stack>
+                  </Box>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </PracticeContainer>
+      </GradientBox>
+    </ThemeProvider>
   );
 };
 

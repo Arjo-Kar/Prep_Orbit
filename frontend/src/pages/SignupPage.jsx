@@ -87,11 +87,18 @@ const darkTheme = createTheme({
 const GradientBox = styled(Box)(({ theme }) => ({
   background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
   minHeight: '100vh',
+  height: '100vh',
+  width: '100vw',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   color: 'white',
-  position: 'relative',
+  padding: '20px',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  zIndex: 1000,
+  overflowY: 'auto',
 }));
 
 const SignupCard = styled(Card)(({ theme }) => ({
@@ -99,8 +106,9 @@ const SignupCard = styled(Card)(({ theme }) => ({
   border: '1px solid #444',
   boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
   backdropFilter: 'blur(20px)',
-  maxWidth: '480px',
   width: '100%',
+  maxWidth: '480px',
+  margin: '0 auto',
 }));
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
@@ -151,6 +159,7 @@ const BackButton = styled(Button)(({ theme }) => ({
   backdropFilter: 'blur(10px)',
   border: '1px solid rgba(255, 255, 255, 0.2)',
   color: 'white',
+  zIndex: 1001,
   '&:hover': {
     background: 'rgba(123, 31, 162, 0.3)',
     transform: 'translateX(-5px)',
@@ -164,6 +173,19 @@ const FloatingElement = styled(Box)(({ theme }) => ({
   background: 'linear-gradient(45deg, rgba(123, 31, 162, 0.1), rgba(245, 0, 87, 0.1))',
   filter: 'blur(40px)',
   zIndex: 0,
+}));
+
+// Main container for perfect centering
+const CenteredContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '100vh',
+  width: '100%',
+  position: 'relative',
+  zIndex: 1,
+  padding: '20px 0',
 }));
 
 const PasswordStrengthIndicator = ({ password }) => {
@@ -230,6 +252,37 @@ function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const navigate = useNavigate();
+
+  // Override global styles for this page
+  React.useEffect(() => {
+    // Store original styles
+    const originalRootStyle = document.getElementById('root')?.style.cssText;
+    const originalBodyStyle = document.body.style.cssText;
+
+    // Apply signup page specific styles
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.maxWidth = 'none';
+      root.style.padding = '0';
+      root.style.margin = '0';
+      root.style.textAlign = 'initial';
+      root.style.height = '100vh';
+      root.style.width = '100vw';
+    }
+
+    document.body.style.display = 'block';
+    document.body.style.placeItems = 'initial';
+
+    // Cleanup function to restore original styles
+    return () => {
+      if (root && originalRootStyle !== undefined) {
+        root.style.cssText = originalRootStyle;
+      }
+      if (originalBodyStyle !== undefined) {
+        document.body.style.cssText = originalBodyStyle;
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -305,7 +358,7 @@ function SignupPage() {
           }}
         />
 
-        <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
+        <CenteredContainer>
           <SignupCard>
             <CardContent sx={{ p: 4 }}>
               {/* Header */}
@@ -336,7 +389,7 @@ function SignupPage() {
                     mb: 1,
                   }}
                 >
-                  {isSuccess ? 'Check Your Email!' : 'Join CodeArena'}
+                  {isSuccess ? 'Check Your Email!' : 'Join Prep_Orbit'}
                 </Typography>
 
                 <Typography variant="body1" sx={{ color: '#aaa', mb: 2 }}>
@@ -565,10 +618,10 @@ function SignupPage() {
           {/* Bottom decoration */}
           <Box textAlign="center" mt={4}>
             <Typography variant="body2" sx={{ color: '#555' }}>
-              © 2024 CodeArena. Empowering developers worldwide.
+              © 2024 Prep_Orbit. Empowering developers worldwide.
             </Typography>
           </Box>
-        </Container>
+        </CenteredContainer>
       </GradientBox>
     </ThemeProvider>
   );

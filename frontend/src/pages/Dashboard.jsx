@@ -32,7 +32,7 @@ import {
   WorkOutline as InterviewIcon,
   Terminal,
   Mic as MicIcon,
-  Description as DescriptionIcon, // Added missing import
+  Description as DescriptionIcon,
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
 import CodingChallengeAPI from "../api/CodingChallengeAPI";
@@ -94,7 +94,13 @@ const darkTheme = createTheme({
 const GradientBox = styled(Box)(({ theme }) => ({
   background: "linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)",
   minHeight: "100vh",
+  width: "100vw",
   color: "white",
+  position: "absolute", // Changed from "fixed" to "absolute" to fix scrolling
+  top: 0,
+  left: 0,
+  zIndex: 1000,
+  overflowY: "auto",
 }));
 
 const StatsCard = styled(Card)(({ theme }) => ({
@@ -142,7 +148,17 @@ const QuizCard = styled(Card)(({ theme }) => ({
   border: "1px solid #444",
 }));
 
-// StatCard component definition (moved outside and properly structured)
+// Main container for proper alignment
+const DashboardContainer = styled(Container)(({ theme }) => ({
+  position: "relative",
+  zIndex: 1,
+  width: "100%",
+  maxWidth: "none !important",
+  margin: "0 auto",
+  padding: "20px",
+}));
+
+// StatCard component definition
 const StatCard = ({ title, value, icon, color, gradient }) => (
   <StatsCard>
     <CardContent sx={{ p: 3 }}>
@@ -200,6 +216,40 @@ function Dashboard() {
     weeklyTarget: 7,
     averageScore: 0,
   });
+
+  // Override global styles for this page
+  React.useEffect(() => {
+    // Store original styles
+    const originalRootStyle = document.getElementById('root')?.style.cssText;
+    const originalBodyStyle = document.body.style.cssText;
+
+    // Apply dashboard page specific styles
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.maxWidth = 'none';
+      root.style.padding = '0';
+      root.style.margin = '0';
+      root.style.textAlign = 'initial';
+      root.style.width = '100vw'; // Removed height: '100vh' to allow expansion
+    }
+
+    document.body.style.display = 'block';
+    document.body.style.placeItems = 'initial';
+    document.body.style.overflow = 'visible'; // Ensure body can scroll
+    document.documentElement.style.overflow = 'visible'; // Ensure html can scroll
+
+    // Cleanup function to restore original styles
+    return () => {
+      if (root && originalRootStyle !== undefined) {
+        root.style.cssText = originalRootStyle;
+      }
+      if (originalBodyStyle !== undefined) {
+        document.body.style.cssText = originalBodyStyle;
+      }
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, []);
 
   // Get current user from localStorage, fallback to "Guest"
   const getCurrentUsername = () => {
@@ -311,7 +361,7 @@ function Dashboard() {
     navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
   };
 
-  // Start coding challenge function (was missing)
+  // Start coding challenge function
   const startCodingChallenge = (challengeId) => {
     navigate(`/coding-challenge/${challengeId}`);
   };
@@ -324,7 +374,7 @@ function Dashboard() {
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <DashboardContainer maxWidth="xl" sx={{ py: 4 }}>
           {/* Header */}
           <HeaderCard>
             <CardContent sx={{ p: 4 }}>
@@ -357,7 +407,7 @@ function Dashboard() {
                         mb: 1,
                       }}
                     >
-                      Welcome back, {username}! 👨‍💻
+                      Welcome back, {username}!
                     </Typography>
                     <Typography variant="h6" sx={{ color: "#aaa" }}>
                       Ready for today's challenge? Choose your path to
@@ -864,20 +914,22 @@ function Dashboard() {
                   >
                     Interview Prep
                   </ActionButton>
-                 <ActionButton
-                   variant="contained"
-                   startIcon={<InterviewIcon />}
-                   fullWidth
-                   onClick={() => navigate("/live-interview")}
-                   sx={{
-                     background: "linear-gradient(45deg, #0d47a1, #1a237e)",
-                     "&:hover": {
-                       background: "linear-gradient(45deg, #1976d2, #3949ab)",
-                     },
-                   }}
-                 >
-                   Live Interview
-                 </ActionButton>
+                </Grid>
+                <Grid item xs={12} sm={6} lg={3}>
+                  <ActionButton
+                    variant="contained"
+                    startIcon={<InterviewIcon />}
+                    fullWidth
+                    onClick={() => navigate("/live-interview")}
+                    sx={{
+                      background: "linear-gradient(45deg, #0d47a1, #1a237e)",
+                      "&:hover": {
+                        background: "linear-gradient(45deg, #1976d2, #3949ab)",
+                      },
+                    }}
+                  >
+                    Live Interview
+                  </ActionButton>
                 </Grid>
               </Grid>
             </CardContent>
@@ -922,7 +974,7 @@ function Dashboard() {
               </Box>
             </CardContent>
           </Card>
-        </Container>
+        </DashboardContainer>
       </GradientBox>
     </ThemeProvider>
   );

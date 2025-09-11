@@ -15,38 +15,61 @@ import {
   Alert,
   IconButton
 } from '@mui/material';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CodeIcon from "@mui/icons-material/Code";
 
+
+
+
+
+// Dark theme to match Dashboard.jsx
 const darkTheme = createTheme({
   palette: {
-    mode: 'dark',
+    mode: "dark",
     background: {
-      default: '#1e1e1e',
-      paper: '#2d2d2d',
+      default: "#100827",
+      paper: "rgba(25, 25, 25, 0.8)",
     },
     primary: {
-      main: '#7b1fa2',
+      main: "#7b1fa2",
     },
     secondary: {
-      main: '#f50057',
+      main: "#f50057",
+    },
+    text: {
+      primary: "#ffffff",
+      secondary: "#cccccc",
     },
   },
   typography: {
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    fontFamily:
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   components: {
     MuiPaper: {
       styleOverrides: {
         root: {
-          borderRadius: '16px',
+          borderRadius: "16px",
+          backgroundImage: "none",
         },
       },
     },
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: '12px',
-          textTransform: 'none',
+          borderRadius: "12px",
+          textTransform: "none",
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
+          border: "1px solid rgba(45, 45, 45, 0.5)",
+          backdropFilter: "blur(4px)",
         },
       },
     },
@@ -61,6 +84,74 @@ const darkTheme = createTheme({
     },
   },
 });
+
+// Styled components to match Dashboard.jsx
+const GradientBox = styled(Box)(({ theme }) => ({
+  background: "linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)",
+  minHeight: "100vh",
+  width: "100vw",
+  color: "white",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  zIndex: 1000,
+  overflowY: "auto",
+}));
+
+const HeaderCard = styled(Paper)(({ theme }) => ({
+  background: "linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)",
+  backdropFilter: "blur(8px)",
+  boxShadow: "0 4px 30px rgba(0, 0, 0, 0.5)",
+  border: "1px solid rgba(126, 87, 194, 0.5)",
+  marginBottom: theme.spacing(4),
+  padding: theme.spacing(2),
+  position: "sticky",
+  top: 0,
+  zIndex: 30,
+}));
+
+const ChallengeCard = styled(Paper)(({ theme }) => ({
+  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+  border: "1px solid #444",
+  transition: "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
+    border: "1px solid #7b1fa2",
+  },
+}));
+
+const EditorCard = styled(Paper)(({ theme }) => ({
+  background: "linear-gradient(180deg, #101010 0%, #000000 100%)",
+  border: "1px solid #444",
+  flex: 1,
+  display: "flex",
+  flexDirection: "column",
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+  height: "56px",
+  borderRadius: "12px",
+  textTransform: "none",
+  fontSize: "1rem",
+  fontWeight: 600,
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+  },
+}));
+
+const MainContainer = styled(Box)(({ theme }) => ({
+  display: "flex",
+  width: "100%",
+  height: "calc(100vh - 120px)", // Adjust for header height
+  borderRadius: "16px",
+  boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
+  border: "1px solid rgba(45, 45, 45, 0.5)",
+  overflow: "hidden",
+  backgroundColor: "rgba(25, 25, 25, 0.8)",
+  backdropFilter: "blur(4px)",
+}));
 
 const MonacoLoader = ({ onMonacoReady, language, value, theme, options, onChange }) => {
   const editorRef = useRef(null);
@@ -108,9 +199,6 @@ const MonacoLoader = ({ onMonacoReady, language, value, theme, options, onChange
     };
   }, []);
 
-  // Removed the effect that sets editor value on every value change.
-  // Only update the value via explicit handler (e.g. language change or reset).
-
   useEffect(() => {
     if (editorRef.current) {
       window.monaco.editor.setTheme(theme);
@@ -134,12 +222,11 @@ const CodingChallengePage = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [authToken] = useState('mock-auth-token-123');
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showResults, setShowResults] = useState(true);
   const [editorTheme, setEditorTheme] = useState('vs-dark');
   const [fontSize, setFontSize] = useState(14);
 
-  const [paneWidth, setPaneWidth] = useState(null);
+  const [paneWidth, setPaneWidth] = useState(45);
   const isDragging = useRef(false);
   const monacoEditorInstance = useRef(null);
 
@@ -148,7 +235,7 @@ const CodingChallengePage = () => {
       id: 63,
       name: 'JavaScript',
       icon: '🟨',
-      template: `// Welcome to CodeArena - JavaScript Solution
+      template: `// Welcome to Prep_Orbit - JavaScript Solution
 // Time to show your coding skills! 💪
 
 function solve() {
@@ -165,7 +252,7 @@ console.log(solve());`
       id: 71,
       name: 'Python',
       icon: '🐍',
-      template: `# Welcome to CodeArena - Python Solution
+      template: `# Welcome to Prep_Orbit - Python Solution
 # Time to show your coding skills! 💪
 
 def solve():
@@ -188,7 +275,7 @@ if __name__ == "__main__":
 import java.io.*;
 
 /**
- * Welcome to CodeArena - Java Solution
+ * Welcome to Prep_Orbit - Java Solution
  * Time to show your coding skills! 💪
  */
 public class Solution {
@@ -221,7 +308,7 @@ public class Solution {
 using namespace std;
 
 /*
- * Welcome to CodeArena - C++ Solution
+ * Welcome to Prep_Orbit - C++ Solution
  * Time to show your coding skills! 💪
  */
 
@@ -238,8 +325,6 @@ int main() {
     },
   };
 
-  const availableTopics = ['arrays', 'algorithms', 'data-structures', 'recursion', 'dynamic-programming', 'graphs', 'trees', 'linked-lists', 'strings'];
-  const difficultyLevels = ['easy', 'medium', 'hard'];
   const themes = [
     { value: 'vs-dark', name: 'Dark (Default)' },
     { value: 'light', name: 'Light' },
@@ -275,6 +360,37 @@ int main() {
       ],
     }
   };
+
+  // Override global styles for this page
+  useEffect(() => {
+    const originalRootStyle = document.getElementById("root")?.style.cssText;
+    const originalBodyStyle = document.body.style.cssText;
+
+    const root = document.getElementById("root");
+    if (root) {
+      root.style.maxWidth = "none";
+      root.style.padding = "0";
+      root.style.margin = "0";
+      root.style.textAlign = "initial";
+      root.style.width = "100vw";
+    }
+
+    document.body.style.display = "block";
+    document.body.style.placeItems = "initial";
+    document.body.style.overflow = "visible";
+    document.documentElement.style.overflow = "visible";
+
+    return () => {
+      if (root && originalRootStyle !== undefined) {
+        root.style.cssText = originalRootStyle;
+      }
+      if (originalBodyStyle !== undefined) {
+        document.body.style.cssText = originalBodyStyle;
+      }
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
 
   const handleMonacoReady = (editor) => {
     monacoEditorInstance.current = editor;
@@ -341,7 +457,6 @@ int main() {
       }
       const data = await response.json();
 
-      // Normalize challenge data for the frontend
       const challengeData = {
         id: data.id,
         title: data.title,
@@ -370,161 +485,110 @@ int main() {
     }
   };
 
-const submitSolution = async () => {
-  if (!challenge || !code || typeof code !== 'string' || !code.trim()) {
-    setErrorMessage('Please write some code before submitting.');
-    setSubmissionResult(null);
-    return;
-  }
-  const languageId = languageConfigs[selectedLanguage]?.id;
-  if (!languageId || typeof languageId !== 'number' || languageId <= 0) {
-    setErrorMessage('Please select a valid programming language.');
-    setSubmissionResult(null);
-    return;
-  }
-  const authToken = localStorage.getItem('authToken');
-  if (!authToken) {
-    setErrorMessage('Authentication token not found. Please log in.');
-    setSubmissionResult(null);
-    return;
-  }
-
-  setSubmitting(true);
-  setErrorMessage(null);
-
-  try {
-    // For backend challenges: numeric id
-    if (typeof challenge.id === 'number') {
-      const response = await fetch(
-        `http://localhost:8080/api/coding/challenge/${challenge.id}/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({
-            source_code: code,
-            language_id: languageId,
-            stdin: ""
-          })
-        }
-      );
-
-      if (!response.ok) {
-        let errorMessageText = 'Failed to submit solution.';
-        try {
-          const errorBody = await response.text();
-          errorMessageText = errorBody || errorMessageText;
-        } catch {}
-        setErrorMessage(errorMessageText);
-        setSubmissionResult(null);
-        return;
-      }
-
-      const result = await response.json();
-      navigate('/coding-challenge/result', {
-        state: { result, challenge }
-      });
-    } else {
-      // Mock challenge logic for challenge-1 and challenge-2
-      const results = challenge.visibleTestCases.map(testCase => {
-        let actualOutput = "MockOutput";
-        let passed = false;
-
-        if (challenge.id === 'challenge-1') {
-          const [a, b] = testCase.input.split("\n").map(Number);
-          const expected = (a + b).toString();
-          actualOutput = code.includes("a + b") ? expected : (a + b + 1).toString();
-          passed = actualOutput === testCase.expectedOutput;
-        } else if (challenge.id === 'challenge-2') {
-          const str = testCase.input.trim();
-          const expected = str.split("").reverse().join("");
-          actualOutput = (code.includes("reverse") || code.includes("::-1")) ? expected : str;
-          passed = actualOutput === testCase.expectedOutput;
-        }
-
-        return {
-          passed,
-          visible: true,
-          input: testCase.input,
-          expectedOutput: testCase.expectedOutput,
-          actualOutput
-        };
-      });
-
-      const passedTestCases = results.filter(r => r.passed).length;
-      const totalTestCases = results.length;
-
-      navigate('/coding-challenge/result', {
-        state: {
-          result: {
-            allPassed: passedTestCases === totalTestCases,
-            passedTestCases,
-            totalTestCases,
-            results
-          },
-          challenge
-        }
-      });
+  const submitSolution = async () => {
+    if (!challenge || !code || typeof code !== 'string' || !code.trim()) {
+      setErrorMessage('Please write some code before submitting.');
+      setSubmissionResult(null);
+      return;
     }
-  } catch (error) {
-    setErrorMessage("Failed to submit solution. Please try again.");
-    setSubmissionResult(null);
-  } finally {
-    setSubmitting(false);
-  }
-};
-  const handleLanguageChange = (newLanguage) => {
-    setSelectedLanguage(newLanguage);
-    setCode(languageConfigs[newLanguage].template);
-    if (monacoEditorInstance.current) {
-        const oldModel = monacoEditorInstance.current.getModel();
-        const newModel = window.monaco.editor.createModel(languageConfigs[newLanguage].template, newLanguage);
-        monacoEditorInstance.current.setModel(newModel);
-        if (oldModel) oldModel.dispose();
+    const languageId = languageConfigs[selectedLanguage]?.id;
+    if (!languageId || typeof languageId !== 'number' || languageId <= 0) {
+      setErrorMessage('Please select a valid programming language.');
+      setSubmissionResult(null);
+      return;
     }
-  };
-
-  const handleTopicChange = (topic) => {
-    setSelectedTopics(prev =>
-      prev.includes(topic) ? prev.filter(t => t !== topic) : [...prev, topic]
-    );
-  };
-
-  const copyCode = () => {
-    if (monacoEditorInstance.current) {
-      navigator.clipboard.writeText(monacoEditorInstance.current.getValue());
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      setErrorMessage('Authentication token not found. Please log in.');
+      setSubmissionResult(null);
+      return;
     }
-  };
 
-  const resetCode = () => {
-    const template = languageConfigs[selectedLanguage].template;
-    setCode(template);
-    if (monacoEditorInstance.current) {
-        monacoEditorInstance.current.setValue(template);
-    }
-  };
+    setSubmitting(true);
+    setErrorMessage(null);
 
-  useEffect(() => {
-    if (challengeId) {
-      fetchChallenge(challengeId);
-    } else {
-      generateChallenge();
-    }
-  }, [challengeId, authToken]);
-
-  useEffect(() => {
-      const handleResize = () => {
-          if (monacoEditorInstance.current) {
-              monacoEditorInstance.current.layout();
+    try {
+      if (typeof challenge.id === 'number') {
+        const response = await fetch(
+          `http://localhost:8080/api/coding/challenge/${challenge.id}/submit`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+              source_code: code,
+              language_id: languageId,
+              stdin: ""
+            })
           }
-      };
-      window.addEventListener('resize', handleResize);
-      return () => {
-          window.removeEventListener('resize', handleResize);
-      };
-  }, []);
+        );
+
+        if (!response.ok) {
+          let errorMessageText = 'Failed to submit solution.';
+          try {
+            const errorBody = await response.text();
+            errorMessageText = errorBody || errorMessageText;
+          } catch {}
+          setErrorMessage(errorMessageText);
+          setSubmissionResult(null);
+          return;
+        }
+
+        const result = await response.json();
+        navigate('/coding-challenge/result', {
+          state: { result, challenge }
+        });
+      } else {
+        const results = challenge.visibleTestCases.map(testCase => {
+          let actualOutput = "MockOutput";
+          let passed = false;
+
+          if (challenge.id === 'challenge-1') {
+            const [a, b] = testCase.input.split("\n").map(Number);
+            const expected = (a + b).toString();
+            actualOutput = code.includes("a + b") ? expected : (a + b + 1).toString();
+            passed = actualOutput === testCase.expectedOutput;
+          } else if (challenge.id === 'challenge-2') {
+            const str = testCase.input.trim();
+            const expected = str.split("").reverse().join("");
+            actualOutput = (code.includes("reverse") || code.includes("::-1")) ? expected : str;
+            passed = actualOutput === testCase.expectedOutput;
+          }
+
+          return {
+            passed,
+            visible: true,
+            input: testCase.input,
+            expectedOutput: testCase.expectedOutput,
+            actualOutput
+          };
+        });
+
+        const passedTestCases = results.filter(r => r.passed).length;
+        const totalTestCases = results.length;
+
+        navigate('/coding-challenge/result', {
+          state: {
+            result: {
+              allPassed: passedTestCases === totalTestCases,
+              passedTestCases,
+              totalTestCases,
+              results
+            },
+            challenge
+          }
+        });
+      }
+    } catch (error) {
+      setErrorMessage("Failed to submit solution. Please try again.");
+      setSubmissionResult(null);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const runSampleTestCases = async () => {
     if (!challenge || !code.trim()) {
       setErrorMessage('Please write some code before running.');
@@ -549,9 +613,9 @@ const submitSolution = async () => {
             'Authorization': `Bearer ${authToken}`
           },
           body: JSON.stringify({
-                source_code: code,
-             language_id: languageId,
-             stdin: ""
+            source_code: code,
+            language_id: languageId,
+            stdin: ""
           })
         }
       );
@@ -559,7 +623,6 @@ const submitSolution = async () => {
         throw new Error('Failed to run sample test cases.');
       }
       const result = await response.json();
-      // Filter visible test cases only
       const visibleResults = result.results.filter(tc => tc.visible);
       const passedSample = visibleResults.filter(tc => tc.passed).length;
       const allSamplePassed = passedSample === visibleResults.length;
@@ -578,497 +641,229 @@ const submitSolution = async () => {
     }
   };
 
-  const submitSolutionWithVerdictOnly = async () => {
-    if (!challenge || !code.trim()) {
-      setErrorMessage('Please write some code before submitting.');
-      return;
-    }
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) {
-      setErrorMessage('Authentication token not found. Please log in.');
-      return;
-    }
-    setSubmitting(true);
-    setErrorMessage(null);
-
-    try {
-      const languageId = languageConfigs[selectedLanguage].id;
-      const response = await fetch(
-        `http://localhost:8080/api/coding/challenge/${challenge.id}/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({
-            source_code: code,
-              language_id: languageId,
-              stdin: ""
-          })
-        }
-      );
-      if (!response.ok) {
-        throw new Error('Failed to submit solution.');
-      }
-      const result = await response.json();
-      setSubmissionResult({
-        verdict: result.allPassed ? "Accepted" : "Wrong Answer",
-        allPassed: result.allPassed,
-        totalTestCases: result.totalTestCases,
-        passedTestCases: result.passedTestCases,
-        type: "submit"
-      });
-    } catch (error) {
-      setErrorMessage("Failed to submit solution. Please try again.");
-    } finally {
-      setSubmitting(false);
+  const handleLanguageChange = (newLanguage) => {
+    setSelectedLanguage(newLanguage);
+    setCode(languageConfigs[newLanguage].template);
+    if (monacoEditorInstance.current) {
+      const oldModel = monacoEditorInstance.current.getModel();
+      const newModel = window.monaco.editor.createModel(languageConfigs[newLanguage].template, newLanguage);
+      monacoEditorInstance.current.setModel(newModel);
+      if (oldModel) oldModel.dispose();
     }
   };
 
+  const copyCode = () => {
+    if (monacoEditorInstance.current) {
+      navigator.clipboard.writeText(monacoEditorInstance.current.getValue());
+    }
+  };
+
+  const resetCode = () => {
+    const template = languageConfigs[selectedLanguage].template;
+    setCode(template);
+    if (monacoEditorInstance.current) {
+      monacoEditorInstance.current.setValue(template);
+    }
+  };
+
+  useEffect(() => {
+    if (challengeId) {
+      fetchChallenge(challengeId);
+    } else {
+      generateChallenge();
+    }
+  }, [challengeId, authToken]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (monacoEditorInstance.current) {
+        monacoEditorInstance.current.layout();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   return (
     <ThemeProvider theme={darkTheme}>
-     <Box
-           sx={{
-             minHeight: '100vh',
-             background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
-             color: 'white',
-             fontFamily: 'system-ui',
-           }}
-         >
-        <Box
+      <GradientBox>
+        <HeaderCard>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ActionButton
+                onClick={() => navigate('/dashboard')}
+                startIcon={<ArrowBackIcon />}
                 sx={{
-                  width: '100%',
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 30,
-                  background: 'linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)',
-                  backdropFilter: 'blur(8px)',
-                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
-                  borderBottom: '1px solid rgba(126, 87, 194, 0.5)',
-                  py: 2,
-                  px: 3,
+                  background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
+                  },
                 }}
               >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-
-                    {/* --- Organized Left Side: Back + Action Buttons --- */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Button
-                        onClick={() => navigate('/dashboard')}
-                        startIcon={<ArrowLeft size={18} />}
-                        sx={{
-                          color: '#fff',
-                          fontWeight: 'bold',
-                          px: 5.5,
-                          py: 1.5,
-                          borderRadius: '12px',
-                          background: 'linear-gradient(90deg, #7b1fa2 0%, #f50057 100%)',
-                          boxShadow: '0 2px 8px rgba(123,31,162,0.20)',
-                          fontSize: '1rem',
-                          letterSpacing: '0.03em',
-                          textTransform: 'none',
-                          '&:hover': {
-                            background: 'linear-gradient(90deg, #f50057 0%, #7b1fa2 100%)',
-                            color: '#fff',
-                            boxShadow: '0 4px 16px rgba(123,31,162,0.30)'
-                          }
-                        }}>
-                        Back to Dashboard
-                      </Button>
-              <Button
-                           onClick={runSampleTestCases}
-                           disabled={submitting || !challenge}
-                           variant="contained"
-                           sx={{
-                             background: 'linear-gradient(90deg,#2196f3 0%, #1769aa 100%)',
-                             color: '#fff',
-                             fontWeight: 'bold',
-                             px: 3.5,
-                             py: 1.5,
-                             borderRadius: '12px',
-                             fontSize: '1rem',
-                             boxShadow: '0 2px 8px rgba(33,150,243,0.16)',
-                             textTransform: 'none',
-                             '&:hover': {
-                               background: 'linear-gradient(90deg,#1769aa 0%, #2196f3 100%)',
-                               color: '#fff'
-                             }
-                           }}
-                           startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Play size={18} />}
-                         >
-                           {submitting ? 'Running...' : 'Run'}
-                         </Button>
-                    {/* --- Submit Button (verdict only) --- */}
-                    <Button
-                                 onClick={submitSolution}
-                                 disabled={submitting || !challenge}
-                                 variant="contained"
-                                 sx={{
-                                   background: 'linear-gradient(90deg,#4caf50 0%, #1b5e20 100%)',
-                                   color: '#fff',
-                                   fontWeight: 'bold',
-                                   px: 4.5,
-                                   py: 1.5,
-                                   borderRadius: '12px',
-                                   fontSize: '1rem',
-                                   boxShadow: '0 2px 8px rgba(76,175,80,0.16)',
-                                   textTransform: 'none',
-                                   '&:hover': {
-                                     background: 'linear-gradient(90deg,#1b5e20 0%, #4caf50 100%)',
-                                     color: '#fff'
-                                   }
-                                 }}
-                                 startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircle size={18} />}
-                               >
-                                 {submitting ? 'Submitting...' : 'Submit'}
-                               </Button>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                         <Box
-                           sx={{
-                             p: 1,
-                             background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
-                             borderRadius: '8px',
-                             display: 'flex',
-                             alignItems: 'center',
-                             justifyContent: 'center'
-                           }}
-                         >
-                           <Code size={24} color="white" />
-                         </Box>
-               <Box>
-                            <Typography
-                              variant="h6"
-                              component="h1"
-                              sx={{
-                                fontWeight: 'bold',
-                                background: 'linear-gradient(to right, #a0d8ff, #ff80ab)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                fontSize: '1.3rem'
-                              }}
-                            >
-                              CodeArena
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: '#aaa', fontWeight: 600 }}>
-                              {challenge?.title || 'Loading Challenge...'}
-                            </Typography>
-                          </Box>
-                        </Box>
-            </Box>
-    {submissionResult && (
-          <Box sx={{
-            borderTop: '1px solid #444',
-            background: 'linear-gradient(90deg, #1c1c1c 0%, #2d2d2d 100%)',
-            backdropFilter: 'blur(8px)',
-            py: 3, px: 2,
-            maxHeight: 400,
-            overflowY: 'auto',
-            transition: 'max-height 0.3s'
-          }}>
-            {/* --- Run Results: Show all visible test cases --- */}
-            {submissionResult.type === "run" && (
-              <>
-                <Box sx={{
-                  mb: 3, p: 2, borderRadius: '12px', textAlign: 'center', fontWeight: 'bold',
-                  background: submissionResult.passedSample === submissionResult.totalSample ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)',
-                  color: submissionResult.passedSample === submissionResult.totalSample ? '#4caf50' : '#f44336',
-                  fontSize: '1.15rem', border: `2px solid ${submissionResult.passedSample === submissionResult.totalSample ? '#4caf50' : '#f44336'}`
-                }}>
-                  {submissionResult.verdict}
+                Back to Dashboard
+              </ActionButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    p: 1,
+                    background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <CodeIcon sx={{ fontSize: 24, color: 'white' }} />
                 </Box>
-                {submissionResult.sampleResults.map((tc, i) => (
-                  <Paper key={i} sx={{
-                    p: 2, mb: 2, borderRadius: '10px', border: '2px solid',
-                    borderColor: tc.passed ? '#4caf50' : '#f44336',
-                    background: tc.passed ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
-                        Sample Test Case {i + 1}
-                      </Typography>
-                      {tc.passed
-                        ? <Typography sx={{ color: '#4caf50', fontWeight: 'bold' }}>Passed</Typography>
-                        : <Typography sx={{ color: '#f44336', fontWeight: 'bold' }}>Failed</Typography>}
-                    </Box>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={4}>
-                        <Typography sx={{ fontWeight: 'bold', color: '#999' }}>Input:</Typography>
-                        <Box component="pre" sx={{
-                          backgroundColor: '#222', p: 1, borderRadius: '6px', color: '#fff', fontFamily: 'monospace'
-                        }}>{tc.input}</Box>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Typography sx={{ fontWeight: 'bold', color: '#999' }}>Expected Output:</Typography>
-                        <Box component="pre" sx={{
-                          backgroundColor: '#222', p: 1, borderRadius: '6px', color: '#2196f3', fontFamily: 'monospace'
-                        }}>{tc.expectedOutput}</Box>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Typography sx={{ fontWeight: 'bold', color: '#999' }}>Your Output:</Typography>
-                        <Box component="pre" sx={{
-                          backgroundColor: '#222', p: 1, borderRadius: '6px', color: tc.passed ? '#4caf50' : '#f44336', fontFamily: 'monospace'
-                        }}>{tc.actualOutput}</Box>
-                        {!tc.passed && tc.error && (
-                          <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
-                            Error: {tc.error}
-                          </Typography>
-                        )}
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                ))}
-              </>
-            )}
-            {/* --- Submit Results: Only verdict and summary --- */}
-           {/* --- Submit Results: Only verdict and summary --- */}
-           {submissionResult.type === "submit" && (
-             <Box sx={{
-               mt: 2,
-               mb: 2,
-               width: '100%',
-               maxWidth: 700,
-               mx: 'auto',
-               background: '#232335',
-               boxShadow: '0 6px 24px rgba(0,0,0,0.16)',
-               borderRadius: '18px',
-               border: '1px solid #333',
-               p: 3
-             }}>
-               {/* Verdict Banner */}
-               <Box sx={{
-                 mb: 3,
-                 display: 'flex',
-                 alignItems: 'center',
-                 justifyContent: 'center',
-                 gap: 2,
-                 py: 2,
-                 background: submissionResult.allPassed ? 'rgba(76,175,80,0.10)' : 'rgba(244,67,54,0.10)',
-                 borderRadius: '12px',
-                 border: `2px solid ${submissionResult.allPassed ? '#4caf50' : '#f44336'}`,
-                 color: submissionResult.allPassed ? '#4caf50' : '#f44336'
-               }}>
-                 {submissionResult.allPassed
-                   ? <CheckCircle size={28} style={{ color: '#4caf50' }} />
-                   : <XCircle size={28} style={{ color: '#f44336' }} />}
-                 <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.25rem' }}>
-                   {submissionResult.allPassed ? "All Tests Passed!" : "Some Tests Failed"}
-                 </Typography>
-                 <Typography variant="body2" sx={{ color: '#ccc', ml: 2 }}>
-                   {submissionResult.passedTestCases}/{submissionResult.totalTestCases} passed
-                 </Typography>
-               </Box>
-               {/* Individual Test Cases - Show ALL from backend */}
-               {Array.isArray(submissionResult?.results) && submissionResult.results.map((res, idx) => (
-                 <Paper key={idx} sx={{
-                   p: 2,
-                   mb: 2,
-                   borderRadius: '12px',
-                   background: '#20202a',
-                   border: res.passed ? '2px solid #4caf50' : '2px solid #f44336'
-                 }}>
-                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                       Test Case {idx + 1} {res.visible ? '(Sample)' : '(Hidden)'}
-                     </Typography>
-                     {res.passed
-                       ? <CheckCircle size={20} style={{ color: '#4caf50' }} />
-                       : <XCircle size={20} style={{ color: '#f44336' }} />}
-                   </Box>
-                   <Grid container spacing={2}>
-                     <Grid item xs={12} sm={4}>
-                       <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>Input:</Typography>
-                       <Box component="pre" sx={{
-                         backgroundColor: '#181828', p: 1, borderRadius: '8px', color: '#fff', fontFamily: 'monospace', fontSize: '0.95em'
-                       }}>{res.input}</Box>
-                     </Grid>
-                     <Grid item xs={12} sm={4}>
-                       <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>Expected Output:</Typography>
-                       <Box component="pre" sx={{
-                         backgroundColor: '#181828', p: 1, borderRadius: '8px', color: '#2196f3', fontFamily: 'monospace', fontSize: '0.95em'
-                       }}>{res.expectedOutput}</Box>
-                     </Grid>
-                     <Grid item xs={12} sm={4}>
-                       <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>Your Output:</Typography>
-                       <Box component="pre" sx={{
-                         backgroundColor: '#181828', p: 1, borderRadius: '8px', color: res.passed ? '#4caf50' : '#f44336', fontFamily: 'monospace', fontSize: '0.95em'
-                       }}>{res.actualOutput}</Box>
-                       {!res.passed && res.error && (
-                         <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
-                           Error: {res.error}
-                         </Typography>
-                       )}
-                     </Grid>
-                   </Grid>
-                 </Paper>
-               ))}
-             </Box>
-           )}
-          </Box>
-        )}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                       {challenge && (
-                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                           <Paper
-                             sx={{
-                               px: 1.5,
-                               py: 0.75,
-                               borderRadius: '8px',
-                               fontSize: '0.75rem',
-                               fontWeight: 'bold',
-                               border: '1px solid',
-                               backgroundColor:
-                                 selectedDifficulty === 'easy'
-                                   ? '#4caf5020'
-                                   : selectedDifficulty === 'medium'
-                                   ? '#ff980020'
-                                   : '#f4433620',
-                               borderColor:
-                                 selectedDifficulty === 'easy'
-                                   ? '#4caf5050'
-                                   : selectedDifficulty === 'medium'
-                                   ? '#ff980050'
-                                   : '#f4433650',
-                               color:
-                                 selectedDifficulty === 'easy'
-                                   ? '#a5d6a7'
-                                   : selectedDifficulty === 'medium'
-                                   ? '#ffcc80'
-                                   : '#ef9a9a',
-                               minWidth: 85,
-                               textAlign: 'center',
-                             }}
-                           >
-                             {selectedDifficulty.toUpperCase()}
-                           </Paper>
-                           <Paper
-                             sx={{
-                               display: 'flex',
-                               alignItems: 'center',
-                               gap: 1.5,
-                               px: 1.5,
-                               py: 0.75,
-                               backgroundColor: '#333',
-                               border: '1px solid #555',
-                               borderRadius: '8px',
-                               fontWeight: 500,
-                             }}
-                           >
-                             <Clock size={16} style={{ color: '#90caf9' }} />
-                             <Typography variant="body2" sx={{ color: '#ccc', fontWeight: 500 }}>
-                               {challenge.timeLimitMs}ms
-                             </Typography>
-                             <Box sx={{ width: 1, height: 16, backgroundColor: '#555' }} />
-                             <Database size={16} style={{ color: '#a5d6a7' }} />
-                             <Typography variant="body2" sx={{ color: '#ccc', fontWeight: 500 }}>
-                               {challenge.memoryLimitKb}KB
-                             </Typography>
-                           </Paper>
-                         </Box>
-
-              )}
-             <Box
-                           sx={{
-                             display: 'flex',
-                             alignItems: 'center',
-                             gap: 1,
-                             pl: 2
-                           }}
-                         >
-                           <Box
-                             component="img"
-                             src="https://avatars.githubusercontent.com/u/9919?v=4"
-                             sx={{
-                               width: 42,
-                               height: 42,
-                               borderRadius: '50%',
-                               border: '2px solid #7b1fa2',
-                               boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                               ml: 1
-                             }}
-                             alt="avatar"
-                           />
-                         </Box>
-                       </Box>
-                     </Box>
-                   </Box>
-
-        <Box
-          id="main-container"
-          sx={{
-            ...(!isFullscreen ? { maxWidth: '1280px', mx: 'auto', mt: 3 } : { position: 'fixed', inset: '80px 0 0 0', zIndex: 20 }),
-            borderRadius: '16px',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(45, 45, 45, 0.5)',
-            overflow: 'hidden',
-
-            height: isFullscreen ? 'calc(100vh - 80px)' : '85vh',
-            backgroundColor: 'rgba(25, 25, 25, 0.8)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-          }}
-        >
-          <Box
-            sx={{
-              width: paneWidth ? `${paneWidth}%` : '45%',
-              height: '100%',
-              overflowY: 'auto',
-
-              background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
-              borderRight: '1px solid #444',
-            }}
-          >
-            <Box
-              sx={{
-                position: 'sticky',
-                top: 0,
-                background: 'rgba(25, 25, 25, 0.9)',
-                backdropFilter: 'blur(8px)',
-                borderBottom: '1px solid #444',
-                px: 3.5,
-                py: 1.5,
-                zIndex: 10,
-              }}
-            >
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <Button variant="contained" sx={{ px: 2, py: 1, fontSize: '0.875rem' }} startIcon={<Terminal size={16} />}>
-                  Problem
-                </Button>
-                <Button sx={{ px: 2, py: 1, fontSize: '0.875rem' }}>Submissions</Button>
-                <Button sx={{ px: 2, py: 1, fontSize: '0.875rem' }}>Discuss</Button>
+                <Box>
+                  <Typography
+                    variant="h6"
+                    component="h1"
+                    sx={{
+                      fontWeight: 'bold',
+                      background: 'linear-gradient(to right, #a0d8ff, #ff80ab)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      fontSize: '1.3rem'
+                    }}
+                  >
+                    CodeArena
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#aaa', fontWeight: 600 }}>
+                    {challenge?.title || 'Loading Challenge...'}
+                  </Typography>
+                </Box>
               </Box>
             </Box>
+            {challenge && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Paper
+                  sx={{
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    backgroundColor:
+                      selectedDifficulty === 'easy'
+                        ? '#4caf5020'
+                        : selectedDifficulty === 'medium'
+                        ? '#ff980020'
+                        : '#f4433620',
+                    borderColor:
+                      selectedDifficulty === 'easy'
+                        ? '#4caf5050'
+                        : selectedDifficulty === 'medium'
+                        ? '#ff980050'
+                        : '#f4433650',
+                    color:
+                      selectedDifficulty === 'easy'
+                        ? '#a5d6a7'
+                        : selectedDifficulty === 'medium'
+                        ? '#ffcc80'
+                        : '#ef9a9a',
+                    minWidth: 85,
+                    textAlign: 'center',
+                    border: '1px solid',
+                  }}
+                >
+                  {selectedDifficulty.toUpperCase()}
+                </Paper>
+                <Paper
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    px: 1.5,
+                    py: 0.75,
+                    backgroundColor: '#333',
+                    border: '1px solid #555',
+                    borderRadius: '8px',
+                    fontWeight: 500,
+                  }}
+                >
+                  <Clock sx={{ fontSize: 16, color: '#90caf9' }} />
+                  <Typography variant="body2" sx={{ color: '#ccc', fontWeight: 500 }}>
+                    {challenge.timeLimitMs}ms
+                  </Typography>
+                  <Box sx={{ width: 1, height: 16, backgroundColor: '#555' }} />
+                  <Database sx={{ fontSize: 16, color: '#a5d6a7' }} />
+                  <Typography variant="body2" sx={{ color: '#ccc', fontWeight: 500 }}>
+                    {challenge.memoryLimitKb}KB
+                  </Typography>
+                </Paper>
+                <Box
+                  component="img"
+                  src="https://avatars.githubusercontent.com/u/9919?v=4"
+                  sx={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: '50%',
+                    border: '2px solid #7b1fa2',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                    ml: 1
+                  }}
+                  alt="avatar"
+                />
+              </Box>
+            )}
+          </Box>
+        </HeaderCard>
+
+        <MainContainer id="main-container">
+          <ChallengeCard
+            sx={{
+              width: `${paneWidth}%`,
+              height: '100%',
+              overflowY: 'auto',
+            }}
+          >
             <Box sx={{ p: 3 }}>
               {errorMessage && (
                 <Alert
                   severity="error"
                   variant="filled"
-                  sx={{ mb: 3, borderRadius: '12px' }}
+                  sx={{
+                    mb: 3,
+                    borderRadius: '12px',
+                    background: 'linear-gradient(45deg, #f44336, #d32f2f)',
+                  }}
                 >
                   {errorMessage}
                 </Alert>
               )}
               {loading || (generating && !challenge) ? (
                 <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <CircularProgress color="primary" sx={{ mb: 2 }} />
+                  <CircularProgress sx={{ color: '#4caf50', mb: 2 }} />
                   <Typography variant="body1" sx={{ color: '#aaa' }}>
                     Loading challenge...
                   </Typography>
                 </Box>
               ) : challenge ? (
                 <Box sx={{ spaceY: 3 }}>
-                  <Typography variant="h4" component="h2" sx={{ fontWeight: 'bold', mb: 2, background: 'linear-gradient(to right, white, #ccc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  <Typography
+                    variant="h4"
+                    component="h2"
+                    sx={{
+                      fontWeight: 'bold',
+                      mb: 2,
+                      background: 'linear-gradient(to right, white, #ccc)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}
+                  >
                     {challenge.title}
                   </Typography>
-                  <Typography variant="body1" sx={{ color: '#ccc', lineHeight: '1.6' }}>
+                  <Typography variant="body1" sx={{ color: '#ccc', lineHeight: '1.6', mb: 3 }}>
                     {challenge.description}
                   </Typography>
                   <Grid container spacing={2} sx={{ my: 3 }}>
                     <Grid item xs={12} sm={6}>
                       <Paper sx={{ p: 2, border: '1px solid rgba(66, 165, 245, 0.5)', background: 'rgba(66, 165, 245, 0.1)' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <Clock size={20} style={{ color: '#90caf9' }} />
+                          <Clock sx={{ fontSize: 20, color: '#90caf9' }} />
                           <Typography variant="subtitle1" sx={{ fontWeight: 'semibold', color: '#90caf9' }}>
                             Time Limit
                           </Typography>
@@ -1081,7 +876,7 @@ const submitSolution = async () => {
                     <Grid item xs={12} sm={6}>
                       <Paper sx={{ p: 2, border: '1px solid rgba(76, 175, 80, 0.5)', background: 'rgba(76, 175, 80, 0.1)' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <Database size={20} style={{ color: '#a5d6a7' }} />
+                          <Database sx={{ fontSize: 20, color: '#a5d6a7' }} />
                           <Typography variant="subtitle1" sx={{ fontWeight: 'semibold', color: '#a5d6a7' }}>
                             Memory Limit
                           </Typography>
@@ -1155,14 +950,14 @@ const submitSolution = async () => {
                 </Box>
               ) : (
                 <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <Code size={64} style={{ color: '#444', mb: 2 }} />
+                  <CodeIcon sx={{ fontSize: 64, color: '#444', mb: 2 }} />
                   <Typography variant="h6" sx={{ color: '#777' }}>
                     No challenge loaded
                   </Typography>
                 </Box>
               )}
             </Box>
-          </Box>
+          </ChallengeCard>
 
           <Box
             onMouseDown={onMouseDown}
@@ -1177,7 +972,7 @@ const submitSolution = async () => {
             }}
           />
 
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg, #101010 0%, #000000 100%)' }}>
+          <EditorCard sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Box
               sx={{
                 background: 'linear-gradient(90deg, #1c1c1c 0%, #2d2d2d 100%)',
@@ -1258,55 +1053,53 @@ const submitSolution = async () => {
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconButton onClick={copyCode} size="small" sx={{ color: '#ccc' }}>
-                    <Copy size={16} />
+                    <Copy sx={{ fontSize: 16 }} />
                   </IconButton>
                   <IconButton onClick={resetCode} size="small" sx={{ color: '#ccc' }}>
-                    <RotateCcw size={16} />
+                    <RotateCcw sx={{ fontSize: 16 }} />
                   </IconButton>
-                  <IconButton onClick={() => setIsFullscreen(!isFullscreen)} size="small" sx={{ color: '#ccc' }}>
-                    {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-                  </IconButton>
-                  <Box sx={{ width: 1, height: 24, backgroundColor: '#555' }} />
-                  <Button
+                  <ActionButton
+                    onClick={runSampleTestCases}
+                    disabled={submitting || !challenge}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(45deg, #2196f3, #21CBF3)',
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #42a5f5, #4fc3f7)',
+                      },
+                    }}
+                    startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Play />}
+                  >
+                    {submitting ? 'Running...' : 'Run'}
+                  </ActionButton>
+                  <ActionButton
                     onClick={submitSolution}
                     disabled={submitting || !challenge}
                     variant="contained"
                     sx={{
-                      background: 'linear-gradient(45deg, #4caf50 30%, #8bc34a 90%)',
+                      background: 'linear-gradient(45deg, #4caf50, #8bc34a)',
                       '&:hover': {
-                        background: 'linear-gradient(45deg, #66bb6a 30%, #aed581 90%)',
+                        background: 'linear-gradient(45deg, #66bb6a, #aed581)',
                       },
-                      color: 'white',
-                      fontWeight: 'bold',
-                      px: 4,
-                      py: 1.5,
-                      borderRadius: '12px',
                     }}
-                    startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Play size={16} />}
+                    startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircle />}
                   >
-                    {submitting ? 'Running...' : 'Run & Submit'}
-                  </Button>
-                  <Button
+                    {submitting ? 'Submitting...' : 'Submit'}
+                  </ActionButton>
+                  <ActionButton
                     onClick={generateChallenge}
                     disabled={generating}
                     variant="contained"
                     sx={{
-                      background: 'linear-gradient(45deg, #7b1fa2 30%, #f50057 90%)',
+                      background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
                       '&:hover': {
-                        background: 'linear-gradient(45deg, #9c27b0 30%, #ff4081 90%)',
+                        background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
                       },
-                      color: 'white',
-                      px: 2,
-                      py: 1.5,
-                      borderRadius: '12px',
                     }}
-                    startIcon={generating ? <CircularProgress size={16} color="inherit" /> : <RefreshCw size={16} />}
+                    startIcon={generating ? <CircularProgress size={16} color="inherit" /> : <RefreshCw />}
                   >
                     New
-                  </Button>
-                  <IconButton onClick={() => setShowSettings(!showSettings)} size="small" sx={{ color: '#ccc' }}>
-                    <Settings size={16} />
-                  </IconButton>
+                  </ActionButton>
                 </Box>
               </Box>
             </Box>
@@ -1340,81 +1133,253 @@ const submitSolution = async () => {
               />
             </Box>
             {submissionResult && (
-              <Box sx={{ borderTop: '1px solid #444', background: 'linear-gradient(90deg, #1c1c1c 0%, #2d2d2d 100%)', backdropFilter: 'blur(8px)', transition: 'max-height 0.3s', overflow: 'hidden', maxHeight: showResults ? 320 : 48 }}>
+              <Box
+                sx={{
+                  borderTop: '1px solid #444',
+                  background: 'linear-gradient(90deg, #1c1c1c 0%, #2d2d2d 100%)',
+                  backdropFilter: 'blur(8px)',
+                  transition: 'max-height 0.3s',
+                  overflow: 'hidden',
+                  maxHeight: showResults ? 320 : 48
+                }}
+              >
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, borderBottom: '1px solid #444' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    {submissionResult.allPassed ? (
+                    {submissionResult.type === "run" ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CheckCircle size={24} style={{ color: '#a5d6a7' }} />
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#a5d6a7' }}>
-                          All Tests Passed!
-                        </Typography>
+                        {submissionResult.passedSample === submissionResult.totalSample ? (
+                          <>
+                            <CheckCircle sx={{ fontSize: 24, color: '#a5d6a7' }} />
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#a5d6a7' }}>
+                              {submissionResult.verdict}
+                            </Typography>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle sx={{ fontSize: 24, color: '#ef9a9a' }} />
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef9a9a' }}>
+                              {submissionResult.verdict}
+                            </Typography>
+                          </>
+                        )}
+                        <Paper sx={{ px: 1.5, py: 0.5, borderRadius: '24px', backgroundColor: '#333', border: '1px solid #555' }}>
+                          <Typography variant="body2" sx={{ color: '#ccc' }}>
+                            {submissionResult.passedSample}/{submissionResult.totalSample} passed
+                          </Typography>
+                        </Paper>
                       </Box>
                     ) : (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <XCircle size={24} style={{ color: '#ef9a9a' }} />
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef9a9a' }}>
-                          Some Tests Failed
-                        </Typography>
+                        {submissionResult.allPassed ? (
+                          <>
+                            <CheckCircle sx={{ fontSize: 24, color: '#a5d6a7' }} />
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#a5d6a7' }}>
+                              All Tests Passed!
+                            </Typography>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle sx={{ fontSize: 24, color: '#ef9a9a' }} />
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef9a9a' }}>
+                              Some Tests Failed
+                            </Typography>
+                          </>
+                        )}
+                        <Paper sx={{ px: 1.5, py: 0.5, borderRadius: '24px', backgroundColor: '#333', border: '1px solid #555' }}>
+                          <Typography variant="body2" sx={{ color: '#ccc' }}>
+                            {submissionResult.passedTestCases}/{submissionResult.totalTestCases} passed
+                          </Typography>
+                        </Paper>
                       </Box>
                     )}
-                    <Paper sx={{ px: 1.5, py: 0.5, borderRadius: '24px', backgroundColor: '#333', border: '1px solid #555' }}>
-                      <Typography variant="body2" sx={{ color: '#ccc' }}>
-                        {submissionResult.passedTestCases}/{submissionResult.totalTestCases} passed
-                      </Typography>
-                    </Paper>
                   </Box>
                   <IconButton onClick={() => setShowResults(!showResults)} size="small" sx={{ color: '#ccc' }}>
-                    {showResults ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showResults ? <EyeOff sx={{ fontSize: 20 }} /> : <Eye sx={{ fontSize: 20 }} />}
                   </IconButton>
                 </Box>
-                <Box sx={{ p: 2, overflowY: 'auto', maxHeight: 256, spaceY: 2 }}>
-                  {Array.isArray(submissionResult?.results) && submissionResult.results.map((res, i) => (
-                    <Paper key={i} sx={{ p: 2, mb: 2, border: '1px solid', borderColor: res.passed ? '#a5d6a7' : '#ef9a9a', background: res.passed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'semibold' }}>
-                          Test {i + 1}
-                        </Typography>
-                        {res.passed ? (
-                          <CheckCircle size={20} style={{ color: '#a5d6a7' }} />
-                        ) : (
-                          <XCircle size={20} style={{ color: '#ef9a9a' }} />
-                        )}
-                      </Box>
-                      <Grid container spacing={2} sx={{ fontSize: '0.875rem' }}>
-                        <Grid item xs={12} md={6}>
-                          <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
-                            Input:
+                {submissionResult.type === "run" && (
+                  <Box sx={{ p: 2, overflowY: 'auto', maxHeight: 256, spaceY: 2 }}>
+                    {submissionResult.sampleResults.map((tc, i) => (
+                      <Paper
+                        key={i}
+                        sx={{
+                          p: 2,
+                          mb: 2,
+                          borderRadius: '10px',
+                          border: '2px solid',
+                          borderColor: tc.passed ? '#4caf50' : '#f44336',
+                          background: tc.passed ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)'
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
+                            Sample Test Case {i + 1}
                           </Typography>
-                          <Box component="pre" sx={{ backgroundColor: '#111', border: '1px solid #444', p: 1, borderRadius: '8px', color: '#a5d6a7', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-                            {res.input}
-                          </Box>
+                          {tc.passed ? (
+                            <Typography sx={{ color: '#4caf50', fontWeight: 'bold' }}>
+                              Passed
+                            </Typography>
+                          ) : (
+                            <Typography sx={{ color: '#f44336', fontWeight: 'bold' }}>
+                              Failed
+                            </Typography>
+                          )}
+                        </Box>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={4}>
+                            <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
+                              Input:
+                            </Typography>
+                            <Box
+                              component="pre"
+                              sx={{
+                                backgroundColor: '#222',
+                                p: 1,
+                                borderRadius: '6px',
+                                color: '#fff',
+                                fontFamily: 'monospace'
+                              }}
+                            >
+                              {tc.input}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
+                              Expected Output:
+                            </Typography>
+                            <Box
+                              component="pre"
+                              sx={{
+                                backgroundColor: '#222',
+                                p: 1,
+                                borderRadius: '6px',
+                                color: '#2196f3',
+                                fontFamily: 'monospace'
+                              }}
+                            >
+                              {tc.expectedOutput}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
+                              Your Output:
+                            </Typography>
+                            <Box
+                              component="pre"
+                              sx={{
+                                backgroundColor: '#222',
+                                p: 1,
+                                borderRadius: '6px',
+                                color: tc.passed ? '#4caf50' : '#f44336',
+                                fontFamily: 'monospace'
+                              }}
+                            >
+                              {tc.actualOutput}
+                            </Box>
+                            {!tc.passed && tc.error && (
+                              <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
+                                Error: {tc.error}
+                              </Typography>
+                            )}
+                          </Grid>
                         </Grid>
-                        <Grid item xs={12} md={6}>
-                          <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
-                            Expected Output:
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
+                {submissionResult.type === "submit" && (
+                  <Box sx={{ p: 2, overflowY: 'auto', maxHeight: 256, spaceY: 2 }}>
+                    {Array.isArray(submissionResult?.results) && submissionResult.results.map((res, i) => (
+                      <Paper
+                        key={i}
+                        sx={{
+                          p: 2,
+                          mb: 2,
+                          borderRadius: '12px',
+                          background: '#20202a',
+                          border: res.passed ? '2px solid #4caf50' : '2px solid #f44336'
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                            Test Case {i + 1} {res.visible ? '(Sample)' : '(Hidden)'}
                           </Typography>
-                          <Box component="pre" sx={{ backgroundColor: '#111', border: '1px solid #444', p: 1, borderRadius: '8px', color: '#90caf9', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-                            {res.expectedOutput}
-                          </Box>
+                          {res.passed ? (
+                            <CheckCircle sx={{ fontSize: 20, color: '#4caf50' }} />
+                          ) : (
+                            <XCircle sx={{ fontSize: 20, color: '#f44336' }} />
+                          )}
+                        </Box>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={4}>
+                            <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>
+                              Input:
+                            </Typography>
+                            <Box
+                              component="pre"
+                              sx={{
+                                backgroundColor: '#181828',
+                                p: 1,
+                                borderRadius: '8px',
+                                color: '#fff',
+                                fontFamily: 'monospace',
+                                fontSize: '0.95em'
+                              }}
+                            >
+                              {res.input}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>
+                              Expected Output:
+                            </Typography>
+                            <Box
+                              component="pre"
+                              sx={{
+                                backgroundColor: '#181828',
+                                p: 1,
+                                borderRadius: '8px',
+                                color: '#2196f3',
+                                fontFamily: 'monospace',
+                                fontSize: '0.95em'
+                              }}
+                            >
+                              {res.expectedOutput}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>
+                              Your Output:
+                            </Typography>
+                            <Box
+                              component="pre"
+                              sx={{
+                                backgroundColor: '#181828',
+                                p: 1,
+                                borderRadius: '8px',
+                                color: res.passed ? '#4caf50' : '#f44336',
+                                fontFamily: 'monospace',
+                                fontSize: '0.95em'
+                              }}
+                            >
+                              {res.actualOutput}
+                            </Box>
+                            {!res.passed && res.error && (
+                              <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
+                                Error: {res.error}
+                              </Typography>
+                            )}
+                          </Grid>
                         </Grid>
-                        <Grid item xs={12}>
-                          <Typography variant="body2" sx={{ color: '#aaa', mb: 0.5 }}>
-                            Your Output:
-                          </Typography>
-                          <Box component="pre" sx={{ p: 1, borderRadius: '8px', color: res.passed ? '#a5d6a7' : '#ef9a9a', background: res.passed ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)', border: res.passed ? '1px solid #4caf50' : '1px solid #f44336', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-                            {res.actualOutput}
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Paper>
-                  ))}
-                </Box>
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
               </Box>
             )}
-          </Box>
-        </Box>
-      </Box>
+          </EditorCard>
+        </MainContainer>
+      </GradientBox>
     </ThemeProvider>
   );
 };

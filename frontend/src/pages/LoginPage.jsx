@@ -85,10 +85,17 @@ const darkTheme = createTheme({
 const GradientBox = styled(Box)(({ theme }) => ({
   background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
   minHeight: '100vh',
+  height: '100vh',
+  width: '100vw',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   color: 'white',
+  padding: '20px',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  zIndex: 1000,
 }));
 
 const LoginCard = styled(Card)(({ theme }) => ({
@@ -96,8 +103,9 @@ const LoginCard = styled(Card)(({ theme }) => ({
   border: '1px solid #444',
   boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
   backdropFilter: 'blur(20px)',
-  maxWidth: '440px',
   width: '100%',
+  maxWidth: '440px',
+  margin: '0 auto',
 }));
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
@@ -146,6 +154,18 @@ const FloatingElement = styled(Box)(({ theme }) => ({
   background: 'linear-gradient(45deg, rgba(123, 31, 162, 0.1), rgba(245, 0, 87, 0.1))',
   filter: 'blur(40px)',
   zIndex: 0,
+}));
+
+// Main container for perfect centering
+const CenteredContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '100vh',
+  width: '100%',
+  position: 'relative',
+  zIndex: 1,
 }));
 
 function LoginPage() {
@@ -238,7 +258,7 @@ function LoginPage() {
           }}
         />
 
-        <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
+        <CenteredContainer>
           <LoginCard>
             <CardContent sx={{ p: 4 }}>
               {/* Header */}
@@ -420,10 +440,10 @@ function LoginPage() {
           {/* Bottom decoration */}
           <Box textAlign="center" mt={4}>
             <Typography variant="body2" sx={{ color: '#555' }}>
-              © 2024 CodeArena. Empowering developers worldwide.
+              © 2024 Prep_Orbit. Empowering developers worldwide.
             </Typography>
           </Box>
-        </Container>
+        </CenteredContainer>
       </GradientBox>
     </ThemeProvider>
   );
