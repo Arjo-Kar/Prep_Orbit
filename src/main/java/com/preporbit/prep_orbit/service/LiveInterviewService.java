@@ -382,43 +382,47 @@ public class LiveInterviewService {
         }
     }
     public String transcribeAudioWithWhisper(MultipartFile audioFile) {
-        OkHttpClient client = new OkHttpClient();
         try {
-            // Save audio to a temp file
-            File tempFile = File.createTempFile("upload-", ".webm");
+            // Save audio to temp file
+            File tempFile = File.createTempFile("upload-", ".mp3");
             audioFile.transferTo(tempFile);
 
-            RequestBody requestBody = new MultipartBody.Builder()
-                    .setType(MultipartBody.FORM)
-                    .addFormDataPart(
-                            "file",
-                            tempFile.getName(),
-                            RequestBody.create(tempFile, MediaType.parse("audio/webm"))
-                    )
-                    .addFormDataPart("model", "whisper-1")
-                    .build();
+            // Build Python command
+            String pythonPath = "/Users/arjo/whisper-env/bin/python3";
+            String scriptPath = new File("python/whisper_transcribe.py").getAbsolutePath();
 
-            Request request = new Request.Builder()
-                    .url("https://api.openai.com/v1/audio/transcriptions")
-                    .header("Authorization", "Bearer " + openaiApiKey)
-                    .post(requestBody)
-                    .build();
+            ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, tempFile.getAbsolutePath());
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
 
-            try (Response response = client.newCall(request).execute()) {
-                if (!response.isSuccessful()) {
-                    throw new RuntimeException("OpenAI Whisper API failed: " + response.code() + " - " + response.body().string());
+            // Capture output
+            InputStream is = process.getInputStream();
+            String output = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            String[] lines = output.split("\n");
+
+// Remove known warning lines and empty lines
+            String transcript = "";
+            for (String line : lines) {
+                line = line.trim();
+                if (
+                        !line.isEmpty() &&
+                                !line.contains("FP16 is not supported on CPU; using FP32 instead") &&
+                                !line.startsWith("WARNING") &&
+                                !line.startsWith("UserWarning") &&
+                                !line.startsWith("Traceback")
+                ) {
+                    transcript = line; // last valid line will be the transcript
                 }
-
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode jsonResponse = mapper.readTree(response.body().string());
-                return jsonResponse.get("text").asText();
-            } finally {
-                tempFile.delete();
             }
+
+            process.waitFor();
+            tempFile.delete();
+            return transcript.trim();
         } catch (Exception e) {
-            throw new RuntimeException("Error calling Whisper API", e);
+            throw new RuntimeException("Error transcribing audio locally with Whisper", e);
         }
     }
+
 
 
 

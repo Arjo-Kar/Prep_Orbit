@@ -15,6 +15,7 @@ import {
   MenuItem,
   Chip,
   IconButton,
+  Tooltip,
 } from "@mui/material";
 import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
 import {
@@ -22,7 +23,10 @@ import {
   Mic as MicIcon,
   VolumeUp as VolumeIcon,
   Stop as StopIcon,
+  PlayArrow as PlayIcon,
   FiberManualRecord as RecordIcon,
+  Hearing as HearingIcon,
+  Replay as ReplayIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
@@ -110,6 +114,27 @@ const EnlargedTranscriptBox = styled(Box)(({ theme }) => ({
   transition: "background 0.2s",
 }));
 
+// Voice vibration animation bars
+const VoiceVibrator = ({ active }) => (
+  <div style={{
+    display: "flex",
+    alignItems: "center",
+    height: "28px",
+    marginBottom: "6px",
+    gap: "3px"
+  }}>
+    {[...Array(7)].map((_, i) => (
+      <div key={i} style={{
+        width: "6px",
+        height: active ? `${12 + Math.random() * 20}px` : "12px",
+        background: active ? "#ad1fff" : "#444",
+        borderRadius: "2px",
+        transition: "height 0.2s"
+      }} />
+    ))}
+  </div>
+);
+
 function LiveInterviewPage() {
   // Pre-interview form state
   const [formStep, setFormStep] = useState(true);
@@ -131,8 +156,16 @@ function LiveInterviewPage() {
   const videoRef = useRef(null);
   const navigate = useNavigate();
 
-  // Track if transcript is being recorded
+  // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const [audioURL, setAudioURL] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordTimerRef = useRef(null);
+  const audioPlayerRef = useRef(null);
 
   // Camera access
   useEffect(() => {
@@ -148,39 +181,110 @@ function LiveInterviewPage() {
     }
   }, [cameraActive]);
 
-  // Voice-to-text using Web Speech API
-  const recognitionRef = useRef(null);
-  const startTranscript = () => {
-    if (!("webkitSpeechRecognition" in window)) {
-      alert("Speech Recognition not supported on this browser.");
-      return;
+  // Recording duration timer
+  useEffect(() => {
+    if (isRecording) {
+      setRecordDuration(0);
+      recordTimerRef.current = setInterval(() => {
+        setRecordDuration((d) => d + 1);
+      }, 1000);
+    } else {
+      clearInterval(recordTimerRef.current);
     }
+    return () => clearInterval(recordTimerRef.current);
+  }, [isRecording]);
+
+  // Voice-to-text using Whisper backend (with audio download/playback)
+  const startTranscript = async () => {
     setTranscript("");
     setIsRecording(true);
-    const recognition = new window.webkitSpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognition.onresult = (event) => {
-      let transcriptText = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        transcriptText += event.results[i][0].transcript;
-      }
-      setTranscript(transcriptText);
-    };
-    recognition.onend = () => {
+    setIsProcessing(false);
+    setAudioURL(null);
+
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      alert("Audio recording not supported on this browser.");
       setIsRecording(false);
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new window.MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        setIsProcessing(true);
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setAudioURL(URL.createObjectURL(audioBlob)); // Enable playback
+
+        const formData = new FormData();
+        formData.append("file", audioBlob, "recording.webm");
+
+        try {
+          const authToken = localStorage.getItem("authToken");
+          const res = await fetch("http://localhost:8080/api/live-interviews/transcribe", {
+            method: "POST",
+            headers: {
+              Authorization: authToken ? `Bearer ${authToken}` : undefined,
+            },
+            body: formData,
+          });
+          const data = await res.json();
+          let transcriptText = data.transcript || "No transcript received.";
+          // Remove stray warnings if backend missed them
+          transcriptText = transcriptText.replace(/.*FP16 is not supported on CPU; using FP32 instead.*/ig, '').trim();
+          setTranscript(transcriptText);
+        } catch (err) {
+          setTranscript("Error transcribing audio.");
+        }
+        setIsProcessing(false);
+        setIsRecording(false);
+      };
+
+      mediaRecorderRef.current.start();
+    } catch (err) {
+      alert("Could not start audio recording: " + err.message);
+      setIsRecording(false);
+    }
   };
 
   const stopTranscript = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  // Play recorded audio
+  const playAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.currentTime = 0;
+      audioPlayerRef.current.play();
+      setIsPlaying(true);
     }
   };
+
+  const pauseAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  useEffect(() => {
+    const player = audioPlayerRef.current;
+    if (player) {
+      const handleEnded = () => setIsPlaying(false);
+      player.addEventListener("ended", handleEnded);
+      return () => player.removeEventListener("ended", handleEnded);
+    }
+  }, [audioURL]);
 
   // Read aloud current question using Web Speech API
   const speakQuestion = () => {
@@ -314,6 +418,7 @@ function LiveInterviewPage() {
   const handleNextQuestion = async () => {
     await saveAnswer();
     setTranscript("");
+    setAudioURL(null);
     setCurrentQ(currentQ + 1);
   };
 
@@ -323,11 +428,19 @@ function LiveInterviewPage() {
     navigate(`/live-interview/feedback/${liveInterviewId}`);
   };
 
+  // Format duration mm:ss
+  const formatDuration = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
+  };
+
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
         {formStep ? (
           <FullScreenWrapper>
+            {/* --- Form Section --- */}
             <Card sx={{ p: 4, borderRadius: "24px", minWidth: 440, background: "rgba(35,19,70,0.98)", boxShadow: "0 6px 32px 0 rgba(173,31,255,0.3)" }}>
               <CardContent>
                 <Typography variant="h4" fontWeight="bold" mb={3} color="primary">
@@ -433,6 +546,7 @@ function LiveInterviewPage() {
           </FullScreenWrapper>
         ) : (
           <FullScreenWrapper>
+            {/* --- Interview Section --- */}
             <EnlargedPaper>
               <CardContent sx={{ pb: 0 }}>
                 <Stack direction="row" alignItems="center" gap={3}>
@@ -501,6 +615,39 @@ function LiveInterviewPage() {
                     <Typography fontWeight="bold" fontSize={22}>
                       Voice Transcript
                     </Typography>
+                    <VoiceVibrator active={isRecording} />
+                    {/* Recording duration and audio controls */}
+                    <Box sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 1,
+                      minHeight: "32px"
+                    }}>
+                      <Typography variant="body2" sx={{ fontWeight: "bold", color: "#ad1fff" }}>
+                        {isRecording ? `Recording: ${formatDuration(recordDuration)}` : audioURL ? `Last: ${formatDuration(recordDuration)}` : ""}
+                      </Typography>
+                      {audioURL && (
+                        <Tooltip title={isPlaying ? "Pause playback" : "Play your voice answer"}>
+                          <IconButton
+                            onClick={isPlaying ? pauseAudio : playAudio}
+                            color="primary"
+                            sx={{ ml: 1 }}
+                            disabled={isRecording}
+                          >
+                            {isPlaying ? <ReplayIcon /> : <HearingIcon />}
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {/* Audio element for playback */}
+                      {audioURL && (
+                        <audio
+                          ref={audioPlayerRef}
+                          src={audioURL}
+                          style={{ display: "none" }}
+                        />
+                      )}
+                    </Box>
                     <EnlargedTranscriptBox
                       sx={{
                         background: isRecording
@@ -509,40 +656,42 @@ function LiveInterviewPage() {
                         borderColor: isRecording ? "#ffb800" : "#ad1fff"
                       }}
                     >
-                      {transcript || "Transcript will appear here..."}
+                      {isProcessing ? (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                          <CircularProgress color="primary" size={22} />
+                          <Typography>Processing...</Typography>
+                        </Box>
+                      ) : (
+                        transcript || "Transcript will appear here..."
+                      )}
                     </EnlargedTranscriptBox>
                     <Stack direction="row" spacing={2}>
-                      <Button
-                        onClick={startTranscript}
-                        variant="contained"
-                        startIcon={<RecordIcon />}
-                        disabled={isRecording}
-                        sx={{
-                          background: "linear-gradient(90deg, #ad1fff 0%, #ffb800 100%)",
-                          color: "#fff",
-                          minWidth: "180px",
-                          fontWeight: "bold"
-                        }}
-                        size="large"
-                      >
-                        {isRecording ? "Recording..." : "Start Recording"}
-                      </Button>
-                      <Button
-                        onClick={stopTranscript}
-                        variant="outlined"
-                        startIcon={<StopIcon />}
-                        disabled={!isRecording}
-                        sx={{
-                          minWidth: "160px",
-                          color: "#ad1fff",
-                          borderColor: "#ad1fff",
-                          background: !isRecording ? "#222" : undefined,
-                          fontWeight: "bold"
-                        }}
-                        size="large"
-                      >
-                        Stop
-                      </Button>
+                      <Tooltip title="Start Recording">
+                        <IconButton
+                          onClick={startTranscript}
+                          color="primary"
+                          disabled={isRecording || isProcessing}
+                          sx={{
+                            background: "#fff2",
+                            fontSize: "2rem"
+                          }}
+                        >
+                          <MicIcon fontSize="large" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Stop Recording">
+                        <IconButton
+                          onClick={stopTranscript}
+                          color="secondary"
+                          disabled={!isRecording}
+                          sx={{
+                            background: "#fff2",
+                            fontSize: "2rem"
+                          }}
+                        >
+                          <StopIcon fontSize="large" />
+                        </IconButton>
+                      </Tooltip>
                     </Stack>
                   </Stack>
                 </EnlargedPaper>

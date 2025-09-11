@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import { askGemini } from '../api/gemini';
+import ReactMarkdown from 'react-markdown';
 
 // Dark theme matching the Dashboard
 const darkTheme = createTheme({
@@ -417,16 +418,16 @@ function GeminiChatPage() {
                             <BrainIcon sx={{ fontSize: 18 }} />
                           </Avatar>
                           <AIMessage elevation={2}>
-                            <Typography
-                              variant="body1"
-                              sx={{
-                                wordBreak: 'break-word',
-                                whiteSpace: 'pre-wrap',
-                                lineHeight: 1.6
+                            <ReactMarkdown
+                              children={message.content}
+                              components={{
+                                p: ({node, ...props}) => <Typography variant="body1" sx={{ mb: 1, wordBreak: 'break-word', lineHeight: 1.7 }} {...props} />,
+                                strong: ({node, ...props}) => <strong style={{color:"#f50057"}} {...props} />,
+                                ul: ({node, ...props}) => <ul style={{marginLeft: "1.2em", marginBottom: "0.5em"}} {...props} />,
+                                li: ({node, ...props}) => <li style={{marginBottom: "0.3em"}} {...props} />,
+                                blockquote: ({node, ...props}) => <blockquote style={{borderLeft: '3px solid #7b1fa2', marginLeft: 0, paddingLeft: '1em', color: '#bb86fc', fontStyle: 'italic'}} {...props} />
                               }}
-                            >
-                              {message.content}
-                            </Typography>
+                            />
                           </AIMessage>
                         </Box>
                       )}
