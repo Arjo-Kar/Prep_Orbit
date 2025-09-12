@@ -23,8 +23,8 @@ import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import Vapi from '@vapi-ai/web';
 
 // Constants
-const VAPI_PUBLIC_KEY ='04195762-bc96-4d8b-8edf-2defb70a65e2';
-const NGROK_URL = 'https://1a066ab80207.ngrok-free.app';
+const VAPI_PUBLIC_KEY ='d47641df-6392-43d8-b540-04a3a481a3be';
+const NGROK_URL = 'https://a651c504235e.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 15:28:13';
 
 // Dark theme

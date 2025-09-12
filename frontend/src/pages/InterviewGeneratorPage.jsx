@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -32,150 +32,146 @@ import {
   Refresh as RefreshIcon,
   BugReport as BugReportIcon,
   Psychology as PsychologyIcon,
-  AutoAwesome as AutoAwesomeIcon,
-  CheckCircle
+  AutoAwesome as AutoAwesomeIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import Vapi from '@vapi-ai/web';
 
+// ---------------------------------------------------------------------
+// Constants (consider moving to .env)
+// ---------------------------------------------------------------------
+const VAPI_PUBLIC_KEY = 'd47641df-6392-43d8-b540-04a3a481a3be';
+const NGROK_URL = 'https://a651c504235e.ngrok-free.app';
+const CURRENT_TIME = '2025-09-05 17:56:41';
 
-// Constants - ✅ Current timestamp
-const VAPI_PUBLIC_KEY = '04195762-bc96-4d8b-8edf-2defb70a65e2';
-const NGROK_URL = 'https://1a066ab80207.ngrok-free.app';
-const CURRENT_TIME = '2025-09-05 17:56:41'; // ✅ Current UTC time
- // ✅ Current authenticated user
-
-// Dark theme
+// ---------------------------------------------------------------------
+// Theme
+// ---------------------------------------------------------------------
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
-    background: {
-      default: '#100827',
-      paper: 'rgba(25, 25, 25, 0.8)',
-    },
-    primary: {
-      main: '#7b1fa2',
-    },
-    secondary: {
-      main: '#f50057',
-    },
-    success: {
-      main: '#4caf50',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: '#cccccc',
-    },
+    background: { default: '#100827', paper: '#151515' },
+    primary: { main: '#7b1fa2' },
+    secondary: { main: '#f50057' },
+    success: { main: '#4caf50' },
+    text: { primary: '#ffffff', secondary: '#cccccc' },
   },
+  typography: {
+    fontFamily: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif'
+  }
 });
 
-const GradientBox = styled(Box)(({ theme }) => ({
-  background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
+const GradientBox = styled(Box)(() => ({
+  background: 'linear-gradient(135deg,#100827 0%,#1a0f3d 50%,#291a54 100%)',
   minHeight: '100vh',
-  color: 'white',
+  color: 'white'
 }));
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
+const StyledCard = styled(Card)(() => ({
+  background: 'linear-gradient(180deg,#1c1c1c 0%,#101010 100%)',
   border: '1px solid #444',
-  borderRadius: '16px',
+  borderRadius: 16
 }));
 
-const PulsingAvatar = styled(Avatar)(({ theme }) => ({
+const PulsingAvatar = styled(Avatar)(() => ({
   animation: 'pulse 2s infinite',
   '@keyframes pulse': {
     '0%': { transform: 'scale(1)', opacity: 1 },
-    '50%': { transform: 'scale(1.05)', opacity: 0.8 },
-    '100%': { transform: 'scale(1)', opacity: 1 },
-  },
+    '50%': { transform: 'scale(1.05)', opacity: 0.85 },
+    '100%': { transform: 'scale(1)', opacity: 1 }
+  }
 }));
 
-const GlowingButton = styled(Button)(({ theme }) => ({
+const GlowingButton = styled(Button)(() => ({
   position: 'relative',
   overflow: 'hidden',
   '&::before': {
     content: '""',
     position: 'absolute',
-    top: 0,
-    left: '-100%',
-    width: '100%',
-    height: '100%',
-    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-    transition: 'left 0.5s',
+    top: 0, left: '-100%',
+    width: '100%', height: '100%',
+    background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)',
+    transition: 'left .5s'
   },
-  '&:hover::before': {
-    left: '100%',
-  },
+  '&:hover::before': { left: '100%' }
 }));
+
+// ---------------------------------------------------------------------
+// Utility: extract plausible text from arbitrary event payload
+// ---------------------------------------------------------------------
+function extractAnyText(raw) {
+  if (!raw) return '';
+  if (typeof raw === 'string') return raw.trim();
+  if (typeof raw.text === 'string' && raw.text.trim()) return raw.text.trim();
+  if (typeof raw.content === 'string' && raw.content.trim()) return raw.content.trim();
+  if (Array.isArray(raw.content)) {
+    const joined = raw.content
+      .map(part => {
+        if (typeof part === 'string') return part;
+        if (part?.text) return part.text;
+        if (part?.content) return part.content;
+        return '';
+      })
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (joined) return joined;
+  }
+  // Deep flatten search
+  const candidates = [];
+  const stack = [raw];
+  const seen = new Set();
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node || typeof node !== 'object' || seen.has(node)) continue;
+    seen.add(node);
+    for (const [k, v] of Object.entries(node)) {
+      if (typeof v === 'string' && v.trim()) {
+        if (k.match(/text|content|transcript|message/i)) candidates.push(v.trim());
+      } else if (Array.isArray(v)) {
+        v.forEach(el => stack.push(el));
+      } else if (typeof v === 'object') stack.push(v);
+    }
+  }
+  candidates.sort((a,b) => b.length - a.length);
+  return candidates[0] || '';
+}
+
+// Relative time helper
+function formatRelative(start, ts) {
+  if (!start) return '';
+  const diffMs = new Date(ts).getTime() - start;
+  if (diffMs < 0) return '0.0s';
+  return (diffMs / 1000).toFixed(1) + 's';
+}
 
 function InterviewGeneratorPage() {
   const navigate = useNavigate();
-   const [interviewIdState, setInterviewIdState] = useState(null);
-    const [interviewCreationStatus, setInterviewCreationStatus] = useState('idle');
-    const extractInterviewRequirements = (transcript) => {
-       let role = '';
-       let type = '';
-       let level = '';
-       let techstackArr = [];
-       let amount = '';
-       transcript.forEach(msg => {
-         if (msg.role === 'user') {
-           // ROLE (look for "role", "job", "position")
-           const roleMatch = msg.content.match(/(?:role|job|position)[^\w]?[:\-]?\s*([a-zA-Z0-9 \-]+)/i);
-           if (roleMatch && roleMatch[1]) role = roleMatch[1].trim();
 
-           // TYPE
-           const typeMatch = msg.content.match(/\b(technical|behavioral|mixed)\b/i);
-           if (typeMatch && typeMatch[1]) type = typeMatch[1].toLowerCase();
-
-           // LEVEL
-           const levelMatch = msg.content.match(/\b(junior|mid|senior)\b/i);
-           if (levelMatch && levelMatch[1]) level = levelMatch[1].toLowerCase();
-
-           // TECHSTACK
-           if (msg.content.match(/react|node\.?js|python|aws|java|typescript|angular|django|flask|spring|mongo|mysql|postgres|cloud|docker|kubernetes/i)) {
-             techstackArr = techstackArr.concat(
-               msg.content
-                 .split(/,|and|&/i)
-                 .map(t => t.trim())
-                 .filter(t =>
-                   t.length > 1 &&
-                   t.match(/react|node\.?js|python|aws|java|typescript|angular|django|flask|spring|mongo|mysql|postgres|cloud|docker|kubernetes/i)
-                 )
-             );
-           }
-
-           // AMOUNT
-           const amountMatch = msg.content.match(/\b(3|5|7|10)\b/);
-           if (amountMatch && amountMatch[1]) amount = amountMatch[1];
-         }
-       });
-       techstackArr = Array.from(new Set(techstackArr.filter(Boolean)));
-       return { role, type, level, techstack: techstackArr.join(','), amount };
-     };
-    const handleManualFunctionCallFromTranscript = () => {
-        if (!vapi) return;
-        const userInfo = getUserInfo();
-        const params = extractInterviewRequirements(conversationTranscript);
-        if (!params.role || !params.type || !params.level || !params.amount) {
-          setError('Requirements incomplete in transcript.');
-          return;
-        }
-        vapi.emit('function-call', {
-          name: 'generateInterview',
-          parameters: {
-            role: params.role,
-            type: params.type,
-            level: params.level,
-            techstack: params.techstack,
-            amount: params.amount,
-            userId: userInfo.userId
-          }
-        });
-        setSuccess('Function-call emitted using transcript!');
-      };
-  // ✅ Enhanced state management
+  // Core states
   const [vapi, setVapi] = useState(null);
+  const [callStatus, setCallStatus] = useState('idle'); // idle | connecting | active
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const callStartTimeRef = useRef(null);
+
+  // Interview data
+  const [interviewIdState, setInterviewIdState] = useState(null);
+  const [interviewCreationStatus, setInterviewCreationStatus] = useState('idle');
+  const [interviewQuestions, setInterviewQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
+  // Transcript
+  const [conversationTranscript, setConversationTranscript] = useState([]);
+  const transcriptRef = useRef([]);
+  const [liveUserPartial, setLiveUserPartial] = useState(''); // streaming partial user speech
+  const [currentStep, setCurrentStep] = useState('');
+  const transcriptScrollRef = useRef(null);
+  const lastAssistantQuestionRef = useRef(''); // duplicate suppression
+  const partialCommitTimerRef = useRef(null);
+
+  // Form
   const [formData, setFormData] = useState({
     role: '',
     type: 'technical',
@@ -184,379 +180,436 @@ function InterviewGeneratorPage() {
     amount: '5'
   });
   const [techInput, setTechInput] = useState('');
+
+  // UX
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [callStatus, setCallStatus] = useState('idle');
-  const [isMuted, setIsMuted] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
-  const [conversationTranscript, setConversationTranscript] = useState([]);
-  const [currentStep, setCurrentStep] = useState('');
-  const [interviewQuestions, setInterviewQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [feedbackProcessing, setFeedbackProcessing] = useState(false);
+  const feedbackPostedRef = useRef(false);
 
-  // ✅ Enhanced user info with authentication
+  // Show fullscreen session UI logic
+  const showInterviewUI =
+    callStatus !== 'idle' ||
+    feedbackProcessing ||
+    (isGenerating && callStatus === 'connecting');
+
+  // User info
   const getUserInfo = () => {
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const userId = storedUser.id || localStorage.getItem('userId') || '1';
-      const username = storedUser.name || storedUser.username || 'Guest';
-      const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
-      if (!authToken) {
-        console.error('❌ No authentication token found for user:', username, 'at', CURRENT_TIME);
-        setError('Authentication required. Please login again.');
-      }
-      console.log('🔐 User Info for interview at', CURRENT_TIME, ':', {
-        userId,
-        username,
-        hasToken: !!authToken,
-        tokenLength: authToken?.length || 0
-      });
-      return { userId, username, authToken };
-    };
-    const { username } = getUserInfo();
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = storedUser.id || localStorage.getItem('userId') || '1';
+    const username = storedUser.name || storedUser.username || 'Guest';
+    const authToken =
+      localStorage.getItem('authToken') || localStorage.getItem('token');
+    if (!authToken) setError('Authentication required. Please login again.');
+    return { userId, username, authToken };
+  };
+  const { username } = getUserInfo();
 
-  // ✅ Enhanced API request helper
+  // API helper
   const makeApiRequest = async (endpoint, options = {}) => {
-    const userInfo = getUserInfo();
-
+    const { authToken } = getUserInfo();
     const defaultOptions = {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userInfo.authToken}`,
+        'Authorization': `Bearer ${authToken}`,
         'Accept': 'application/json',
         'ngrok-skip-browser-warning': 'true'
       },
       credentials: 'include',
       ...options
     };
-
-    try {
-      const response = await fetch(`${NGROK_URL}${endpoint}`, defaultOptions);
-      console.log(`📡 API ${options.method || 'GET'} ${endpoint} - Status:`, response.status, 'at', CURRENT_TIME);
-      return response;
-    } catch (error) {
-      console.error('❌ API request failed at', CURRENT_TIME, ':', error);
-      throw error;
-    }
-  };
- const calculateVoiceInterviewScore = (userAnswers, questionsAsked) => {
-    if (userAnswers.length === 0) return 5;
-
-    const responseRate = userAnswers.length / Math.max(questionsAsked.length, 1);
-    const avgResponseLength = userAnswers.reduce((sum, ans) => sum + ans.content.length, 0) / userAnswers.length;
-
-    let score = 5; // Base score
-
-    if (responseRate >= 0.8) score += 2;
-    else if (responseRate >= 0.6) score += 1;
-
-    if (avgResponseLength > 150) score += 2;
-    else if (avgResponseLength > 75) score += 1;
-
-    if (userAnswers.some(ans => ans.content.length > 300)) score += 1;
-
-    return Math.min(10, Math.max(1, score));
+    return fetch(`${NGROK_URL}${endpoint}`, defaultOptions);
   };
 
-  const calculateCommunicationScore = (userAnswers) => {
-    if (userAnswers.length === 0) return 6;
-
-    const avgLength = userAnswers.reduce((sum, ans) => sum + ans.content.length, 0) / userAnswers.length;
-    const hasDetailedResponses = userAnswers.some(ans => ans.content.length > 200);
-    const hasVariedResponses = new Set(userAnswers.map(ans => ans.content.substring(0, 50))).size > 1;
-
-    let score = 6;
-    if (avgLength > 100) score += 1;
-    if (hasDetailedResponses) score += 1;
-    if (hasVariedResponses) score += 1;
-    if (userAnswers.length >= 3) score += 1;
-
-    return Math.min(10, Math.max(1, score));
-  };
-
-  const calculateTechnicalScore = (userAnswers, interviewType) => {
-    let baseScore = 7;
-
-    if (interviewType === 'technical') {
-      const technicalKeywords = ['algorithm', 'database', 'api', 'code', 'programming', 'system', 'architecture'];
-      const hasTechnicalContent = userAnswers.some(ans =>
-        technicalKeywords.some(keyword => ans.content.toLowerCase().includes(keyword))
-      );
-
-      if (hasTechnicalContent) baseScore += 1;
-      if (userAnswers.some(ans => ans.content.length > 250)) baseScore += 1;
-    }
-
-    return Math.min(10, Math.max(1, baseScore));
-  };
-
-  const calculateProblemSolvingScore = (userAnswers) => {
-    let score = 7;
-
-    const problemSolvingKeywords = ['approach', 'solution', 'problem', 'resolve', 'analyze', 'strategy', 'method'];
-    const hasProblemSolvingContent = userAnswers.some(ans =>
-      problemSolvingKeywords.some(keyword => ans.content.toLowerCase().includes(keyword))
-    );
-
-    if (hasProblemSolvingContent) score += 1;
-    if (userAnswers.some(ans => ans.content.includes('example') || ans.content.includes('experience'))) score += 1;
-
-    return Math.min(10, Math.max(1, score));
-  };
-
-  const generateStrengthsFromConversation = (userAnswers, questionsAsked) => {
-    const strengths = [];
-
-    if (userAnswers.length >= questionsAsked.length * 0.8) {
-      strengths.push("Excellent response completion rate and engagement during voice interview");
-    }
-
-    if (userAnswers.some(ans => ans.content.length > 200)) {
-      strengths.push("Provided detailed and comprehensive verbal answers");
-    }
-
-    if (userAnswers.length >= 3) {
-      strengths.push("Strong communication skills and active participation");
-    }
-
-    strengths.push(`Successfully completed voice interview session on ${CURRENT_TIME}`);
-    strengths.push("Demonstrated good verbal communication abilities with AI interviewer");
-
-    return strengths.join('\n');
-  };
-
-  const generateImprovementsFromConversation = (userAnswers, formData) => {
-    const improvements = [];
-
-    if (userAnswers.length === 0) {
-      improvements.push("Practice speaking more during voice interviews");
-      improvements.push("Work on providing verbal responses to interview questions");
-    } else {
-      const avgLength = userAnswers.reduce((sum, ans) => sum + ans.content.length, 0) / userAnswers.length;
-
-      if (avgLength < 100) {
-        improvements.push("Practice providing more detailed verbal explanations");
-      }
-
-      improvements.push("Continue practicing voice interviews to build confidence");
-    }
-
-    improvements.push(`Study more about ${formData.role} specific topics and requirements`);
-    improvements.push("Practice articulating technical concepts clearly and concisely");
-    improvements.push("Consider taking more mock interviews to improve fluency");
-
-    return improvements.join('\n');
-  };
-
-  const assessConversationQuality = (transcript) => {
-    if (transcript.length < 5) return 'basic';
-    if (transcript.length < 10) return 'good';
-    if (transcript.length < 20) return 'excellent';
-    return 'outstanding';
-  };
-
-const generateInterviewFeedback = async (reason = 'manual') => {
-  if (feedbackProcessing) return;
-
-  try {
-    console.log('🚀 Generating interview feedback, reason:', reason);
-
-    if (!conversationTranscript || conversationTranscript.length === 0) {
-      console.error('❌ Cannot generate feedback: No transcript available');
-      setError('Cannot generate feedback: No transcript available');
-      return;
-    }
-
-    setFeedbackProcessing(true);
-
-    const interviewId = getParsedInterviewId();
-    if (!interviewId) {
-      setError('No interview ID found to save feedback.');
-      setFeedbackProcessing(false);
-      return;
-    }
-
-    // ✅ Extract exact user info from JWT
-    const { userId, username } = getUserInfo() || {};
-    if (!userId) {
-      setError('User ID missing. Please login again.');
-      setFeedbackProcessing(false);
-      return;
-    }
-
-    const feedbackData = {
-      interviewId,
-      userId, // ✅ now uses actual user id
-      transcript: conversationTranscript,
-      responses: [],
-      totalQuestions: interviewQuestions.length,
-      totalAnswers: conversationTranscript.filter(m => m.role === 'user').length,
-      duration: Math.floor((Date.now() - callStartTimeRef.current) / 1000),
-      interviewMetadata: {
-        startedAt: new Date(callStartTimeRef.current).toISOString(),
-        endedAt: new Date().toISOString(),
-        environment: 'voice-ai'
-      }
-    };
-
-    console.log('📤 Sending feedback data:', feedbackData);
-
-    const result = await makeApiRequest(
-      `/api/interviews/${interviewId}/feedback`,
-      {
-        method: 'POST',
-        body: JSON.stringify(feedbackData),
-      }
-    );
-
-    console.log('✅ Feedback saved successfully:', result);
-
-    // 🚀 Redirect to FeedbackPage
-    navigate(`/interview/${interviewId}/feedback`);
-
-  } catch (err) {
-    console.error('❌ Failed to generate feedback:', err);
-    setError('Failed to generate feedback. Please try again.');
-  } finally {
-    setFeedbackProcessing(false);
-  }
-};
-
-  // ✅ Helper functions for scoring and analysis
-
-
-  // ✅ Enhanced VAPI initialization
-useEffect(() => {
-  console.log('🚀 Initializing VAPI at', CURRENT_TIME, 'for user', username);
-
-  const vapiInstance = new Vapi(VAPI_PUBLIC_KEY);
-  setVapi(vapiInstance);
-
-  // call-start
-  vapiInstance.on('call-start', () => {
-    console.log('✅ Voice interview call started at', CURRENT_TIME, 'for', username);
-    setCallStatus('active');
-    setIsGenerating(true);
-    setError('');
-    setSuccess('🎤 Connected! Starting your complete interview experience...');
-    setConversationTranscript([]);
- // clear previous transcript
-    setCurrentStep('Collecting interview requirements...');
-    setInterviewQuestions([]);
-    setCurrentQuestionIndex(0);
-    setFeedbackProcessing(false);
-    setInterviewCreationStatus('idle');
-    setInterviewIdState(null);
-  });
-
-  // call-end
-
-
-  // transcript (user)
-
-
-  // assistant message
-  vapiInstance.on('message', (message) => {
-    const content = message?.content || message?.text || '';
-    if (!content) return;
-    const newMessage = {
-      role: message.role || 'assistant',
-      content,
-      timestamp: new Date().toISOString(),
-      isAnswer: false
-    };
-    console.log('📩 Transcript Event:', newMessage);
-
+  // Append transcript
+  const appendTranscript = useCallback((entry) => {
     setConversationTranscript(prev => {
       const last = prev[prev.length - 1];
-      if (last && last.role === newMessage.role && last.content === newMessage.content) return prev;
-      return [...prev, newMessage];
+      if (last && last.role === entry.role && last.content === entry.content) {
+        return prev;
+      }
+      const updated = [...prev, entry];
+      transcriptRef.current = updated;
+      return updated;
     });
-  });
-   vapiInstance.on('speech-transcript', (data) => {
-     const content = data?.text || '';
-     if (!content) return;
+  }, []);
 
-     const newMessage = {
+  // Auto scroll transcript
+  useEffect(() => {
+    if (transcriptScrollRef.current) {
+      transcriptScrollRef.current.scrollTop = transcriptScrollRef.current.scrollHeight;
+    }
+  }, [conversationTranscript, liveUserPartial]);
+
+  // Partial commit timer
+  const schedulePartialCommit = () => {
+    if (partialCommitTimerRef.current) clearTimeout(partialCommitTimerRef.current);
+    if (!liveUserPartial) return;
+    partialCommitTimerRef.current = setTimeout(() => {
+      if (liveUserPartial) {
+        appendTranscript({
+          role: 'user',
+          content: liveUserPartial + ' (partial)',
+          timestamp: new Date().toISOString(),
+          isAnswer: true
+        });
+        setLiveUserPartial('');
+      }
+    }, 1600);
+  };
+
+ const lastFeedbackPostRef = useRef(0);
+
+ // Utility to sleep
+ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+ // Enhanced generation with defer + retry
+ const generateInterviewFeedback = async (reason = 'manual', externalTranscript = null) => {
+   if (feedbackProcessing || feedbackPostedRef.current) return;
+
+   // Wait for transcript to stabilize: no new messages for 1200ms OR max wait 3000ms
+   const STABILIZE_WINDOW = 1200;
+   const MAX_WAIT = 3000;
+   let idleTime = 0;
+   let lastCount = transcriptRef.current.length;
+
+   while (idleTime < MAX_WAIT) {
+     await sleep(300);
+     const currentCount = transcriptRef.current.length;
+     if (currentCount === lastCount) {
+       idleTime += 300;
+       if (idleTime >= STABILIZE_WINDOW) break;
+     } else {
+       lastCount = currentCount;
+       idleTime = 0;
+     }
+   }
+
+   // Flush remaining partial
+   if (liveUserPartial && !transcriptRef.current.find(m => m.content === liveUserPartial)) {
+     appendTranscript({
        role: 'user',
-       content,
+       content: liveUserPartial,
        timestamp: new Date().toISOString(),
        isAnswer: true
-     };
-        console.log('📩 Transcript Event:', newMessage);
-
-     setConversationTranscript(prev => {
-       const last = prev[prev.length - 1];
-       if (last && last.role === newMessage.role && last.content === newMessage.content) return prev;
-       return [...prev, newMessage];
      });
+     setLiveUserPartial('');
+   }
+
+   let usableTranscript = externalTranscript || transcriptRef.current;
+   if (!usableTranscript || usableTranscript.length < 2) {
+     console.warn('[FEEDBACK][POST] Transcript too short, delaying 1s...');
+     await sleep(1000);
+     usableTranscript = transcriptRef.current;
+   }
+   if (!usableTranscript || usableTranscript.length < 2) {
+     setError('Cannot generate feedback: Insufficient transcript.');
+     return;
+   }
+
+   const interviewId = interviewIdState || localStorage.getItem('lastGeneratedInterviewId');
+   if (!interviewId) {
+     setError('No interview ID to save feedback.');
+     return;
+   }
+
+   const { userId } = getUserInfo();
+   if (!userId) {
+     setError('User ID missing.');
+     return;
+   }
+
+   const payload = {
+     interviewId,
+     userId,
+     transcript: usableTranscript,
+     responses: [],
+     totalQuestions: interviewQuestions.length,
+     totalAnswers: usableTranscript.filter(m => m.role === 'user').length,
+     duration: callStartTimeRef.current
+       ? Math.floor((Date.now() - callStartTimeRef.current) / 1000)
+       : 0,
+     interviewMetadata: {
+       startedAt: callStartTimeRef.current
+         ? new Date(callStartTimeRef.current).toISOString()
+         : new Date().toISOString(),
+       endedAt: new Date().toISOString(),
+       environment: 'voice-ai',
+       reason
+     }
+   };
+
+   const postOnce = async () => {
+     return makeApiRequest(`/api/interviews/${interviewId}/feedback`, {
+       method: 'POST',
+       body: JSON.stringify(payload)
+     });
+   };
+
+   try {
+     setFeedbackProcessing(true);
+     let attempt = 0;
+     let res;
+     let bodyText = '';
+
+     while (attempt < 3) {
+       attempt++;
+       console.log(`[FEEDBACK][POST][Attempt ${attempt}] messages=${payload.transcript.length}`);
+       res = await postOnce();
+       bodyText = await res.text();
+       console.log('[FEEDBACK][POST][RAW]', res.status, bodyText.slice(0, 400));
+
+       if (res.ok) break;
+
+       // Detect throttle message (custom or HTTP status)
+       if (res.status === 429 || bodyText.toLowerCase().includes('throttled')) {
+         // Extract seconds if present
+         let waitSeconds = 11; // default fallback
+         const match = bodyText.match(/retry in (\d+)s/i);
+         if (match) waitSeconds = parseInt(match[1], 10) + 1;
+         console.warn(`[FEEDBACK][POST] Throttled. Waiting ${waitSeconds}s before retry...`);
+         await sleep(waitSeconds * 1000);
+         continue;
+       }
+
+       // Non-throttle failure: do not loop further
+       break;
+     }
+
+     if (!res || !res.ok) {
+       setError(`Feedback generation failed (${res ? res.status : 'no-response'}). Showing fallback.`);
+       // Navigate anyway; feedback page will fallback gracefully
+       navigate(`/interview/${interviewId}/feedback?fallback=1&code=${res ? res.status : 'na'}`);
+       return;
+     }
+
+     feedbackPostedRef.current = true;
+     lastFeedbackPostRef.current = Date.now();
+     // Store transcript size for fallback improvement logic on feedback page
+     localStorage.setItem(`transcript_len_${interviewId}`, String(payload.transcript.length));
+     navigate(`/interview/${interviewId}/feedback`);
+   } catch (e) {
+     console.error('[FEEDBACK][POST][EXCEPTION]', e);
+     setError('Failed to generate feedback: ' + (e.message || 'Unknown error'));
+   } finally {
+     setFeedbackProcessing(false);
+   }
+ };
+  // VAPI initialization
+  useEffect(() => {
+    const vapiInstance = new Vapi(VAPI_PUBLIC_KEY);
+    setVapi(vapiInstance);
+
+    const ALL_DEBUG_EVENTS = [
+      'call-start','call-end','error','message',
+      'speech-transcript','transcript',
+      'partial-transcript','final-transcript',
+      'transcript.partial','transcript.final',
+      'conversation.update','conversation.updated',
+      'speech-start','speech-end'
+    ];
+
+    ALL_DEBUG_EVENTS.forEach(evt => {
+      vapiInstance.on(evt, payload => {
+        console.log(`[VAPI DEBUG] ${evt}`, payload);
+      });
+    });
+
+    // Additional possible ASR events in newer SDKs
+    ['speech.recognition.partial', 'speech.recognition.final'].forEach(evt => {
+      vapiInstance.on(evt, data => {
+        const text = extractAnyText(data);
+        if (!text) return;
+        if (evt.endsWith('partial')) {
+          setLiveUserPartial(text);
+          schedulePartialCommit();
+        } else {
+          // final
+          if (liveUserPartial && text.length < liveUserPartial.length) {
+            appendTranscript({
+              role: 'user',
+              content: liveUserPartial,
+              timestamp: new Date().toISOString(),
+              isAnswer: true
+            });
+          } else {
+            appendTranscript({
+              role: 'user',
+              content: text,
+              timestamp: new Date().toISOString(),
+              isAnswer: true
+            });
+          }
+          setLiveUserPartial('');
+        }
+      });
+    });
+
+    vapiInstance.on('call-start', () => {
+      callStartTimeRef.current = Date.now();
+      setCallStatus('active');
+      setIsGenerating(false);
+      setError('');
+      setSuccess('🎤 Connected! Interview starting...');
+      setConversationTranscript([]);
+      transcriptRef.current = [];
+      setLiveUserPartial('');
+      setCurrentStep('Beginning interview...');
+      setCurrentQuestionIndex(0);
+      lastAssistantQuestionRef.current = '';
+      feedbackPostedRef.current = false;
+    });
+
+    // Assistant messages
+    vapiInstance.on('message', raw => {
+      const text = extractAnyText(raw);
+      if (!text) return;
+      const normalized = text.replace(/\s+/g,' ').trim().toLowerCase();
+      if (normalized && normalized === lastAssistantQuestionRef.current) {
+        console.log('🔁 Suppressed duplicate assistant output.');
+        return;
+      }
+      lastAssistantQuestionRef.current = normalized;
+
+      const looksLikeQuestion = /\?$/.test(text.trim()) || /^[0-9]+\./.test(text.trim());
+      if (looksLikeQuestion) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      }
+
+      appendTranscript({
+        role: raw.role || 'assistant',
+        content: text,
+        timestamp: new Date().toISOString(),
+        isAnswer: false
+      });
+    });
+
+    // Transcript-related events
+    const transcriptLikeEvents = [
+      'speech-transcript','transcript',
+      'partial-transcript','final-transcript',
+      'transcript.partial','transcript.final',
+      'conversation.update','conversation.updated'
+    ];
+
+    transcriptLikeEvents.forEach(evt => {
+      vapiInstance.on(evt, data => {
+        const text = extractAnyText(data);
+        if (!text) return;
+        const isPartial = evt.includes('partial') || evt.includes('update');
+
+        if (isPartial) {
+          setLiveUserPartial(text);
+          schedulePartialCommit();
+        } else {
+          // final
+          if (liveUserPartial && text === liveUserPartial) {
+            appendTranscript({
+              role: 'user',
+              content: text,
+              timestamp: new Date().toISOString(),
+              isAnswer: true
+            });
+            setLiveUserPartial('');
+          } else {
+            setLiveUserPartial('');
+            appendTranscript({
+              role: 'user',
+              content: text,
+              timestamp: new Date().toISOString(),
+              isAnswer: true
+            });
+          }
+        }
+      });
+    });
+
+    vapiInstance.on('speech-start', () => {
+      setCurrentStep('Listening...');
+    });
+
+    vapiInstance.on('speech-end', () => {
+      setCurrentStep('Processing your response...');
+    });
+
+   vapiInstance.on('call-end', () => {
+     // Give final transcript events a little more time (2s) before generation
+     const FINAL_DELAY_MS = 2000;
+     if (liveUserPartial) {
+       appendTranscript({
+         role: 'user',
+         content: liveUserPartial,
+         timestamp: new Date().toISOString(),
+         isAnswer: true
+       });
+       setLiveUserPartial('');
+     }
+     setTimeout(async () => {
+       if (transcriptRef.current.length > 0) {
+         await generateInterviewFeedback('call-end', transcriptRef.current);
+       } else {
+         setError('Cannot generate feedback: No transcript captured.');
+         setFeedbackProcessing(false);
+       }
+       setCallStatus('idle');
+       setIsGenerating(false);
+     }, FINAL_DELAY_MS);
    });
 
-  // speech events
-  vapiInstance.on('speech-start', () => {
-    console.log('🎤 User started speaking at', CURRENT_TIME);
-    setCurrentStep(`Listening to your answer for Question ${currentQuestionIndex}...`);
-  });
-  vapiInstance.on('speech-end', () => {
-    console.log('🔇 User stopped speaking at', CURRENT_TIME);
-    setCurrentStep(`Processing your response...`);
-  });
+    vapiInstance.on('error', async (err) => {
+      const normalEnd =
+        err?.errorMsg === 'Meeting has ended' ||
+        err?.error?.msg === 'Meeting has ended' ||
+        err?.type === 'call-ended' ||
+        (err?.action === 'error' && err?.error?.type === 'ejected');
 
- // Capture user speech
-
-
- vapiInstance.on('call-end', async (endData) => {
-    console.log('📞 Voice interview call ended at', CURRENT_TIME, 'for', username, ':', endData);
-    setCallStatus('idle');
-    setIsGenerating(false);
-    setCurrentStep('Processing your interview feedback...');
-    if (conversationTranscript && conversationTranscript.length > 0) {
-      await generateInterviewFeedback('call-end-event');
-    } else {
-      setError('Cannot generate feedback: No transcript available.');
-      setFeedbackProcessing(false);
-    }
-  });
-
-  // error
-  vapiInstance.on('error', async (error) => {
-    console.log('🔍 VAPI Event at', CURRENT_TIME, 'for', username, ':', error);
-    const isNormalEnding =
-      error.errorMsg === 'Meeting has ended' ||
-      (error.action === 'error' && error.error?.type === 'ejected') ||
-      error.error?.msg === 'Meeting has ended' ||
-      error.type === 'call-ended';
-
-    if (isNormalEnding) {
-      console.log('✅ Call ended normally via error event at', CURRENT_TIME);
+      if (normalEnd) {
+        if (liveUserPartial) {
+          appendTranscript({
+            role: 'user',
+            content: liveUserPartial,
+            timestamp: new Date().toISOString(),
+            isAnswer: true
+          });
+          setLiveUserPartial('');
+        }
+        if (transcriptRef.current.length > 0 && !feedbackPostedRef.current) {
+          await generateInterviewFeedback('error-normal', transcriptRef.current);
+        }
+        setCallStatus('idle');
+        setIsGenerating(false);
+        return;
+      }
+      setError('Voice call failed. Try direct generation.');
       setCallStatus('idle');
       setIsGenerating(false);
-      await generateInterviewFeedback('error-event-normal-end');
-      return;
+    });
+
+    return () => {
+      try { vapiInstance.stop(); } catch (e) {}
+      if (partialCommitTimerRef.current) clearTimeout(partialCommitTimerRef.current);
+      setVapi(null);
+    };
+  }, [appendTranscript, liveUserPartial]);
+
+  // Diagnostic: if no user transcript after 10s of active
+  useEffect(() => {
+    if (callStatus === 'active') {
+      const diag = setTimeout(() => {
+        if (conversationTranscript.filter(m => m.role === 'user').length === 0) {
+          console.warn('[DIAG] No user transcript messages yet. Check event names / mic.');
+        }
+      }, 10000);
+      return () => clearTimeout(diag);
     }
-    console.error('❌ VAPI Error at', CURRENT_TIME, ':', error);
-    setCallStatus('idle');
-    setIsGenerating(false);
-    setCurrentStep('');
-    setError('Voice call failed. Please try the direct generation option.');
-  });
+  }, [callStatus, conversationTranscript]);
 
-  console.log('✅ VAPI initialized successfully at', CURRENT_TIME, 'for complete interview flow');
-
-  return () => {
-    try { vapiInstance.stop(); } catch (e) { /* ignore */ }
-    setVapi(null);
-  };
-}, []); // run once on mount
-
-
-  // ✅ Call duration timer
+  // Duration timer
   useEffect(() => {
     let interval;
-    if (callStatus === 'active') {
+    if (callStatus === 'active' && callStartTimeRef.current) {
       interval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
+        setCallDuration(Math.floor((Date.now() - callStartTimeRef.current) / 1000));
       }, 1000);
     } else {
       setCallDuration(0);
@@ -564,7 +617,7 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [callStatus]);
 
-  // ✅ Form handlers
+  // Handlers
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
@@ -573,38 +626,26 @@ useEffect(() => {
   const handleAddTech = () => {
     const tech = techInput.trim();
     if (tech && !formData.techstack.includes(tech)) {
-      setFormData(prev => ({
-        ...prev,
-        techstack: [...prev.techstack, tech]
-      }));
+      setFormData(prev => ({ ...prev, techstack: [...prev.techstack, tech] }));
       setTechInput('');
     }
   };
-
-  const handleRemoveTech = (techToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      techstack: prev.techstack.filter(tech => tech !== techToRemove)
-    }));
-  };
-
-  const handleKeyPress = (e) => {
+  const handleRemoveTech = tech =>
+    setFormData(prev => ({ ...prev, techstack: prev.techstack.filter(t => t !== tech) }));
+  const handleKeyPress = e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleAddTech();
     }
   };
 
-  // ✅ Enhanced VAPI start function
-  // ... your existing code above remains unchanged ...
-
   const handleStartVoiceInterview = async () => {
-  if (!formData.amount || isNaN(parseInt(formData.amount))) {
-    setError("Please select a valid number of questions.");
-    return;
-  }
+    if (!formData.amount || isNaN(parseInt(formData.amount))) {
+      setError('Please select a valid number of questions.');
+      return;
+    }
     if (!vapi) {
-      setError('Voice service not ready. Please refresh the page.');
+      setError('Voice service not ready. Refresh the page.');
       return;
     }
     try {
@@ -612,305 +653,165 @@ useEffect(() => {
       setCallStatus('connecting');
       setIsGenerating(true);
       setCurrentStep('Generating interview questions...');
-
-      // --- MOVE the function-call logic here ---
-      const userInfo = getUserInfo();
+      const { userId, username } = getUserInfo();
       const requestData = {
-        role: formData.role || "Software Engineer",
+        role: formData.role || 'Software Engineer',
         type: formData.type,
         level: formData.level,
-        techstack: formData.techstack.length > 0 ? formData.techstack : ["JavaScript", "React"],
+        techstack: formData.techstack.length > 0
+          ? formData.techstack
+          : ['JavaScript', 'React'],
         amount: parseInt(formData.amount) || 5,
-        userId: parseInt(userInfo.userId)
+        userId: parseInt(userId)
       };
 
-      console.log('📤 Interview generation before start at', CURRENT_TIME, 'with data:', requestData);
-        if (!formData.amount || isNaN(parseInt(formData.amount))) {
-          setError("Please select a valid number of questions.");
-          return;
-        }
       const response = await makeApiRequest('/api/interviews/generate', {
         method: 'POST',
         body: JSON.stringify(requestData)
       });
 
-      console.log("Triggering interview generation API call...");
-      console.log("API response:", response);
-
       if (response.ok) {
-        const responseData = await response.json();
-        console.log('✅ Interview generated at', CURRENT_TIME, ':', responseData);
-        console.log('RAW RESPONSE DATA:', responseData);
-        const questions = responseData.interview?.questions || responseData.questions || [];
+        const data = await response.json();
+        let questions = data.interview?.questions || data.questions || [];
+        if (typeof questions === 'string') {
+          try { questions = JSON.parse(questions); } catch {}
+        }
+        setInterviewQuestions(questions);
 
-        // Log the generated questions
-        console.log('Generated interview questions:', questions);
-        questions.forEach((q, i) => console.log(`Question ${i + 1}:`, q));
-
-        // Extract interview ID
-        const interviewId = responseData.interviewId ||
-          responseData.id ||
-          responseData.data?.id ||
-          responseData.interview?.id ||
-          responseData.data?.interviewId;
-
+        const interviewId = data.interviewId ||
+          data.id ||
+          data.data?.id ||
+          data.interview?.id ||
+          data.data?.interviewId;
         if (interviewId) {
-          // Store in both localStorage AND state
-          const idString = interviewId.toString();
-          localStorage.setItem('lastGeneratedInterviewId', idString);
-          setInterviewIdState(idString);
+          localStorage.setItem('lastGeneratedInterviewId', interviewId.toString());
+          setInterviewIdState(interviewId.toString());
           setInterviewCreationStatus('created');
-
-          console.log('💾 STORED Interview ID (MULTIPLE LOCATIONS):', idString, 'at', CURRENT_TIME);
-
-          // Double verification
-          const storedId = localStorage.getItem('lastGeneratedInterviewId');
-          console.log('🔍 VERIFICATION - Stored ID:', storedId, 'State ID:', idString, 'at', CURRENT_TIME);
-
-          setInterviewQuestions(questions);
-          console.log("Questions are set!");
-          setCurrentStep('Interview ready! Starting questions...');
-          console.log("Interview Ready!");
-
-          // Update form data
-          setFormData(prev => ({
-            ...prev,
-            role: requestData.role,
-            type: requestData.type,
-            level: requestData.level,
-            techstack: requestData.techstack,
-            amount: requestData.amount
-          }));
-            console.log(requestData.amount);
-          // Now start Vapi with the generated questions!
-          const config = {
-
-            firstMessage: `Hello ${userInfo.username}! I'm your AI Interview Assistant from Prep Orbit.
-            It's ${CURRENT_TIME} and I'll conduct a complete mock interview experience with you today.
-            I'll ask ${requestData.amount} questions for ${requestData.level} for the role of ${requestData.role} and provide a complete feedback.
-             Are you ready to begin?`,
-            model: {
-              provider: "openai",
-              model: "gpt-3.5-turbo",
-              messages: [
-                {
-                  role: "system",
-                  content: `
-  You are an AI interview assistant conducting a COMPLETE mock interview for ${userInfo.username} at ${CURRENT_TIME} UTC.
-  Here is the list of interview questions you MUST ask, ONE BY ONE, in order:
-  ${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
-  - Ask each question, wait for a full answer, then move to the next.
-  - After all questions, end the interview and say feedback will be generated.`
-                }
-              ],
-              temperature: 0.7
-            },
-            voice: {
-              provider: "11labs",
-              voiceId: "21m00Tcm4TlvDq8ikWAM"
-            },
-            silenceTimeoutSeconds: 60,
-            maxDurationSeconds: 2400,
-            endCallMessage: null
-          };
-          await vapi.start(config);
-
-          setIsGenerating(false);
-          setCurrentQuestionIndex(1);
-
         } else {
           setInterviewCreationStatus('failed');
-          setError('No interview ID found in API response');
-          setIsGenerating(false);
-          setCurrentStep('Interview generation failed...');
-          return;
+          setError('No interview ID found in response.');
         }
-      } else if (response.status === 401) {
-        setInterviewCreationStatus('failed');
-        setError('Authentication failed. Please login again.');
-        setIsGenerating(false);
-        setCurrentStep('Interview generation failed...');
-        return;
+
+        const systemPrompt = `You are an AI interview assistant conducting a STRICTLY SEQUENTIAL interview.
+Rules:
+1. You have EXACTLY ${requestData.amount} questions. Ask ONE at a time in order, never repeat a previous one.
+2. After asking a question, WAIT for the user's answer (do not re-ask).
+3. Do NOT restate or paraphrase prior questions.
+4. When all questions are finished, say: "Interview complete. Generating feedback now." then remain silent.
+5. Do NOT apologize unless necessary. Be concise.
+Questions:
+${(Array.isArray(questions) ? questions : []).map((q,i)=>`${i+1}. ${q}`).join('\n')}
+Begin only after greeting if you haven't already.`;
+
+        const config = {
+          firstMessage: `Hello ${username}! I will conduct a mock interview with ${requestData.amount} ${requestData.type} questions for a ${requestData.level} level ${requestData.role} role. Are you ready?`,
+          model: {
+            provider: 'openai',
+            model: 'gpt-3.5-turbo',
+            messages: [{ role: 'system', content: systemPrompt }],
+            temperature: 0.6
+          },
+          voice: {
+            provider: '11labs',
+            voiceId: '21m00Tcm4TlvDq8ikWAM'
+          },
+          silenceTimeoutSeconds: 60,
+          maxDurationSeconds: 2400,
+          endCallMessage: null
+          // Optionally add transcriber here if confirmed by SDK:
+          // transcriber: { provider: 'openai', model: 'gpt-4o-mini-transcribe' },
+        };
+
+        await vapi.start(config);
       } else {
-        setInterviewCreationStatus('failed');
-        const errorText = await response.text();
-        setError(`HTTP ${response.status}: ${errorText}`);
+        const txt = await response.text();
+        setError(`Interview generation failed: ${response.status} ${txt}`);
+        setCallStatus('idle');
         setIsGenerating(false);
-        setCurrentStep('Interview generation failed...');
-        return;
       }
-    } catch (error) {
-      setInterviewCreationStatus('failed');
-      setError(`Sorry, I couldn't generate the interview: ${error.message}. Please try the direct generation option.`);
+    } catch (e) {
+      setError(`Failed to start interview: ${e.message}`);
+      setCallStatus('idle');
       setIsGenerating(false);
-      setCurrentStep('Interview generation failed...');
-      return;
     }
   };
 
-  // ... rest of your file unchanged ...
+  const handleDirectGeneration = async () => {
+    if (!formData.amount || isNaN(parseInt(formData.amount))) {
+      setError('Please select a valid number of questions.');
+      return;
+    }
+    try {
+      setError('');
+      setSuccess('Generating interview (questions only)...');
+      const { userId } = getUserInfo();
+      if (!formData.role.trim()) {
+        setError('Enter a job role first.');
+        return;
+      }
+      const requestData = {
+        role: formData.role || 'Software Engineer',
+        type: formData.type,
+        level: formData.level,
+        techstack: formData.techstack.length > 0
+          ? formData.techstack
+          : ['JavaScript', 'React'],
+        amount: parseInt(formData.amount),
+        userId: parseInt(userId)
+      };
+      const response = await makeApiRequest('/api/interviews/generate', {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      if (!response.ok) {
+        const txt = await response.text();
+        setError(`Generation failed: ${response.status} ${txt}`);
+        return;
+      }
+      const data = await response.json();
+      if (data.success && data.interviewId) {
+        setSuccess('Interview generated! Redirecting...');
+        localStorage.setItem('lastGeneratedInterviewId', data.interviewId);
+        setTimeout(() => navigate(`/feedback/${data.interviewId}`), 1500);
+      } else {
+        setError('Generation failed: missing interviewId.');
+      }
+    } catch (e) {
+      setError(e.message || 'Generation failed.');
+    }
+  };
 
-  // ✅ Enhanced direct generation
- const handleDirectGeneration = async () => {
- if (!formData.amount || isNaN(parseInt(formData.amount))) {
-   setError("Please select a valid number of questions.");
-   return;
- }
-   try {
-     setError('');
-     setSuccess('Generating interview (direct mode - no voice interaction)...');
-
-     const userInfo = getUserInfo();
-
-     if (!formData.role.trim()) {
-       setError('❌ Please enter a job role before generating.');
-       return;
-     }
-
-     const requestData = {
-       role: formData.role || "Software Engineer",
-       type: formData.type,
-       level: formData.level,
-       techstack: formData.techstack.length > 0 ? formData.techstack : ["JavaScript", "React"],
-       amount: parseInt(formData.amount),
-       userId: parseInt(userInfo.userId)
-     };
-
-     console.log('🧪 Direct generation at', CURRENT_TIME, 'with data:', requestData);
-
-     const response = await makeApiRequest('/api/interviews/generate', {
-       method: 'POST',
-       body: JSON.stringify(requestData)
-     });
-     console.log("Triggering interview generation API call...");
-         console.log("API response:", response);
-
-     if (!response.ok) {
-       const errorText = await response.text();
-       console.error('❌ Interview creation failed: raw response:', errorText);
-       if (response.status === 401) {
-         setError('❌ Authentication failed. Please login again.');
-         throw new Error('Authentication failed. Please login again.');
-       }
-       setError(`❌ Generation failed (HTTP ${response.status}): ${errorText}`);
-       return null;
-     }
-
-     const responseData = await response.json();
-     console.log('Interview generation response:', responseData);
-
-     // PATCH: Check for both success and interviewId
-     if (responseData.success && responseData.interviewId) {
-       setSuccess(`✅ Interview generated! ID: ${responseData.interviewId}. Generating comprehensive feedback...`);
-       localStorage.setItem('lastGeneratedInterviewId', responseData.interviewId);
-
-       // Generate feedback as before
-       const feedbackData = {
-         interviewId: parseInt(responseData.interviewId),
-         userId: parseInt(userInfo.userId),
-         transcript: [
-           {
-             role: "assistant",
-             content: `Direct generation interview created for ${userInfo.username} on ${CURRENT_TIME}. Role: ${formData.role}, Type: ${formData.type}, Level: ${formData.level}`,
-             timestamp: new Date().toISOString()
-           },
-           {
-             role: "user",
-             content: `User successfully generated ${formData.amount} ${formData.type} interview questions for ${formData.role} position using direct generation mode at ${CURRENT_TIME}`,
-             timestamp: new Date().toISOString()
-           }
-         ],
-         overallScore: 7,
-         communicationScore: 7,
-         technicalScore: formData.type === 'technical' ? 8 : 7,
-         problemSolvingScore: 7,
-         strengths: `Successfully completed interview generation process for ${formData.role} position\nSelected appropriate ${formData.type} interview type for ${formData.level} level\nChose ${formData.amount} questions for comprehensive assessment\nGenerated on ${CURRENT_TIME} by ${userInfo.username}`,
-         improvements: `Try the voice interview mode for a more comprehensive experience\nPractice answering the generated questions out loud\nConsider scheduling a voice interview session for real-time feedback\nReview the specific technologies: ${formData.techstack.join(', ')}`,
-         duration: 300,
-         totalQuestions: parseInt(formData.amount),
-         totalAnswers: 0,
-         interviewMetadata: {
-           role: formData.role,
-           type: formData.type,
-           level: formData.level,
-           techstack: formData.techstack,
-           completedAt: new Date().toISOString(),
-           user: userInfo.username,
-           mode: 'direct_generation',
-           timestamp: CURRENT_TIME,
-           sessionId: Date.now().toString()
-         }
-       };
-
-       console.log('📊 Generating direct mode feedback at', CURRENT_TIME, ':', feedbackData);
-
-       const feedbackResponse = await makeApiRequest(`/api/interviews/${responseData.interviewId}/feedback`, {
-         method: 'POST',
-         body: JSON.stringify(feedbackData)
-       });
-
-       if (feedbackResponse.ok) {
-         const feedbackResult = await feedbackResponse.json();
-         console.log('✅ Comprehensive feedback generated for direct mode at', CURRENT_TIME, ':', feedbackResult);
-         setSuccess(`✅ Interview and feedback generated successfully! Redirecting...`);
-       } else {
-         const feedbackErrorText = await feedbackResponse.text();
-         console.warn('⚠️ Failed to generate feedback, but interview created successfully. Feedback error:', feedbackErrorText);
-         setSuccess(`✅ Interview generated successfully! Redirecting...`);
-       }
-
-       setTimeout(() => {
-         navigate(`/feedback/${responseData.interviewId}`);
-         localStorage.removeItem('lastGeneratedInterviewId');
-       }, 2000);
-
-       return responseData;
-     } else {
-       // PATCH: Always log the error response
-       setError(`❌ Generation failed: ${responseData.error || responseData.message || 'Unknown error'}`);
-       console.error('Interview creation failed:', responseData);
-       return null;
-     }
-
-   } catch (error) {
-     console.error('🧪 Direct generation failed at', CURRENT_TIME, ':', error);
-     setError(error.message || '❌ Generation failed: Unknown error');
-     return null;
-   }
- };
-
-  // ✅ Enhanced control handlers
- const handleStopCall = async () => {
-   if (vapi && callStatus !== 'idle') {
-     console.log('🛑 Stopping VAPI call...');
-     vapi.stop();
-
-     // Fallback: ensure feedback generation happens
-     if (conversationTranscript.length > 0) {
-       await generateInterviewFeedback('manual-stop');
-     } else {
-       setError('No transcript captured to generate feedback.');
-     }
-   }
- };
-
-
-    // ✅ Manually emit function-call using transcript
-
-
+  const handleStopCall = async () => {
+    if (vapi && callStatus !== 'idle') {
+      try { vapi.stop(); } catch {}
+      if (liveUserPartial) {
+        appendTranscript({
+          role: 'user',
+          content: liveUserPartial,
+          timestamp: new Date().toISOString(),
+          isAnswer: true
+        });
+        setLiveUserPartial('');
+      }
+      if (transcriptRef.current.length > 0) {
+        await generateInterviewFeedback('manual-stop', transcriptRef.current);
+      } else {
+        setError('No transcript captured to generate feedback.');
+      }
+    }
+  };
 
   const handleToggleMute = () => {
     if (vapi) {
       vapi.setMuted(!isMuted);
-      setIsMuted(!isMuted);
-      console.log('🔇 Mute toggled at', CURRENT_TIME, '- Muted:', !isMuted);
+      setIsMuted(m => !m);
     }
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2,'0')}`;
   };
 
   const resetForm = () => {
@@ -926,107 +827,336 @@ useEffect(() => {
     setSuccess('');
     setInterviewQuestions([]);
     setCurrentQuestionIndex(0);
-    console.log('🔄 Form reset at', CURRENT_TIME, 'for', CURRENT_USER);
   };
 
   return (
     <ThemeProvider theme={darkTheme}>
-      <GradientBox>
-        <Container maxWidth="md" sx={{ py: 4 }}>
-          {/* ✅ Enhanced Header */}
-          <Box display="flex" alignItems="center" mb={4}>
-            <Button
-              startIcon={<ArrowBack />}
-              onClick={() => navigate('/interview-prep')}
-              sx={{ color: '#aaa', mr: 3 }}
-              disabled={isGenerating}
-            >
-              Back
-            </Button>
-            <Typography
-              variant="h4"
-              component="h1"
-              fontWeight="bold"
+      {showInterviewUI ? (
+        <Box
+          sx={{
+            width: '100vw',
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'linear-gradient(135deg,#7b1fa2,#f50057)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <PulsingAvatar
               sx={{
-                background: 'linear-gradient(to right, #a0d8ff, #ff80ab)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                width: 90,
+                height: 90,
+                background: 'rgba(255,255,255,0.15)'
               }}
             >
-              AI Interview Generator 🎤
-            </Typography>
+              <PhoneIcon sx={{ fontSize: 48 }} />
+            </PulsingAvatar>
+            <Box>
+              <Typography variant="h5" fontWeight="bold">
+                {callStatus === 'connecting'
+                  ? 'Connecting...'
+                  : (callStatus === 'active'
+                    ? 'Interview In Progress'
+                    : feedbackProcessing
+                      ? 'Finalizing Feedback'
+                      : 'Session')}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                {currentStep || (callStatus === 'connecting'
+                  ? 'Setting up your interview...'
+                  : 'Preparing...')}
+              </Typography>
+              {callStatus === 'active' && callStartTimeRef.current && (
+                <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                  Duration: {formatTime(callDuration)}
+                </Typography>
+              )}
+            </Box>
+            <Box flexGrow={1} />
+            <Stack direction="row" spacing={1}>
+              {callStatus === 'active' && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleToggleMute}
+                  startIcon={isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
+                  sx={{ color: '#fff', borderColor: '#fff' }}
+                >
+                  {isMuted ? 'Unmute' : 'Mute'}
+                </Button>
+              )}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleStopCall}
+                startIcon={<CallEndIcon />}
+                sx={{ color: '#fff', borderColor: '#fff' }}
+              >
+                End
+              </Button>
+            </Stack>
           </Box>
 
-          {/* ✅ Enhanced Welcome Message */}
-          <Paper sx={{ p: 3, mb: 3, backgroundColor: 'rgba(123, 31, 162, 0.15)', border: '1px solid rgba(123, 31, 162, 0.3)', borderRadius: '12px' }}>
-            <Box display="flex" alignItems="center" gap={2}>
-              <AutoAwesomeIcon sx={{ color: '#7b1fa2', fontSize: 30 }} />
+          <Box
+            sx={{
+              px: 4,
+              pb: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 3
+            }}
+          >
+            {currentQuestionIndex > 0 && (
               <Box>
-                <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                  Welcome back, {username}! 👋
+                <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                  Progress
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#ccc' }}>
-                  Session time: {CURRENT_TIME} UTC • Ready for your complete mock interview experience?
+                <LinearProgress
+                  variant="determinate"
+                  value={(currentQuestionIndex / parseInt(formData.amount || 1)) * 100}
+                  sx={{
+                    mt: 0.5,
+                    width: 200,
+                    height: 8,
+                    borderRadius: 4,
+                    background: 'rgba(255,255,255,0.25)',
+                    '& .MuiLinearProgress-bar': {
+                      background: 'rgba(255,255,255,0.9)'
+                    }
+                  }}
+                />
+                <Typography variant="caption" sx={{ opacity: 0.75 }}>
+                  Question {currentQuestionIndex} / {formData.amount}
                 </Typography>
               </Box>
-            </Box>
-          </Paper>
+            )}
+          </Box>
 
-          {/* ✅ Status Messages */}
-          {error && (
-            <Alert
-              severity="error"
-              sx={{ mb: 3, borderRadius: '12px' }}
-              action={
-                <IconButton size="small" onClick={() => setError('')} sx={{ color: 'inherit' }}>
-                  ×
-                </IconButton>
-              }
-            >
-              {error}
-            </Alert>
-          )}
-
-          {success && (
-            <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }}>
-              {success}
-            </Alert>
-          )}
-
-
-          {/* ✅ Enhanced Feedback Processing Display */}
-          {feedbackProcessing && (
-            <Paper sx={{ p: 4, mb: 3, textAlign: 'center', backgroundColor: 'rgba(76, 175, 80, 0.1)', border: '1px solid rgba(76, 175, 80, 0.3)', borderRadius: '16px' }}>
-              <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, backgroundColor: '#4caf50' }}>
-                <CheckCircle sx={{ fontSize: 40 }} />
-              </Avatar>
-              <Typography variant="h6" sx={{ color: '#4caf50', mb: 1, fontWeight: 'bold' }}>
-                🧠 Generating Your Interview Feedback
+          {/* Transcript Panel */}
+          <Box
+            ref={transcriptScrollRef}
+            sx={{
+              flexGrow: 1,
+              mx: 3,
+              mb: 2,
+              background: 'rgba(0,0,0,0.35)',
+              borderRadius: 2,
+              p: 2,
+              overflowY: 'auto',
+              backdropFilter: 'blur(4px)'
+            }}
+          >
+            {conversationTranscript.length === 0 && !liveUserPartial ? (
+              <Typography
+                variant="body2"
+                sx={{ opacity: 0.75, textAlign: 'center', mt: 4 }}
+              >
+                Transcript will appear live here...
               </Typography>
-              <Typography variant="body1" sx={{ color: '#ccc', mb: 2 }}>
-                {currentStep}
+            ) : (
+              <>
+                {conversationTranscript.map((msg, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                      mb: 1.5
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        maxWidth: '70%',
+                        px: 1.5,
+                        py: 1,
+                        borderRadius: 2,
+                        background:
+                          msg.role === 'user'
+                            ? 'linear-gradient(135deg,#2196f3,#1976d2)'
+                            : 'linear-gradient(135deg,#ffffff22,#ffffff10)',
+                        color: '#fff',
+                        fontSize: '.9rem',
+                        position: 'relative',
+                        whiteSpace: 'pre-wrap'
+                      }}
+                    >
+                      {msg.content}
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          position: 'absolute',
+                          bottom: -16,
+                          right: 4,
+                          opacity: 0.55,
+                          fontSize: '0.65rem'
+                        }}
+                      >
+                        {formatRelative(callStartTimeRef.current, msg.timestamp)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+
+                {liveUserPartial && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      mb: 1.5
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        maxWidth: '70%',
+                        px: 1.5,
+                        py: 1,
+                        borderRadius: 2,
+                        background: 'linear-gradient(135deg,#64b5f6,#1976d2)',
+                        color: '#fff',
+                        fontSize: '.9rem',
+                        opacity: 0.7,
+                        fontStyle: 'italic',
+                        position: 'relative'
+                      }}
+                    >
+                      {liveUserPartial}
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          position: 'absolute',
+                          bottom: -16,
+                          right: 4,
+                          opacity: 0.55,
+                          fontSize: '0.65rem'
+                        }}
+                      >
+                        (live)
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
+
+          {/* Footer / status */}
+          <Box
+            sx={{
+              px: 3,
+              pb: 1.5,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
+            <Typography variant="caption" sx={{ opacity: 0.7 }}>
+              Session {CURRENT_TIME} • User {username}
+            </Typography>
+            {feedbackProcessing && (
+              <Typography
+                variant="caption"
+                sx={{ opacity: 0.8, display: 'flex', alignItems: 'center', gap: 1 }}
+              >
+                <CircularProgress size={12} color="inherit" />
+                Generating feedback...
               </Typography>
-              <LinearProgress
+            )}
+          </Box>
+
+          {/* Animated bar */}
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: 'rgba(255,255,255,0.25)',
+              overflow: 'hidden'
+            }}
+          >
+            <Box
+              sx={{
+                height: '100%',
+                background: 'linear-gradient(90deg,#00ff87,#60efff)',
+                animation: 'progress 3s ease-in-out infinite',
+                '@keyframes progress': {
+                  '0%': { transform: 'translateX(-100%)' },
+                  '50%': { transform: 'translateX(0)' },
+                  '100%': { transform: 'translateX(100%)' }
+                }
+              }}
+            />
+          </Box>
+        </Box>
+      ) : (
+        // Pre-interview Form Layout
+        <GradientBox>
+          <Container maxWidth="md" sx={{ py: 4 }}>
+            <Box display="flex" alignItems="center" mb={4}>
+              <Button
+                startIcon={<ArrowBack />}
+                onClick={() => navigate('/interview-prep')}
+                sx={{ color: '#aaa', mr: 3 }}
+              >
+                Back
+              </Button>
+              <Typography
+                variant="h4"
+                component="h1"
+                fontWeight="bold"
                 sx={{
-                  mb: 2,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                  '& .MuiLinearProgress-bar': {
-                    backgroundColor: '#4caf50',
-                    borderRadius: 4,
-                  }
+                  background: 'linear-gradient(to right,#a0d8ff,#ff80ab)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
                 }}
-              />
-              <Typography variant="caption" sx={{ color: '#888' }}>
-                Processing at {CURRENT_TIME} for {username} • Usually takes 3-5 seconds
+              >
+                AI Interview Generator 🎤
               </Typography>
-            </Paper>
-          )}
+            </Box>
 
-          {/* ✅ Main Content */}
-          {!isGenerating && !feedbackProcessing ? (
-            /* Interview Form */
+            <Paper
+              sx={{
+                p: 3, mb: 3,
+                backgroundColor: 'rgba(123,31,162,0.15)',
+                border: '1px solid rgba(123,31,162,0.3)',
+                borderRadius: 2
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={2}>
+                <AutoAwesomeIcon sx={{ color: '#7b1fa2', fontSize: 30 }} />
+                <Box>
+                  <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    Welcome back, {username}! 👋
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#ccc' }}>
+                    Session time: {CURRENT_TIME} UTC • Ready for a complete mock interview?
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
+            {error && (
+              <Alert
+                severity="error"
+                sx={{ mb: 3, borderRadius: '12px' }}
+                action={
+                  <IconButton size="small" onClick={() => setError('')} sx={{ color: 'inherit' }}>
+                    ×
+                  </IconButton>
+                }
+              >
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }}>
+                {success}
+              </Alert>
+            )}
+
             <StyledCard>
               <CardContent sx={{ p: 4 }}>
                 <Box display="flex" alignItems="center" gap={2} mb={3}>
@@ -1035,45 +1165,42 @@ useEffect(() => {
                     Complete Interview Experience
                   </Typography>
                 </Box>
-
                 <Typography variant="body2" sx={{ color: '#aaa', mb: 3 }}>
-                  Choose your method: AI voice interview (full experience) or direct generation (questions only).
+                  Choose a voice-driven interview (full experience + feedback) or generate questions only.
                 </Typography>
 
                 <Stack spacing={3}>
-                  {/* Job Role */}
                   <TextField
                     fullWidth
                     label="Job Role"
-                    placeholder="e.g., Frontend Developer, Product Manager, Data Scientist"
+                    placeholder="e.g., Frontend Developer, Product Manager"
                     value={formData.role}
-                    onChange={(e) => handleInputChange('role', e.target.value)}
+                    onChange={e => handleInputChange('role', e.target.value)}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         backgroundColor: '#333',
                         '& fieldset': { borderColor: '#555' },
                         '&:hover fieldset': { borderColor: '#7b1fa2' },
-                        '&.Mui-focused fieldset': { borderColor: '#7b1fa2' },
+                        '&.Mui-focused fieldset': { borderColor: '#7b1fa2' }
                       },
                       '& .MuiInputLabel-root': { color: '#aaa' },
-                      '& .MuiOutlinedInput-input': { color: 'white' },
+                      '& .MuiOutlinedInput-input': { color: 'white' }
                     }}
                   />
 
                   <Box display="flex" gap={2}>
-                    {/* Interview Type */}
                     <FormControl fullWidth>
                       <InputLabel sx={{ color: '#aaa' }}>Interview Type</InputLabel>
                       <Select
                         value={formData.type}
                         label="Interview Type"
-                        onChange={(e) => handleInputChange('type', e.target.value)}
+                        onChange={e => handleInputChange('type', e.target.value)}
                         sx={{
                           backgroundColor: '#333',
                           color: 'white',
                           '& .MuiOutlinedInput-notchedOutline': { borderColor: '#555' },
                           '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' }
                         }}
                       >
                         <MenuItem value="technical">🔧 Technical</MenuItem>
@@ -1082,46 +1209,44 @@ useEffect(() => {
                       </Select>
                     </FormControl>
 
-                    {/* Experience Level */}
                     <FormControl fullWidth>
                       <InputLabel sx={{ color: '#aaa' }}>Experience Level</InputLabel>
                       <Select
                         value={formData.level}
                         label="Experience Level"
-                        onChange={(e) => handleInputChange('level', e.target.value)}
+                        onChange={e => handleInputChange('level', e.target.value)}
                         sx={{
                           backgroundColor: '#333',
                           color: 'white',
                           '& .MuiOutlinedInput-notchedOutline': { borderColor: '#555' },
                           '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' },
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' }
                         }}
                       >
-                        <MenuItem value="junior">🌱 Junior (0-2 years)</MenuItem>
-                        <MenuItem value="mid">🚀 Mid-level (2-5 years)</MenuItem>
-                        <MenuItem value="senior">⭐ Senior (5+ years)</MenuItem>
+                        <MenuItem value="junior">🌱 Junior</MenuItem>
+                        <MenuItem value="mid">🚀 Mid-level</MenuItem>
+                        <MenuItem value="senior">⭐ Senior</MenuItem>
                       </Select>
                     </FormControl>
                   </Box>
 
-                  {/* Tech Stack */}
                   <Box>
                     <TextField
                       fullWidth
                       label="Add Technology/Skill"
-                      placeholder="e.g., React, Node.js, Python, AWS"
+                      placeholder="e.g., React, Node.js, AWS"
                       value={techInput}
-                      onChange={(e) => setTechInput(e.target.value)}
+                      onChange={e => setTechInput(e.target.value)}
                       onKeyPress={handleKeyPress}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           backgroundColor: '#333',
                           '& fieldset': { borderColor: '#555' },
                           '&:hover fieldset': { borderColor: '#7b1fa2' },
-                          '&.Mui-focused fieldset': { borderColor: '#7b1fa2' },
+                          '&.Mui-focused fieldset': { borderColor: '#7b1fa2' }
                         },
                         '& .MuiInputLabel-root': { color: '#aaa' },
-                        '& .MuiOutlinedInput-input': { color: 'white' },
+                        '& .MuiOutlinedInput-input': { color: 'white' }
                       }}
                       InputProps={{
                         endAdornment: (
@@ -1135,23 +1260,22 @@ useEffect(() => {
                         )
                       }}
                     />
-
                     {formData.techstack.length > 0 && (
                       <Box mt={2}>
                         <Typography variant="body2" sx={{ color: '#aaa', mb: 1 }}>
                           Technologies ({formData.techstack.length}):
                         </Typography>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          {formData.techstack.map((tech, index) => (
+                          {formData.techstack.map((tech, i) => (
                             <Chip
-                              key={index}
+                              key={i}
                               label={tech}
                               onDelete={() => handleRemoveTech(tech)}
                               sx={{
                                 backgroundColor: '#7b1fa2',
-                                color: 'white',
+                                color: '#fff',
                                 mb: 1,
-                                '& .MuiChip-deleteIcon': { color: 'white' }
+                                '& .MuiChip-deleteIcon': { color: '#fff' }
                               }}
                             />
                           ))}
@@ -1160,55 +1284,49 @@ useEffect(() => {
                     )}
                   </Box>
 
-                  {/* Number of Questions */}
                   <FormControl fullWidth>
                     <InputLabel sx={{ color: '#aaa' }}>Number of Questions</InputLabel>
                     <Select
                       value={formData.amount}
                       label="Number of Questions"
-                      onChange={(e) => handleInputChange('amount', e.target.value)}
+                      onChange={e => handleInputChange('amount', e.target.value)}
                       sx={{
                         backgroundColor: '#333',
                         color: 'white',
                         '& .MuiOutlinedInput-notchedOutline': { borderColor: '#555' },
                         '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' },
-                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#7b1fa2' }
                       }}
                     >
-                      <MenuItem value={3}>3 Questions (Quick - 10 min)</MenuItem>
-                      <MenuItem value={5}>5 Questions (Standard - 15 min)</MenuItem>
-                      <MenuItem value={7}>7 Questions (Detailed - 25 min)</MenuItem>
-                      <MenuItem value={10}>10 Questions (Comprehensive - 35 min)</MenuItem>
+                      <MenuItem value={3}>3 (Quick)</MenuItem>
+                      <MenuItem value={5}>5 (Standard)</MenuItem>
+                      <MenuItem value={7}>7 (Detailed)</MenuItem>
+                      <MenuItem value={10}>10 (Comprehensive)</MenuItem>
                     </Select>
                   </FormControl>
 
                   <Divider sx={{ my: 2, borderColor: '#555' }} />
 
-                  {/* Action Buttons */}
                   <Stack spacing={2}>
-                    {/* Primary Generation Buttons */}
                     <Stack direction="row" spacing={2}>
                       <GlowingButton
-                                           variant="contained"
-                                           size="large"
-                                           fullWidth
-                                           startIcon={vapi ? <MicIcon /> : <CircularProgress size={20} />}
-                                           onClick={handleStartVoiceInterview}
-                                           disabled={!vapi}
-                                           sx={{
-                                             py: 2,
-                                             background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
-                                             '&:hover': {
-                                               background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
-                                             },
-                                             '&:disabled': {
-                                               background: '#555',
-                                               color: '#999',
-                                             }
-                                           }}
-                                         >
-                                           {vapi ? '🎤 Complete Interview Experience' : 'Initializing Voice...'}
-                                         </GlowingButton>
+                        variant="contained"
+                        size="large"
+                        fullWidth
+                        startIcon={vapi ? <MicIcon /> : <CircularProgress size={20} />}
+                        onClick={handleStartVoiceInterview}
+                        disabled={!vapi}
+                        sx={{
+                          py: 2,
+                          background: 'linear-gradient(45deg,#7b1fa2,#f50057)',
+                          '&:hover': {
+                            background: 'linear-gradient(45deg,#9c27b0,#ff4081)'
+                          },
+                          '&:disabled': { background: '#555', color: '#999' }
+                        }}
+                      >
+                        {vapi ? '🎤 Start Voice Interview' : 'Initializing Voice...'}
+                      </GlowingButton>
 
                       <GlowingButton
                         variant="outlined"
@@ -1224,19 +1342,15 @@ useEffect(() => {
                           '&:hover': {
                             borderColor: '#9c27b0',
                             color: '#9c27b0',
-                            backgroundColor: 'rgba(156, 39, 176, 0.1)'
+                            backgroundColor: 'rgba(156,39,176,0.15)'
                           },
-                          '&:disabled': {
-                            borderColor: '#555',
-                            color: '#999',
-                          }
+                          '&:disabled': { borderColor: '#555', color: '#999' }
                         }}
                       >
                         ⚡ Generate Questions Only
                       </GlowingButton>
                     </Stack>
 
-                    {/* Secondary Buttons */}
                     <Stack direction="row" spacing={2}>
                       <Button
                         variant="outlined"
@@ -1244,13 +1358,12 @@ useEffect(() => {
                         fullWidth
                         startIcon={<RefreshIcon />}
                         onClick={resetForm}
-                        disabled={isGenerating}
                         sx={{
                           borderColor: '#555',
                           color: '#aaa',
                           '&:hover': {
                             borderColor: '#7b1fa2',
-                            color: '#7b1fa2',
+                            color: '#7b1fa2'
                           }
                         }}
                       >
@@ -1263,14 +1376,14 @@ useEffect(() => {
                         fullWidth
                         startIcon={<BugReportIcon />}
                         onClick={handleDirectGeneration}
-                        disabled={!formData.role.trim() || isGenerating}
+                        disabled={!formData.role.trim()}
                         sx={{
                           borderColor: '#f57c00',
                           color: '#f57c00',
                           '&:hover': {
                             borderColor: '#ff9800',
                             color: '#ff9800',
-                            backgroundColor: 'rgba(255, 152, 0, 0.1)'
+                            backgroundColor: 'rgba(255,152,0,0.15)'
                           }
                         }}
                       >
@@ -1279,243 +1392,24 @@ useEffect(() => {
                     </Stack>
                   </Stack>
 
-
-                  {/* Info Boxes */}
-                  <Stack spacing={2}>
-                    <Paper sx={{ p: 2, backgroundColor: 'rgba(123, 31, 162, 0.1)', border: '1px solid rgba(123, 31, 162, 0.3)', borderRadius: '8px' }}>
+                  <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Paper sx={{ p: 2, backgroundColor: 'rgba(123,31,162,0.12)', border: '1px solid rgba(123,31,162,0.3)', borderRadius: 2 }}>
                       <Typography variant="body2" sx={{ color: '#ccc' }}>
-                        🎤 <strong>Complete Interview:</strong> Full voice-based mock interview where AI asks questions and you answer, followed by detailed feedback based on your responses.
+                        🎤 <strong>Voice Interview:</strong> Full sequential Q&A with live transcription & automatic feedback.
                       </Typography>
                     </Paper>
-
-                    <Paper sx={{ p: 2, backgroundColor: 'rgba(245, 0, 87, 0.1)', border: '1px solid rgba(245, 0, 87, 0.3)', borderRadius: '8px' }}>
+                    <Paper sx={{ p: 2, backgroundColor: 'rgba(245,0,87,0.12)', border: '1px solid rgba(245,0,87,0.3)', borderRadius: 2 }}>
                       <Typography variant="body2" sx={{ color: '#ccc' }}>
-                        ⚡ <strong>Questions Only:</strong> Generate interview questions based on your preferences without the voice interaction (for practice or review).
+                        ⚡ <strong>Questions Only:</strong> Quickly generate interview questions for self-practice.
                       </Typography>
                     </Paper>
                   </Stack>
                 </Stack>
               </CardContent>
             </StyledCard>
-          ) : (
-            /* ✅ Enhanced Active Interview UI */
-           <Paper
-             sx={{
-               p: 6,
-               textAlign: 'center',
-               background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
-               borderRadius: 0, // full screen look
-               position: 'relative',
-               minHeight: '100vh',
-               display: 'flex',
-               flexDirection: 'column',
-               overflow: 'auto'   // allow scroll
-             }}
-           >
-
-
-              <PulsingAvatar
-                sx={{
-                  width: 120,
-                  height: 120,
-                  mx: 'auto',
-                  mb: 3,
-                  background: 'rgba(255,255,255,0.2)',
-                }}
-              >
-                <PhoneIcon sx={{ fontSize: 60 }} />
-              </PulsingAvatar>
-
-              <Typography variant="h5" fontWeight="bold" mb={1}>
-                {callStatus === 'connecting' ? 'Connecting...' : 'AI Interview in Progress'}
-              </Typography>
-
-              <Typography variant="body1" sx={{ opacity: 0.9, mb: 2 }}>
-                {callStatus === 'connecting'
-                  ? 'Setting up your complete interview experience...'
-                  : currentStep || 'Conducting your mock interview session'
-                }
-              </Typography>
-             {(callStatus === 'active' || callStatus === 'connecting') && (
-               <Stack direction="row" spacing={2} justifyContent="center" sx={{ my: 3 }}>
-                 <Button
-                   variant="outlined"
-                   size="medium"
-                   startIcon={<BugReportIcon />}
-                   onClick={handleManualFunctionCallFromTranscript}
-                   disabled={!vapi}
-                   sx={{
-                     borderColor: '#4caf50',
-                     color: '#4caf50',
-                     '&:hover': {
-                       borderColor: '#388e3c',
-                       color: '#388e3c',
-                       backgroundColor: 'rgba(76, 175, 80, 0.1)'
-                     }
-                   }}
-                 >
-                   🛠 Emit Function Call from Transcript
-                 </Button>
-               </Stack>
-             )}
-
-              {callStatus === 'active' && (
-                <>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    Duration: {formatTime(callDuration)}
-                  </Typography>
-
-                  {currentQuestionIndex > 0 && (
-                    <Box sx={{ mb: 3 }}>
-                      <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
-                        Interview Progress:
-                      </Typography>
-                      <Typography variant="h6" fontWeight="bold">
-                        Question {currentQuestionIndex} of {formData.amount}
-                      </Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={(currentQuestionIndex / parseInt(formData.amount)) * 100}
-                        sx={{
-                          mt: 1,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: 'rgba(255,255,255,0.2)',
-                          '& .MuiLinearProgress-bar': {
-                            backgroundColor: 'rgba(255,255,255,0.8)',
-                            borderRadius: 4,
-                          }
-                        }}
-                      />
-                    </Box>
-                  )}
-
-                  {currentStep && (
-                    <Box sx={{ mb: 3 }}>
-                      <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                        Current Step:
-                      </Typography>
-                      <Typography variant="body1" fontWeight="bold">
-                        {currentStep}
-                      </Typography>
-                    </Box>
-                  )}
-                </>
-              )}
-
-              <Stack direction="row" spacing={2} justifyContent="center">
-                {callStatus === 'active' && (
-                  <Button
-                    variant="outlined"
-                    onClick={handleToggleMute}
-                    startIcon={isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
-                    sx={{
-                      borderColor: 'white',
-                      color: 'white',
-                      '&:hover': {
-                        borderColor: 'white',
-                        background: 'rgba(255,255,255,0.1)',
-                      }
-                    }}
-                  >
-                    {isMuted ? 'Unmute' : 'Mute'}
-                  </Button>
-                )}
-
-                <Button
-                  variant="outlined"
-                  size="large"
-                  onClick={handleStopCall}
-                  startIcon={<CallEndIcon />}
-                  sx={{
-                    borderColor: 'white',
-                    color: 'white',
-                    px: 4,
-                    '&:hover': {
-                      borderColor: 'white',
-                      background: 'rgba(255,255,255,0.1)',
-                    }
-                  }}
-                >
-                  End Interview
-                </Button>
-              </Stack>
-
-        <Box
-          sx={{
-            flexGrow: 1,
-            mt: 3,
-            p: 3,
-            overflowY: 'auto',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            borderRadius: '12px',
-            minHeight: '30vh',
-            maxHeight: '70vh'
-          }}
-        >
-
-           {conversationTranscript.length === 0 ? (
-             <Typography variant="body2" color="text.secondary" align="center">
-               Transcript will appear here as you and the AI speak...
-             </Typography>
-           ) : (
-             conversationTranscript.map((msg, idx) => (
-               <Box
-                 key={idx}
-                 display="flex"
-                 justifyContent={msg.role === 'user' ? 'flex-end' : 'flex-start'}
-                 mb={2}
-               >
-                 <Box
-                   sx={{
-                     px: 2,
-                     py: 1,
-                     borderRadius: 2,
-                     maxWidth: '70%',
-                   backgroundColor:
-                     msg.role === 'user' ? '#1976d2' : 'rgba(255,255,255,0.2)', // blue for user
-                   color: '#fff'
-                   }}
-                 >
-                   {msg.content}
-                 </Box>
-               </Box>
-             ))
-           )}
-         </Box>
-
-
-            {/* Session Info */}
-            <Typography variant="caption" sx={{ opacity: 0.7, mt: 3, display: 'block' }}>
-              Session: {CURRENT_TIME} • User: {username} • Auto-feedback enabled
-            </Typography>
-
-            {/* Progress indicator */}
-            <Box sx={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 4,
-              background: 'rgba(255,255,255,0.2)',
-              overflow: 'hidden'
-            }}>
-              <Box sx={{
-                height: '100%',
-                background: 'linear-gradient(90deg, #00ff87, #60efff)',
-                animation: 'progress 3s ease-in-out infinite',
-                '@keyframes progress': {
-                  '0%': { transform: 'translateX(-100%)' },
-                  '50%': { transform: 'translateX(0)' },
-                  '100%': { transform: 'translateX(100%)' }
-                }
-              }} />
-            </Box>
-
-            </Paper>
-          )}
-        </Container>
-      </GradientBox>
+          </Container>
+        </GradientBox>
+      )}
     </ThemeProvider>
   );
 }

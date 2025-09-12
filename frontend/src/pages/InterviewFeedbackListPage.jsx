@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -20,14 +20,13 @@ import {
   Assessment,
   TrendingUp,
   Star,
-  CheckCircle,
-  Schedule
+  CheckCircle
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
-const NGROK_URL = 'https://1a066ab80207.ngrok-free.app';
+const NGROK_URL = 'https://a651c504235e.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 17:18:59';
-const CURRENT_USER = 'Arjo-Kar';
+const CURRENT_USER_FALLBACK = 'User';
 
 const darkTheme = createTheme({
   palette: {
@@ -36,23 +35,18 @@ const darkTheme = createTheme({
       default: '#100827',
       paper: 'rgba(25, 25, 25, 0.8)',
     },
-    primary: {
-      main: '#7b1fa2',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: '#cccccc',
-    },
+    primary: { main: '#7b1fa2' },
+    text: { primary: '#ffffff', secondary: '#cccccc' },
   },
 });
 
-const GradientBox = styled(Box)(({ theme }) => ({
+const GradientBox = styled(Box)(() => ({
   background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
   minHeight: '100vh',
   color: 'white',
 }));
 
-const FeedbackCard = styled(Card)(({ theme }) => ({
+const FeedbackCard = styled(Card)(() => ({
   height: '100%',
   background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
   border: '1px solid #444',
@@ -68,79 +62,55 @@ const FeedbackCard = styled(Card)(({ theme }) => ({
 
 function InterviewFeedbackListPage() {
   const navigate = useNavigate();
+
+  // Data state
   const [feedbacks, setFeedbacks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [stats, setStats] = useState(null);
 
-  const getUserInfo = () => {
-    const userId = localStorage.getItem('userId') || '1';
-    const username = localStorage.getItem('username') || CURRENT_USER;
-    const authToken = localStorage.getItem('authToken');
-    return { userId, username, authToken };
+  // Auth / resolution
+  const [resolvedUserId, setResolvedUserId] = useState(null);
+  const [username, setUsername] = useState(CURRENT_USER_FALLBACK);
+  const [authToken, setAuthToken] = useState(null);
+
+  // Loading / errors
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [statsError, setStatsError] = useState('');
+  const [authWarning, setAuthWarning] = useState('');
+
+  // ------------------------------------------------------------
+  // Helpers
+  // ------------------------------------------------------------
+  const getStoredUser = () => {
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = storedUser.id || localStorage.getItem('userId') || null;
+    const usernameValue =
+      storedUser.name ||
+      storedUser.username ||
+      localStorage.getItem('username') ||
+      CURRENT_USER_FALLBACK;
+    const token =
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('token') ||
+      null;
+    return { userId, usernameValue, token };
   };
 
-  useEffect(() => {
-    fetchFeedbacks();
-    fetchStats();
-  }, []);
+  const buildHeaders = () => ({
+    'Authorization': `Bearer ${authToken}`,
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
+  });
 
-  const fetchFeedbacks = async () => {
-    try {
-      setLoading(true);
-      const userInfo = getUserInfo();
+  // If in future you add "me" endpoints, flip these to those endpoints.
+  const buildFeedbackListEndpoint = (userId) =>
+    `${NGROK_URL}/api/interviews/feedback/user/${userId}`;
+  const buildFeedbackStatsEndpoint = (userId) =>
+    `${NGROK_URL}/api/interviews/feedback/user/${userId}/stats`;
 
-      console.log(`🔍 Fetching all feedbacks for user ${userInfo.username} at ${CURRENT_TIME}`);
-
-      const response = await fetch(`${NGROK_URL}/api/interviews/feedback/user/${userInfo.userId}`, {
-        headers: {
-          'Authorization': `Bearer ${userInfo.authToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFeedbacks(data.feedbacks || []);
-        console.log(`✅ Loaded ${data.feedbacks?.length || 0} feedbacks for ${userInfo.username}`);
-      } else {
-        throw new Error(`Failed to fetch feedbacks: ${response.status}`);
-      }
-    } catch (err) {
-      console.error('❌ Error fetching feedbacks:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const userInfo = getUserInfo();
-
-      const response = await fetch(`${NGROK_URL}/api/interviews/feedback/user/${userInfo.userId}/stats`, {
-        headers: {
-          'Authorization': `Bearer ${userInfo.authToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats);
-        console.log('✅ Stats loaded:', data.stats);
-      }
-    } catch (err) {
-      console.error('❌ Error fetching stats:', err);
-    }
-  };
-
+  // Single definition of getScoreColor (removed duplicate)
   const getScoreColor = (score) => {
     if (score >= 9) return '#2e7d32';
     if (score >= 8) return '#4caf50';
@@ -150,27 +120,198 @@ function InterviewFeedbackListPage() {
     return '#f44336';
   };
 
-  const getScoreLevel = (score) => {
-    if (score >= 9) return 'Outstanding';
-    if (score >= 8) return 'Excellent';
-    if (score >= 7) return 'Good';
-    if (score >= 6) return 'Average';
-    if (score >= 4) return 'Below Average';
-    return 'Needs Improvement';
-  };
+  // ------------------------------------------------------------
+  // Resolve the authenticated user's true ID via /my-interviews
+  // ------------------------------------------------------------
+  const resolveUserContext = useCallback(async () => {
+    const { userId, usernameValue, token } = getStoredUser();
+    setUsername(usernameValue);
+    setAuthToken(token);
 
-  if (loading) {
-    return (
-      <ThemeProvider theme={darkTheme}>
-        <GradientBox>
-          <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-              <CircularProgress sx={{ color: '#7b1fa2' }} />
-            </Box>
-          </Container>
-        </GradientBox>
-      </ThemeProvider>
-    );
+    if (!token) {
+      setAuthWarning('No auth token found in storage. Please log in again.');
+      setLoading(false);
+      setStatsLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${NGROK_URL}/api/interviews/my-interviews`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        credentials: 'include'
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        setAuthWarning('Session expired or unauthorized. Please re-login.');
+        setLoading(false);
+        setStatsLoading(false);
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        let discoveredId = null;
+        if (Array.isArray(data.interviews) && data.interviews.length > 0) {
+          const first = data.interviews[0];
+          discoveredId = first.userId || first.userID || first.userid || null;
+        }
+        if (!discoveredId && userId) discoveredId = userId;
+
+        if (!discoveredId) {
+          setResolvedUserId(null);
+          setLoading(false);
+          setStatsLoading(false);
+          return;
+        }
+
+        setResolvedUserId(discoveredId);
+        return;
+      } else {
+        if (userId) {
+          setResolvedUserId(userId);
+        } else {
+          setAuthWarning('Could not resolve user ID. Please start an interview first.');
+          setResolvedUserId(null);
+        }
+      }
+    } catch (e) {
+      console.warn('User context resolution failed:', e);
+      if (userId) {
+        setResolvedUserId(userId);
+      } else {
+        setAuthWarning('Network error resolving user. Please retry.');
+      }
+    }
+  }, []);
+
+  // ------------------------------------------------------------
+  // Fetch feedback list
+  // ------------------------------------------------------------
+  const fetchFeedbacks = useCallback(async () => {
+    if (!authToken) return;
+    if (resolvedUserId == null) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      const listUrl = buildFeedbackListEndpoint(resolvedUserId);
+      const resp = await fetch(listUrl, {
+        headers: buildHeaders(),
+        credentials: 'include'
+      });
+
+      if (resp.status === 401) {
+        setAuthWarning('Unauthorized. Please login again.');
+        setFeedbacks([]);
+        return;
+      }
+      if (resp.status === 403) {
+        setError(`Forbidden (user mismatch). Resolved userId=${resolvedUserId}.`);
+        setFeedbacks([]);
+        return;
+      }
+      if (!resp.ok) {
+        setError(`Failed to fetch feedbacks: ${resp.status}`);
+        setFeedbacks([]);
+        return;
+      }
+
+      const data = await resp.json();
+      setFeedbacks(Array.isArray(data.feedbacks) ? data.feedbacks : []);
+    } catch (e) {
+      setError(`Network error: ${e.message}`);
+      setFeedbacks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken, resolvedUserId]);
+
+  // ------------------------------------------------------------
+  // Fetch stats
+  // ------------------------------------------------------------
+  const fetchStats = useCallback(async () => {
+    if (!authToken) return;
+    if (resolvedUserId == null) {
+      setStatsLoading(false);
+      return;
+    }
+
+    try {
+      setStatsLoading(true);
+      setStatsError('');
+
+      const statsUrl = buildFeedbackStatsEndpoint(resolvedUserId);
+      const resp = await fetch(statsUrl, {
+        headers: buildHeaders(),
+        credentials: 'include'
+      });
+
+      if (resp.status === 401) {
+        setAuthWarning('Unauthorized. Please login again.');
+        setStats(null);
+        return;
+      }
+      if (resp.status === 403) {
+        setStatsError(`Forbidden loading stats (user mismatch for ${resolvedUserId}).`);
+        setStats(null);
+        return;
+      }
+      if (!resp.ok) {
+        setStatsError(`Failed to fetch stats: ${resp.status}`);
+        setStats(null);
+        return;
+      }
+
+      const data = await resp.json();
+      setStats(data.stats || null);
+    } catch (e) {
+      setStatsError(`Network error: ${e.message}`);
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [authToken, resolvedUserId]);
+
+  // ------------------------------------------------------------
+  // Effects
+  // ------------------------------------------------------------
+  useEffect(() => {
+    resolveUserContext();
+  }, [resolveUserContext]);
+
+  useEffect(() => {
+    if (authToken !== null) {
+      fetchFeedbacks();
+      fetchStats();
+    }
+  }, [authToken, resolvedUserId, fetchFeedbacks, fetchStats]);
+
+  // ------------------------------------------------------------
+  // UI helpers
+  // ------------------------------------------------------------
+  const renderLoading = () => (
+    <ThemeProvider theme={darkTheme}>
+      <GradientBox>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+            <CircularProgress sx={{ color: '#7b1fa2' }} />
+          </Box>
+        </Container>
+      </GradientBox>
+    </ThemeProvider>
+  );
+
+  if (loading && !error && !authWarning) {
+    return renderLoading();
   }
 
   return (
@@ -200,8 +341,26 @@ function InterviewFeedbackListPage() {
             </Typography>
           </Box>
 
+          {authWarning && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              {authWarning}
+            </Alert>
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+
+          {statsError && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {statsError}
+            </Alert>
+          )}
+
           {/* Stats Overview */}
-          {stats && (
+          {!statsLoading && stats && (
             <Grid container spacing={3} mb={4}>
               <Grid item xs={12} sm={6} md={3}>
                 <Paper sx={{ p: 3, textAlign: 'center', background: 'linear-gradient(135deg, #7b1fa2, #9c27b0)' }}>
@@ -258,20 +417,18 @@ function InterviewFeedbackListPage() {
             </Grid>
           )}
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
-
           {/* Feedback List */}
-          {feedbacks.length === 0 ? (
+          {feedbacks.length === 0 && !loading ? (
             <Paper sx={{ p: 6, textAlign: 'center', backgroundColor: 'rgba(25, 25, 25, 0.8)' }}>
               <Typography variant="h6" sx={{ color: '#aaa', mb: 2 }}>
-                No feedback available yet
+                {resolvedUserId == null
+                  ? 'No user context yet (no interviews created).'
+                  : 'No feedback available yet'}
               </Typography>
               <Typography variant="body2" sx={{ color: '#777' }}>
-                Complete some interviews to see your feedback history here!
+                {resolvedUserId == null
+                  ? 'Generate an interview to start receiving feedback.'
+                  : 'Complete some interviews to see your feedback history here!'}
               </Typography>
             </Paper>
           ) : (
@@ -290,7 +447,9 @@ function InterviewFeedbackListPage() {
                           }}
                         />
                         <Typography variant="body2" sx={{ color: '#aaa' }}>
-                          {new Date(feedback.createdAt).toLocaleDateString()}
+                          {feedback.createdAt
+                            ? new Date(feedback.createdAt).toLocaleDateString()
+                            : ''}
                         </Typography>
                       </Box>
 

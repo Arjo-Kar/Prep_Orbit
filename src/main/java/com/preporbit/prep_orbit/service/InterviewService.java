@@ -161,7 +161,7 @@ public class InterviewService {
                         "The tech stack used in the job is: %s. " +
                         "The focus between behavioural and technical questions should lean towards: %s. " +
                         "The amount of questions required is: %d. " +
-                        "Please return only the questions, without any additional text. " +
+                        "Please return only the questions, without any additional text. Also don't ask for any written type question like writing codes and ask concise and precise question, avoid nesting multiple question in a single one" +
                         "The questions are going to be read by a voice assistant so do not use '/' or '*' or any other special characters which might break the voice assistant. " +
                         "Return the questions formatted exactly like this JSON array: " +
                         "[\"Question 1\", \"Question 2\", \"Question 3\"] " +

@@ -44,7 +44,7 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
-const NGROK_URL = 'https://1a066ab80207.ngrok-free.app';
+const NGROK_URL = 'https://a651c504235e.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 17:25:38';
 
 // Dark theme with enhanced styling
@@ -322,7 +322,7 @@ function InterviewPrepPage() {
     try {
       const userInfo = getUserInfo();
 
-      const response = await fetch(`${NGROK_URL}/api/interviews/feedback/user/${userInfo.userId}/stats`, {
+      const response = await fetch(`${NGROK_URL}/api/interviews/user/${userInfo.userId}/stats`, {
         headers: {
           'Authorization': `Bearer ${userInfo.authToken}`,
           'Content-Type': 'application/json',
