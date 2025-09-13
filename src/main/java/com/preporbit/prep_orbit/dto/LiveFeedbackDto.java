@@ -50,6 +50,10 @@ public class LiveFeedbackDto {
         this.rating = rating;
     }
 
+    public String getSuggestion() {          // <-- ADDED
+        return suggestion;
+    }
+
     public void setSuggestion(String suggestion) {
         this.suggestion = suggestion;
     }

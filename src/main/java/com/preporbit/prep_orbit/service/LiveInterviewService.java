@@ -257,10 +257,20 @@ public class LiveInterviewService {
     // Get answers for a live interview for authenticated user
     public List<InterviewAnswer> getAnswersForLiveInterviewForUser(Long liveInterviewId, Long userId) {
         LiveInterview interview = liveInterviewRepository.findById(liveInterviewId).orElse(null);
-        if (interview == null || !interview.getUserId().equals(userId)) {
+        if (interview == null) {
+            logger.warn("LiveInterview {} not found for user {}", liveInterviewId, userId);
             return new ArrayList<>();
         }
-        return interviewAnswerRepository.findByLiveInterviewId(liveInterviewId);
+        if (!interview.getUserId().equals(userId)) {
+            logger.warn("Access denied: user {} tried to access interview {} owned by {}", userId, liveInterviewId, interview.getUserId());
+            return new ArrayList<>();
+        }
+
+        List<InterviewAnswer> answers =
+                interviewAnswerRepository.findByLiveInterview_IdAndUserIdOrderByIdAsc(liveInterviewId, userId);
+
+        logger.debug("Fetched {} answers for liveInterview={} user={}", answers.size(), liveInterviewId, userId);
+        return answers;
     }
 
     // Submit answer for a question for authenticated user
@@ -283,66 +293,118 @@ public class LiveInterviewService {
     }
 
     // Generate feedback for a submitted answer for authenticated user
+    // Replace ONLY the generateFeedbackForUser method and add the helper parseRatingFlexible + maybe logging.
+// Keep the rest of the class intact.
+
+    // Generate feedback for a submitted answer for authenticated user
     public LiveFeedbackDto generateFeedbackForUser(Long answerId, Long userId) {
         InterviewAnswer answer = interviewAnswerRepository.findById(answerId).orElse(null);
         if (answer == null || !answer.getLiveInterview().getUserId().equals(userId)) {
             return null;
         }
+
         String prompt = String.format(
-                "For the following interview question, compare the user's answer with the expected answer. While Comparing if you find any typo or grammatical or spelling mistake consider the most nearby one it was supposed to be and then evaluate." +
-                        "Give a very concise feedback, a very short feedback within at most 3 lines. a numerical rating out of 10, and 1-2 precise improvement suggestions. " +
-                        "Respond in JSON format: {\"feedback\": \"...\", \"rating\": 8, \"suggestion\": \"...\"}\n" +
+                "Evaluate the interview answer. Compare expected vs user answer. " +
+                        "Consider minor typos acceptable. Provide concise feedback (<=3 lines), an integer rating 1-10, " +
+                        "and 1 short improvement suggestion. Respond ONLY with JSON:\n" +
+                        "{\"feedback\":\"...\",\"rating\":7,\"suggestion\":\"...\"}\n" +
                         "Question: %s\nExpected Answer: %s\nUser's Answer: %s",
-                answer.getQuestion().getQuestion(),
-                answer.getCorrectAns(),
-                answer.getAnswer()
+                safeStr(answer.getQuestion().getQuestion()),
+                safeStr(answer.getCorrectAns()),
+                safeStr(answer.getAnswer())
         );
 
         String geminiResponse = geminiService.askGemini(prompt);
+        logger.debug("Raw Gemini response for answerId {}: {}", answerId, geminiResponse);
+
+        String raw = geminiResponse == null ? "" : geminiResponse.trim();
+
+        // Strip code fences & isolate JSON
+        String cleaned = raw
+                .replaceAll("```json", "")
+                .replaceAll("```", "")
+                .replaceAll("`", "")
+                .trim();
+
+        int jsStart = cleaned.indexOf('{');
+        int jsEnd = cleaned.lastIndexOf('}');
+        String jsonCandidate = (jsStart != -1 && jsEnd > jsStart)
+                ? cleaned.substring(jsStart, jsEnd + 1).trim()
+                : null;
 
         String feedbackText = "";
         Integer ratingValue = null;
         String suggestion = "";
 
-        if (geminiResponse != null && geminiResponse.trim().startsWith("{")) {
-            // Parse JSON response
+        ObjectMapper mapper = new ObjectMapper();
+
+        // 1. Try JSON parse
+        if (jsonCandidate != null) {
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode node = mapper.readTree(geminiResponse);
-                feedbackText = node.has("feedback") ? node.get("feedback").asText() : "";
-                ratingValue = node.has("rating") ? node.get("rating").asInt() : null;
-                suggestion = node.has("suggestion") ? node.get("suggestion").asText() : "";
-            } catch (Exception e) {
-                feedbackText = geminiResponse;
-            }
-        } else if (geminiResponse != null) {
-            // Fallback: parse lines
-            String[] lines = geminiResponse.split("\n");
-            for (String line : lines) {
-                if (line.trim().toLowerCase().startsWith("rating:")) {
-                    String ratingStr = line.replaceAll("[^0-9]", "");
-                    if (!ratingStr.isEmpty()) {
-                        try {
-                            ratingValue = Integer.parseInt(ratingStr.length() > 2 ? ratingStr.substring(0, ratingStr.length() - 2) : ratingStr);
-                        } catch (NumberFormatException e) {
-                            ratingValue = null;
-                        }
-                    }
-                } else if (line.trim().toLowerCase().startsWith("feedback:")) {
-                    feedbackText = line.substring(line.indexOf(":") + 1).trim();
-                } else if (line.trim().toLowerCase().startsWith("suggestion:")) {
-                    suggestion = line.substring(line.indexOf(":") + 1).trim();
+                JsonNode node = mapper.readTree(jsonCandidate);
+                feedbackText = node.hasNonNull("feedback") ? node.get("feedback").asText().trim() : "";
+                if (node.has("rating")) {
+                    JsonNode rNode = node.get("rating");
+                    if (rNode.isNumber()) ratingValue = rNode.asInt();
+                    else if (rNode.isTextual()) ratingValue = parseRatingFlexible(rNode.asText());
                 }
-            }
-            if (feedbackText.isEmpty()) {
-                feedbackText = geminiResponse;
+                suggestion = node.hasNonNull("suggestion") ? node.get("suggestion").asText().trim() : "";
+            } catch (Exception e) {
+                logger.debug("JSON parse failed, falling back. {}", e.getMessage());
             }
         }
 
-        // Persist feedback, rating, and suggestion to InterviewAnswer if desired
+        // 2. Regex extraction if rating missing
+        if (ratingValue == null) {
+            // "rating": 8
+            var m = java.util.regex.Pattern.compile("\"rating\"\\s*:\\s*(\\d{1,2})").matcher(cleaned);
+            if (m.find()) {
+                ratingValue = Integer.parseInt(m.group(1));
+            }
+        }
+        if (ratingValue == null) {
+            // Rating: 8/10 or Rating - 8
+            var m2 = java.util.regex.Pattern.compile("(?i)rating\\s*[:\\-]?\\s*(\\d{1,2})(?:\\s*/\\s*10)?").matcher(cleaned);
+            if (m2.find()) {
+                ratingValue = Integer.parseInt(m2.group(1));
+            }
+        }
+
+        // 3. Suggestion fallback
+        if (suggestion.isEmpty()) {
+            var sm = java.util.regex.Pattern.compile("\"suggestion\"\\s*:\\s*\"([^\"]+)\"").matcher(cleaned);
+            if (sm.find()) {
+                suggestion = sm.group(1).trim();
+            } else {
+                var sm2 = java.util.regex.Pattern.compile("(?i)suggestion\\s*:\\s*(.+)").matcher(cleaned);
+                if (sm2.find()) suggestion = sm2.group(1).trim();
+            }
+        }
+
+        // 4. Feedback fallback
+        if (feedbackText.isEmpty()) {
+            var fm = java.util.regex.Pattern.compile("\"feedback\"\\s*:\\s*\"([^\"]+)\"").matcher(cleaned);
+            if (fm.find()) {
+                feedbackText = fm.group(1).trim();
+            } else {
+                // As a last resort, take first 500 chars of cleaned text (avoid dumping whole model output)
+                feedbackText = cleaned.length() > 500 ? cleaned.substring(0, 500) : cleaned;
+            }
+        }
+
+        // 5. Clamp rating
+        if (ratingValue != null) {
+            if (ratingValue < 0) ratingValue = 0;
+            if (ratingValue > 10) ratingValue = 10;
+        }
+
+        logger.info("Parsed feedback for answerId {} -> rating={} suggestion='{}'", answerId, ratingValue, suggestion);
+
+        // Persist WITHOUT forcing 0 if null (store null so we know parse failed)
         answer.setFeedback(feedbackText);
-        answer.setRating(ratingValue != null ? ratingValue : 0);
-        // If you have a suggestion field in InterviewAnswer, set it here
+        if (ratingValue != null) {
+            answer.setRating(ratingValue);
+        }
         interviewAnswerRepository.save(answer);
 
         LiveFeedbackDto dto = new LiveFeedbackDto();
@@ -350,10 +412,26 @@ public class LiveInterviewService {
         dto.setCorrectAns(answer.getCorrectAns());
         dto.setUserAns(answer.getAnswer());
         dto.setFeedback(feedbackText);
-        dto.setRating(ratingValue != null ? ratingValue : 0);
+        dto.setRating(ratingValue != null ? ratingValue : 0); // Frontend expects a number; 0 means “unrated” now
         dto.setSuggestion(suggestion);
 
         return dto;
+    }
+
+    private Integer parseRatingFlexible(String raw) {
+        if (raw == null) return null;
+        var m = java.util.regex.Pattern.compile("(\\d{1,2})").matcher(raw);
+        if (m.find()) {
+            try {
+                int val = Integer.parseInt(m.group(1));
+                if (val >= 0 && val <= 10) return val;
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private String safeStr(Object o) {
+        return o == null ? "" : o.toString();
     }
 
     public byte[] textToSpeechGoogle(String text) {
