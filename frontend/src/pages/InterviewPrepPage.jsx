@@ -43,7 +43,7 @@ import {
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
 /* ====================== Config ====================== */
-const NGROK_URL = 'https://d99ca3fc74f4.ngrok-free.app';
+const NGROK_URL = 'https://c28dbe38c3c2.ngrok-free.app';
 
 /* ====================== Theme ====================== */
 const darkTheme = createTheme({

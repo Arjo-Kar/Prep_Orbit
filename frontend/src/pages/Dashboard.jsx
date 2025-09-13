@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
-  Container,
   Grid,
   Card,
   CardContent,
@@ -11,10 +10,8 @@ import {
   Button,
   Paper,
   Avatar,
-  Chip,
   CircularProgress,
   Alert,
-  IconButton,
   Stack,
   Divider,
 } from "@mui/material";
@@ -24,7 +21,7 @@ import {
   TrendingUp,
   EmojiEvents as Award,
   Schedule as Clock,
-  Psychology as Brain,
+  Psychology as BrainIcon,
   PlayArrow as Play,
   Refresh as RefreshCw,
   Assessment as TrendingUpIcon,
@@ -34,74 +31,9 @@ import {
   Mic as MicIcon,
   Description as DescriptionIcon,
 } from "@mui/icons-material";
-import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
+import PageLayout from "../components/PageLayout";
 import CodingChallengeAPI from "../api/CodingChallengeAPI";
-
-// Dark theme to match the CodingChallengePage
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: "#100827",
-      paper: "rgba(25, 25, 25, 0.8)",
-    },
-    primary: {
-      main: "#7b1fa2",
-    },
-    secondary: {
-      main: "#f50057",
-    },
-    text: {
-      primary: "#ffffff",
-      secondary: "#cccccc",
-    },
-  },
-  typography: {
-    fontFamily:
-      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  },
-  components: {
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: "16px",
-          backgroundImage: "none",
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: "12px",
-          textTransform: "none",
-          fontWeight: 600,
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundImage: "none",
-          border: "1px solid rgba(45, 45, 45, 0.5)",
-          backdropFilter: "blur(4px)",
-        },
-      },
-    },
-  },
-});
-
-// Styled components matching the CodingChallengePage aesthetic
-const GradientBox = styled(Box)(({ theme }) => ({
-  background: "linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)",
-  minHeight: "100vh",
-  width: "100vw",
-  color: "white",
-  position: "absolute", // Changed from "fixed" to "absolute" to fix scrolling
-  top: 0,
-  left: 0,
-  zIndex: 1000,
-  overflowY: "auto",
-}));
 
 const StatsCard = styled(Card)(({ theme }) => ({
   height: "100%",
@@ -113,6 +45,11 @@ const StatsCard = styled(Card)(({ theme }) => ({
     boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
     border: "1px solid #7b1fa2",
   },
+}));
+
+const MainCard = styled(Card)(({ theme }) => ({
+  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+  border: "1px solid #444",
 }));
 
 const ActionButton = styled(Button)(({ theme }) => ({
@@ -127,85 +64,44 @@ const ActionButton = styled(Button)(({ theme }) => ({
   },
 }));
 
-const HeaderCard = styled(Card)(({ theme }) => ({
-  background: "linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)",
-  backdropFilter: "blur(8px)",
-  boxShadow: "0 4px 30px rgba(0, 0, 0, 0.5)",
-  border: "1px solid rgba(126, 87, 194, 0.5)",
-  marginBottom: theme.spacing(4),
-}));
+const inputSx = {
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "#333",
+    "& fieldset": { borderColor: "#555" },
+    "&:hover fieldset": { borderColor: "#7b1fa2" },
+    "&.Mui-focused fieldset": { borderColor: "#7b1fa2" },
+  },
+  "& .MuiInputLabel-root": { color: "#aaa" },
+  "& .MuiOutlinedInput-input": { color: "white" },
+};
 
-const DailyChallengeCard = styled(Card)(({ theme }) => ({
-  height: "100%",
-  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
-  border: "1px solid #444",
-  overflow: "hidden",
-}));
-
-const QuizCard = styled(Card)(({ theme }) => ({
-  height: "100%",
-  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
-  border: "1px solid #444",
-}));
-
-// Main container for proper alignment
-const DashboardContainer = styled(Container)(({ theme }) => ({
-  position: "relative",
-  zIndex: 1,
-  width: "100%",
-  maxWidth: "none !important",
-  margin: "0 auto",
-  padding: "20px",
-}));
-
-// StatCard component definition
-const StatCard = ({ title, value, icon, color, gradient }) => (
+const StatTile = ({ title, value, icon, gradient }) => (
   <StatsCard>
     <CardContent sx={{ p: 3 }}>
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-      >
+      <Box display="flex" alignItems="center" justifyContent="space-between">
         <Box>
           <Typography variant="body2" sx={{ color: "#aaa", mb: 1 }}>
             {title}
           </Typography>
-          <Typography
-            variant="h4"
-            component="div"
-            fontWeight="bold"
-            sx={{ color: "white" }}
-          >
+          <Typography variant="h4" component="div" fontWeight="bold" sx={{ color: "white" }}>
             {value}
           </Typography>
         </Box>
-        <Avatar
-          sx={{
-            width: 56,
-            height: 56,
-            background:
-              gradient || `linear-gradient(135deg, ${color}, ${color}90)`,
-          }}
-        >
-          {icon}
-        </Avatar>
+        <Avatar sx={{ width: 56, height: 56, background: gradient }}>{icon}</Avatar>
       </Box>
     </CardContent>
   </StatsCard>
 );
 
-function Dashboard() {
+export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Existing state
   const [topics, setTopics] = useState("");
   const [numQuestions, setNumQuestions] = useState(5);
   const [numWeakQuestions, setNumWeakQuestions] = useState(5);
   const [message, setMessage] = useState("");
 
-  // New coding challenge state
   const [dailyChallenge, setDailyChallenge] = useState(null);
   const [loadingChallenge, setLoadingChallenge] = useState(true);
   const [stats, setStats] = useState({
@@ -217,62 +113,23 @@ function Dashboard() {
     averageScore: 0,
   });
 
-  // Override global styles for this page
-  React.useEffect(() => {
-    // Store original styles
-    const originalRootStyle = document.getElementById('root')?.style.cssText;
-    const originalBodyStyle = document.body.style.cssText;
-
-    // Apply dashboard page specific styles
-    const root = document.getElementById('root');
-    if (root) {
-      root.style.maxWidth = 'none';
-      root.style.padding = '0';
-      root.style.margin = '0';
-      root.style.textAlign = 'initial';
-      root.style.width = '100vw'; // Removed height: '100vh' to allow expansion
-    }
-
-    document.body.style.display = 'block';
-    document.body.style.placeItems = 'initial';
-    document.body.style.overflow = 'visible'; // Ensure body can scroll
-    document.documentElement.style.overflow = 'visible'; // Ensure html can scroll
-
-    // Cleanup function to restore original styles
-    return () => {
-      if (root && originalRootStyle !== undefined) {
-        root.style.cssText = originalRootStyle;
-      }
-      if (originalBodyStyle !== undefined) {
-        document.body.style.cssText = originalBodyStyle;
-      }
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
-  }, []);
-
-  // Get current user from localStorage, fallback to "Guest"
   const getCurrentUsername = () => {
     const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
     return storedUser.name || storedUser.username || "Guest";
   };
   const username = getCurrentUsername();
 
-  // Pre-fill form if URL has query params
   useEffect(() => {
     const urlTopics = searchParams.get("topics");
     const urlNumQuestions = searchParams.get("numQuestions");
-
     if (urlTopics) setTopics(urlTopics);
     if (urlNumQuestions) setNumQuestions(parseInt(urlNumQuestions, 10));
   }, [searchParams]);
 
-  // Load daily challenge on component mount
   useEffect(() => {
     loadDailyChallenge();
   }, []);
 
-  // Load daily coding challenge, with error handling and id check
   const loadDailyChallenge = async () => {
     try {
       setLoadingChallenge(true);
@@ -283,11 +140,7 @@ function Dashboard() {
         setDailyChallenge(null);
         return;
       }
-      const challenge = await CodingChallengeAPI.generateChallenge(
-        ["arrays", "strings"],
-        "medium",
-        authToken
-      );
+      const challenge = await CodingChallengeAPI.generateChallenge(["arrays", "strings"], "medium", authToken);
       if (!challenge || !challenge.id) {
         setMessage("Failed to load daily challenge. Please try again later.");
         setDailyChallenge(null);
@@ -302,12 +155,9 @@ function Dashboard() {
     }
   };
 
-  // Fetch wrapper for secured endpoints
   const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem("authToken");
-    if (!token)
-      throw new Error("Authentication token not found. Please log in.");
-
+    if (!token) throw new Error("Authentication token not found. Please log in.");
     const res = await fetch(url, {
       ...options,
       headers: {
@@ -316,16 +166,13 @@ function Dashboard() {
         ...(options.headers || {}),
       },
     });
-
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || "Request failed");
     }
-
     return res.json();
   };
 
-  // Start Quiz API call
   const startQuiz = async (topicsArray, numQuestions) => {
     return fetchWithAuth("http://localhost:8080/api/quiz/start", {
       method: "POST",
@@ -333,21 +180,15 @@ function Dashboard() {
     });
   };
 
-  // Handle Start Quiz button
   const handleStartQuiz = async (e) => {
     e.preventDefault();
     setMessage("");
     try {
-      const topicList = topics
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
-
+      const topicList = topics.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
       if (topicList.length === 0) {
         setMessage("Please enter at least one topic.");
         return;
       }
-
       const response = await startQuiz(topicList, parseInt(numQuestions, 10));
       navigate(`/quiz/${response.sessionId}`);
     } catch (error) {
@@ -356,628 +197,407 @@ function Dashboard() {
     }
   };
 
-  // Handle Practice Weak Areas button
-  const handlePracticeWeakAreas = () => {
-    navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
-  };
+  const handlePracticeWeakAreas = () => navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
+  const startCodingChallenge = (challengeId) => navigate(`/coding-challenge/${challengeId}`);
+  const handleGenerateResumeClick = () => navigate("/resume-generate");
 
-  // Start coding challenge function
-  const startCodingChallenge = (challengeId) => {
-    navigate(`/coding-challenge/${challengeId}`);
-  };
-
-  // Handle Generate Resume button
-  const handleGenerateResumeClick = () => {
-    navigate("/resume-generate");
-  };
+  const rightHeader = (
+    <Avatar
+      sx={{
+        width: 64,
+        height: 64,
+        borderRadius: "50%",
+        border: "3px solid #7b1fa2",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+        background: "linear-gradient(135deg, #7b1fa2, #f50057)",
+      }}
+    >
+      <BrainIcon />
+    </Avatar>
+  );
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <GradientBox>
-        <DashboardContainer maxWidth="xl" sx={{ py: 4 }}>
-          {/* Header */}
-          <HeaderCard>
-            <CardContent sx={{ p: 4 }}>
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
+    <PageLayout
+      maxWidth="xl"
+      headerIcon={<BrainIcon sx={{ fontSize: 40 }} />}
+      title={`Welcome back, ${username}!`}
+      subtitle="Ready for today's challenge? Choose your path to success."
+      rightHeaderContent={rightHeader}
+    >
+      {/* Center everything inside a single column */}
+      <Grid container justifyContent="center" spacing={3}>
+        <Grid item xs={12} md={10} lg={9}>
+          <Stack spacing={3}>
+            {/* Error Message */}
+            {message && (
+              <Alert
+                severity="error"
+                variant="filled"
+                sx={{
+                  borderRadius: "12px",
+                  background: "linear-gradient(45deg, #f44336, #d32f2f)",
+                }}
               >
-                <Box display="flex" alignItems="center" gap={3}>
-                  <Avatar
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      background: "linear-gradient(135deg, #7b1fa2, #f50057)",
-                      boxShadow: "0 4px 20px rgba(123, 31, 162, 0.4)",
-                    }}
-                  >
-                    <Brain sx={{ fontSize: 40 }} />
-                  </Avatar>
-                  <Box>
-                    <Typography
-                      variant="h3"
-                      component="h1"
-                      fontWeight="bold"
-                      sx={{
-                        background:
-                          "linear-gradient(to right, #a0d8ff, #ff80ab)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        mb: 1,
-                      }}
-                    >
-                      Welcome back, {username}!
-                    </Typography>
-                    <Typography variant="h6" sx={{ color: "#aaa" }}>
-                      Ready for today's challenge? Choose your path to
-                      success.
+                {message}
+              </Alert>
+            )}
+
+            {/* Stats - centered grid inside the main column */}
+            <Box>
+              <Grid container spacing={2} justifyContent="center">
+                <Grid item xs={12} sm={6}>
+                  <StatTile
+                    title="Quizzes Taken"
+                    value={stats.totalQuizzesTaken}
+                    icon={<BrainIcon />}
+                    gradient="linear-gradient(135deg, #2196F3, #21CBF3)"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StatTile
+                    title="Coding Problems"
+                    value={stats.codingChallengesSolved}
+                    icon={<CodeIcon />}
+                    gradient="linear-gradient(135deg, #4caf50, #8bc34a)"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StatTile
+                    title="Current Streak"
+                    value={`${stats.streak} days`}
+                    icon={<TrendingUp />}
+                    gradient="linear-gradient(135deg, #ff9800, #ffc107)"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StatTile
+                    title="Average Score"
+                    value={`${stats.averageScore}%`}
+                    icon={<Award />}
+                    gradient="linear-gradient(135deg, #e91e63, #f06292)"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            {/* Daily Coding Challenge - full width of the centered column */}
+            <MainCard>
+              <Box sx={{ background: "linear-gradient(135deg, #4caf50, #8bc34a)", p: 3 }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                  <Calendar />
+                  <Typography variant="h6" fontWeight="bold">
+                    Today's Coding Challenge
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </Typography>
+              </Box>
+
+              <CardContent sx={{ p: 3 }}>
+                {loadingChallenge ? (
+                  <Box display="flex" flexDirection="column" alignItems="center" py={4}>
+                    <CircularProgress sx={{ color: "#4caf50", mb: 2 }} />
+                    <Typography variant="body2" sx={{ color: "#aaa" }}>
+                      Loading today's challenge...
                     </Typography>
                   </Box>
-                </Box>
-                <Box
-                  component="img"
-                  src="https://avatars.githubusercontent.com/u/9919?v=4"
-                  sx={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: "50%",
-                    border: "3px solid #7b1fa2",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-                  }}
-                  alt="avatar"
-                />
-              </Box>
-            </CardContent>
-          </HeaderCard>
-
-          {/* Error Message */}
-          {message && (
-            <Alert
-              severity="error"
-              variant="filled"
-              sx={{
-                mb: 3,
-                borderRadius: "12px",
-                background: "linear-gradient(45deg, #f44336, #d32f2f)",
-              }}
-            >
-              {message}
-            </Alert>
-          )}
-
-          {/* Stats Cards */}
-          <Grid container spacing={3} mb={4}>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="Quizzes Taken"
-                value={stats.totalQuizzesTaken}
-                icon={<Brain />}
-                gradient="linear-gradient(135deg, #2196F3, #21CBF3)"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="Coding Problems"
-                value={stats.codingChallengesSolved}
-                icon={<CodeIcon />}
-                gradient="linear-gradient(135deg, #4caf50, #8bc34a)"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="Current Streak"
-                value={`${stats.streak} days`}
-                icon={<TrendingUp />}
-                gradient="linear-gradient(135deg, #ff9800, #ffc107)"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} lg={3}>
-              <StatCard
-                title="Average Score"
-                value={`${stats.averageScore}%`}
-                icon={<Award />}
-                gradient="linear-gradient(135deg, #e91e63, #f06292)"
-              />
-            </Grid>
-          </Grid>
-
-          {/* Main Content Grid */}
-          <Grid container spacing={3} mb={4}>
-            {/* Daily Coding Challenge */}
-            <Grid item xs={12} lg={4}>
-              <DailyChallengeCard>
-                <Box
-                  sx={{
-                    background: "linear-gradient(135deg, #4caf50, #8bc34a)",
-                    p: 3,
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={1}
-                    sx={{ mb: 1 }}
-                  >
-                    <Calendar />
-                    <Typography variant="h6" fontWeight="bold">
-                      Today's Coding Challenge
+                ) : dailyChallenge ? (
+                  <Box>
+                    <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
+                      {dailyChallenge.title}
                     </Typography>
-                  </Stack>
-                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    {new Date().toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </Typography>
-                </Box>
+                    <Typography variant="body2" sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}>
+                      {dailyChallenge.description
+                        ? dailyChallenge.description.substring(0, 150) + "..."
+                        : "A new coding challenge awaits!"}
+                    </Typography>
 
-                <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                  {loadingChallenge ? (
-                    <Box
-                      display="flex"
-                      flexDirection="column"
-                      alignItems="center"
-                      py={4}
-                    >
-                      <CircularProgress sx={{ color: "#4caf50", mb: 2 }} />
-                      <Typography variant="body2" sx={{ color: "#aaa" }}>
-                        Loading today's challenge...
-                      </Typography>
-                    </Box>
-                  ) : dailyChallenge ? (
-                    <Box>
-                      <Typography
-                        variant="h6"
-                        fontWeight="bold"
-                        gutterBottom
-                        sx={{ color: "white" }}
-                      >
-                        {dailyChallenge.title}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}
-                      >
-                        {dailyChallenge.description
-                          ? dailyChallenge.description.substring(0, 150) +
-                            "..."
-                          : "A new coding challenge awaits!"}
-                      </Typography>
-
-                      <Stack direction="row" spacing={2} mb={3}>
-                        <Paper
-                          sx={{
-                            px: 1.5,
-                            py: 0.75,
-                            borderRadius: "8px",
-                            backgroundColor: "#333",
-                            border: "1px solid #555",
-                          }}
-                        >
-                          <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={0.5}
-                          >
-                            <Clock sx={{ fontSize: 16, color: "#90caf9" }} />
-                            <Typography
-                              variant="body2"
-                              sx={{ color: "#ccc" }}
-                            >
-                              {dailyChallenge.timeLimitMs || "1000"}ms
-                            </Typography>
-                          </Stack>
-                        </Paper>
-                        <Paper
-                          sx={{
-                            px: 1.5,
-                            py: 0.75,
-                            borderRadius: "8px",
-                            backgroundColor: "#333",
-                            border: "1px solid #555",
-                          }}
-                        >
-                          <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={0.5}
-                          >
-                            <Brain sx={{ fontSize: 16, color: "#ce93d8" }} />
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: "#ccc",
-                                textTransform: "capitalize",
-                              }}
-                            >
-                              {dailyChallenge.difficulty || "Medium"}
-                            </Typography>
-                          </Stack>
-                        </Paper>
-                      </Stack>
-
-                      <Stack spacing={2}>
-                        <Button
-                          variant="contained"
-                          startIcon={<Play />}
-                          fullWidth
-                          onClick={() =>
-                            dailyChallenge &&
-                            dailyChallenge.id &&
-                            startCodingChallenge(dailyChallenge.id)
-                          }
-                          disabled={!dailyChallenge || !dailyChallenge.id}
-                          sx={{
-                            py: 1.5,
-                            background:
-                              "linear-gradient(45deg, #4caf50, #8bc34a)",
-                            "&:hover": {
-                              background:
-                                "linear-gradient(45deg, #66bb6a, #aed581)",
-                            },
-                          }}
-                        >
-                          Start Daily Challenge
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          startIcon={<RefreshCw />}
-                          fullWidth
-                          onClick={loadDailyChallenge}
-                          sx={{
-                            borderColor: "#666",
-                            color: "#ccc",
-                            "&:hover": {
-                              borderColor: "#7b1fa2",
-                              backgroundColor: "#7b1fa220",
-                            },
-                          }}
-                        >
-                          New Challenge
-                        </Button>
-                      </Stack>
-                    </Box>
-                  ) : (
-                    <Box textAlign="center" py={4}>
-                      <Typography sx={{ color: "#aaa", mb: 2 }}>
-                        No daily challenge available
-                      </Typography>
-                      <Button
-                        variant="text"
-                        size="small"
-                        onClick={loadDailyChallenge}
-                        sx={{ color: "#7b1fa2" }}
-                      >
-                        Try loading again
-                      </Button>
-                    </Box>
-                  )}
-                </CardContent>
-              </DailyChallengeCard>
-            </Grid>
-
-            {/* Start Quiz */}
-            <Grid item xs={12} lg={4}>
-              <QuizCard>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    gutterBottom
-                    sx={{ color: "white" }}
-                  >
-                    Start Knowledge Quiz
-                  </Typography>
-                  <Box
-                    component="form"
-                    onSubmit={handleStartQuiz}
-                    sx={{ mt: 2 }}
-                  >
-                    <Stack spacing={3}>
-                      <TextField
-                        fullWidth
-                        label="Topics (comma-separated)"
-                        placeholder="e.g., java, spring boot, algorithms"
-                        value={topics}
-                        onChange={(e) => setTopics(e.target.value)}
-                        required
-                        variant="outlined"
+                    <Stack direction="row" spacing={2} mb={3}>
+                      <Paper
                         sx={{
-                          "& .MuiOutlinedInput-root": {
-                            backgroundColor: "#333",
-                            "& fieldset": {
-                              borderColor: "#555",
-                            },
-                            "&:hover fieldset": {
-                              borderColor: "#7b1fa2",
-                            },
-                            "&.Mui-focused fieldset": {
-                              borderColor: "#7b1fa2",
-                            },
-                          },
-                          "& .MuiInputLabel-root": {
-                            color: "#aaa",
-                          },
-                          "& .MuiOutlinedInput-input": {
-                            color: "white",
-                          },
+                          px: 1.5,
+                          py: 0.75,
+                          borderRadius: "8px",
+                          backgroundColor: "#333",
+                          border: "1px solid #555",
                         }}
-                      />
-                      <TextField
-                        fullWidth
-                        label="Number of Questions"
-                        type="number"
-                        inputProps={{ min: 1 }}
-                        value={numQuestions}
-                        onChange={(e) => setNumQuestions(e.target.value)}
-                        variant="outlined"
+                      >
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <Clock sx={{ fontSize: 16, color: "#90caf9" }} />
+                          <Typography variant="body2" sx={{ color: "#ccc" }}>
+                            {dailyChallenge.timeLimitMs || "1000"}ms
+                          </Typography>
+                        </Stack>
+                      </Paper>
+                      <Paper
                         sx={{
-                          "& .MuiOutlinedInput-root": {
-                            backgroundColor: "#333",
-                            "& fieldset": {
-                              borderColor: "#555",
-                            },
-                            "&:hover fieldset": {
-                              borderColor: "#7b1fa2",
-                            },
-                            "&.Mui-focused fieldset": {
-                              borderColor: "#7b1fa2",
-                            },
-                          },
-                          "& .MuiInputLabel-root": {
-                            color: "#aaa",
-                          },
-                          "& .MuiOutlinedInput-input": {
-                            color: "white",
-                          },
+                          px: 1.5,
+                          py: 0.75,
+                          borderRadius: "8px",
+                          backgroundColor: "#333",
+                          border: "1px solid #555",
                         }}
-                      />
+                      >
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <BrainIcon sx={{ fontSize: 16, color: "#ce93d8" }} />
+                          <Typography variant="body2" sx={{ color: "#ccc", textTransform: "capitalize" }}>
+                            {dailyChallenge.difficulty || "Medium"}
+                          </Typography>
+                        </Stack>
+                      </Paper>
+                    </Stack>
+
+                    <Stack spacing={2}>
                       <Button
-                        type="submit"
                         variant="contained"
-                        size="large"
+                        startIcon={<Play />}
                         fullWidth
+                        onClick={() => dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)}
+                        disabled={!dailyChallenge || !dailyChallenge.id}
                         sx={{
                           py: 1.5,
-                          background:
-                            "linear-gradient(45deg, #7b1fa2, #f50057)",
-                          "&:hover": {
-                            background:
-                              "linear-gradient(45deg, #9c27b0, #ff4081)",
-                          },
+                          background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+                          "&:hover": { background: "linear-gradient(45deg, #66bb6a, #aed581)" },
                         }}
                       >
-                        Start Quiz
+                        Start Daily Challenge
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        startIcon={<RefreshCw />}
+                        fullWidth
+                        onClick={loadDailyChallenge}
+                        sx={{
+                          borderColor: "#666",
+                          color: "#ccc",
+                          "&:hover": { borderColor: "#7b1fa2", backgroundColor: "#7b1fa220" },
+                        }}
+                      >
+                        New Challenge
                       </Button>
                     </Stack>
                   </Box>
-                </CardContent>
-              </QuizCard>
-            </Grid>
+                ) : (
+                  <Box textAlign="center" py={4}>
+                    <Typography sx={{ color: "#aaa", mb: 2 }}>No daily challenge available</Typography>
+                    <Button variant="text" size="small" onClick={loadDailyChallenge} sx={{ color: "#7b1fa2" }}>
+                      Try loading again
+                    </Button>
+                  </Box>
+                )}
+              </CardContent>
+            </MainCard>
 
-            {/* Practice Weak Areas */}
-            <Grid item xs={12} lg={4}>
-              <QuizCard>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    gutterBottom
-                    sx={{ color: "white" }}
-                  >
-                    Practice Weak Areas
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}
-                  >
-                    Focus on topics you've previously struggled with.
-                  </Typography>
+            {/* Start Knowledge Quiz - centered card */}
+            <MainCard>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
+                  Start Knowledge Quiz
+                </Typography>
+                <Box component="form" onSubmit={handleStartQuiz} sx={{ mt: 2 }}>
                   <Stack spacing={3}>
+                    <TextField
+                      fullWidth
+                      label="Topics (comma-separated)"
+                      placeholder="e.g., java, spring boot, algorithms"
+                      value={topics}
+                      onChange={(e) => setTopics(e.target.value)}
+                      required
+                      variant="outlined"
+                      sx={inputSx}
+                    />
                     <TextField
                       fullWidth
                       label="Number of Questions"
                       type="number"
                       inputProps={{ min: 1 }}
-                      value={numWeakQuestions}
-                      onChange={(e) => setNumWeakQuestions(e.target.value)}
+                      value={numQuestions}
+                      onChange={(e) => setNumQuestions(e.target.value)}
                       variant="outlined"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          backgroundColor: "#333",
-                          "& fieldset": {
-                            borderColor: "#555",
-                          },
-                          "&:hover fieldset": {
-                            borderColor: "#4caf50",
-                          },
-                          "&.Mui-focused fieldset": {
-                            borderColor: "#4caf50",
-                          },
-                        },
-                        "& .MuiInputLabel-root": {
-                          color: "#aaa",
-                        },
-                        "& .MuiOutlinedInput-input": {
-                          color: "white",
-                        },
-                      }}
+                      sx={inputSx}
                     />
                     <Button
+                      type="submit"
                       variant="contained"
                       size="large"
                       fullWidth
-                      onClick={handlePracticeWeakAreas}
                       sx={{
                         py: 1.5,
-                        background:
-                          "linear-gradient(45deg, #4caf50, #8bc34a)",
-                        "&:hover": {
-                          background:
-                            "linear-gradient(45deg, #66bb6a, #aed581)",
-                        },
+                        background: "linear-gradient(45deg, #7b1fa2, #f50057)",
+                        "&:hover": { background: "linear-gradient(45deg, #9c27b0, #ff4081)" },
                       }}
                     >
-                      Start Practice Session
+                      Start Quiz
                     </Button>
                   </Stack>
-                </CardContent>
-              </QuizCard>
-            </Grid>
-          </Grid>
+                </Box>
+              </CardContent>
+            </MainCard>
 
-          {/* Quick Actions */}
-          <Card
-            sx={{
-              mb: 4,
-              background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
-              border: "1px solid #444",
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                gutterBottom
-                sx={{ color: "white", mb: 3 }}
-              >
-                Quick Actions
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} lg={3}>
-                  <ActionButton
-                    variant="contained"
-                    startIcon={<DescriptionIcon />}
+            {/* Practice Weak Areas - centered card */}
+            <MainCard>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
+                  Practice Weak Areas
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}>
+                  Focus on topics you've previously struggled with.
+                </Typography>
+                <Stack spacing={3}>
+                  <TextField
                     fullWidth
-                    onClick={handleGenerateResumeClick}
+                    label="Number of Questions"
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    value={numWeakQuestions}
+                    onChange={(e) => setNumWeakQuestions(e.target.value)}
+                    variant="outlined"
                     sx={{
-                      background: "linear-gradient(45deg, #2196F3, #21CBF3)",
-                      "&:hover": {
-                        background:
-                          "linear-gradient(45deg, #42a5f5, #4fc3f7)",
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "#333",
+                        "& fieldset": { borderColor: "#555" },
+                        "&:hover fieldset": { borderColor: "#4caf50" },
+                        "&.Mui-focused fieldset": { borderColor: "#4caf50" },
                       },
+                      "& .MuiInputLabel-root": { color: "#aaa" },
+                      "& .MuiOutlinedInput-input": { color: "white" },
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    size="large"
+                    fullWidth
+                    onClick={handlePracticeWeakAreas}
+                    sx={{
+                      py: 1.5,
+                      background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+                      "&:hover": { background: "linear-gradient(45deg, #66bb6a, #aed581)" },
                     }}
                   >
-                    Generate Resume
-                  </ActionButton>
-                </Grid>
-                <Grid item xs={12} sm={6} lg={3}>
-                  <ActionButton
-                    variant="contained"
-                    startIcon={<TrendingUpIcon />}
-                    fullWidth
-                    onClick={() => navigate("/report/weaknesses")}
-                    sx={{
-                      background: "linear-gradient(45deg, #9c27b0, #ab47bc)",
-                      "&:hover": {
-                        background:
-                          "linear-gradient(45deg, #ba68c8, #ce93d8)",
-                      },
-                    }}
-                  >
-                    View Reports
-                  </ActionButton>
-                </Grid>
-                <Grid item xs={12} sm={6} lg={3}>
-                  <ActionButton
-                    variant="contained"
-                    startIcon={<ChatIcon />}
-                    fullWidth
-                    onClick={() => navigate("/gemini")}
-                    sx={{
-                      background: "linear-gradient(45deg, #ff9800, #ffc107)",
-                      "&:hover": {
-                        background:
-                          "linear-gradient(45deg, #ffb74d, #ffcc80)",
-                      },
-                    }}
-                  >
-                    Chat with AI
-                  </ActionButton>
-                </Grid>
-                <Grid item xs={12} sm={6} lg={3}>
-                  <ActionButton
-                    variant="contained"
-                    startIcon={<MicIcon />}
-                    fullWidth
-                    onClick={() => navigate("/interview-prep")}
-                    sx={{
-                      background: "linear-gradient(45deg, #607d8b, #78909c)",
-                      "&:hover": {
-                        background:
-                          "linear-gradient(45deg, #90a4ae, #b0bec5)",
-                      },
-                    }}
-                  >
-                    Interview Prep
-                  </ActionButton>
-                </Grid>
-                <Grid item xs={12} sm={6} lg={3}>
-                  <ActionButton
-                    variant="contained"
-                    startIcon={<InterviewIcon />}
-                    fullWidth
-                    onClick={() => navigate("/live-interview")}
-                    sx={{
-                      background: "linear-gradient(45deg, #0d47a1, #1a237e)",
-                      "&:hover": {
-                        background: "linear-gradient(45deg, #1976d2, #3949ab)",
-                      },
-                    }}
-                  >
-                    Live Interview
-                  </ActionButton>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
+                    Start Practice Session
+                  </Button>
+                </Stack>
+              </CardContent>
+            </MainCard>
 
-          {/* Recent Activity */}
-          <Card
-            sx={{
-              background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
-              border: "1px solid #444",
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                gutterBottom
-                sx={{ color: "white" }}
-              >
-                Recent Activity
-              </Typography>
-              <Divider sx={{ my: 2, borderColor: "#444" }} />
-              <Box textAlign="center" py={6}>
-                <Avatar
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    mx: "auto",
-                    mb: 2,
-                    background: "linear-gradient(135deg, #666, #999)",
-                  }}
-                >
-                  <Terminal sx={{ fontSize: 40 }} />
-                </Avatar>
-                <Typography variant="h6" sx={{ color: "#aaa", mb: 1 }}>
-                  Your recent activity will appear here
+            {/* Quick Actions - centered card */}
+            <MainCard>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white", mb: 3 }}>
+                  Quick Actions
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#777" }}>
-                  Start solving challenges and taking quizzes to see your
-                  progress!
+                <Grid container spacing={2} justifyContent="center">
+                  <Grid item xs={12} sm={6} md={6}>
+                    <ActionButton
+                      variant="contained"
+                      startIcon={<DescriptionIcon />}
+                      fullWidth
+                      onClick={handleGenerateResumeClick}
+                      sx={{
+                        background: "linear-gradient(45deg, #2196F3, #21CBF3)",
+                        "&:hover": { background: "linear-gradient(45deg, #42a5f5, #4fc3f7)" },
+                      }}
+                    >
+                      Generate Resume
+                    </ActionButton>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={6}>
+                    <ActionButton
+                      variant="contained"
+                      startIcon={<TrendingUpIcon />}
+                      fullWidth
+                      onClick={() => navigate("/report/weaknesses")}
+                      sx={{
+                        background: "linear-gradient(45deg, #9c27b0, #ab47bc)",
+                        "&:hover": { background: "linear-gradient(45deg, #ba68c8, #ce93d8)" },
+                      }}
+                    >
+                      View Reports
+                    </ActionButton>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={6}>
+                    <ActionButton
+                      variant="contained"
+                      startIcon={<ChatIcon />}
+                      fullWidth
+                      onClick={() => navigate("/gemini")}
+                      sx={{
+                        background: "linear-gradient(45deg, #ff9800, #ffc107)",
+                        "&:hover": { background: "linear-gradient(45deg, #ffb74d, #ffcc80)" },
+                      }}
+                    >
+                      Chat with AI
+                    </ActionButton>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={6}>
+                    <ActionButton
+                      variant="contained"
+                      startIcon={<MicIcon />}
+                      fullWidth
+                      onClick={() => navigate("/interview-prep")}
+                      sx={{
+                        background: "linear-gradient(45deg, #607d8b, #78909c)",
+                        "&:hover": { background: "linear-gradient(45deg, #90a4ae, #b0bec5)" },
+                      }}
+                    >
+                      Interview Prep
+                    </ActionButton>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={6}>
+                    <ActionButton
+                      variant="contained"
+                      startIcon={<InterviewIcon />}
+                      fullWidth
+                      onClick={() => navigate("/live-interview")}
+                      sx={{
+                        background: "linear-gradient(45deg, #0d47a1, #1a237e)",
+                        "&:hover": { background: "linear-gradient(45deg, #1976d2, #3949ab)" },
+                      }}
+                    >
+                      Live Interview
+                    </ActionButton>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </MainCard>
+
+            {/* Recent Activity - centered card */}
+            <MainCard>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
+                  Recent Activity
                 </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </DashboardContainer>
-      </GradientBox>
-    </ThemeProvider>
+                <Divider sx={{ my: 2, borderColor: "#444" }} />
+                <Box textAlign="center" py={6}>
+                  <Avatar
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      mx: "auto",
+                      mb: 2,
+                      background: "linear-gradient(135deg, #666, #999)",
+                    }}
+                  >
+                    <Terminal sx={{ fontSize: 40 }} />
+                  </Avatar>
+                  <Typography variant="h6" sx={{ color: "#aaa", mb: 1 }}>
+                    Your recent activity will appear here
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#777" }}>
+                    Start solving challenges and taking quizzes to see your progress!
+                  </Typography>
+                </Box>
+              </CardContent>
+            </MainCard>
+          </Stack>
+        </Grid>
+      </Grid>
+    </PageLayout>
   );
 }
-
-export default Dashboard;

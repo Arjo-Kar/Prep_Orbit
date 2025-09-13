@@ -466,7 +466,7 @@ public class LiveInterviewService {
             audioFile.transferTo(tempFile);
 
             // Build Python command
-            String pythonPath = "/Users/arjo/whisper-env/bin/python3";
+            String pythonPath = "/Users/User/whisper-env/bin/python3";
             String scriptPath = new File("python/whisper_transcribe.py").getAbsolutePath();
 
             ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, tempFile.getAbsolutePath());

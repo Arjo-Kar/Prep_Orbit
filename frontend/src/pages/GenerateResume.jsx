@@ -1,40 +1,66 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { 
-  Box, 
-  Typography, 
-  TextField, 
-  Button, 
-  Paper, 
-  Grid, 
-  Card, 
-  CardContent, 
-  IconButton,
-  Container,
-  Chip,
-  Divider,
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Grid,
+  Card,
+  CardContent,
   Stack,
   CircularProgress,
-  Fab
+  Avatar,
+  Divider,
 } from "@mui/material";
-import { 
+import {
   Psychology as BrainIcon,
   Delete as TrashIcon,
   Send as SendIcon,
   MenuBook as BookIcon,
   Add as AddIcon,
   Edit as EditIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Dashboard as DashboardIcon,
 } from "@mui/icons-material";
-import { generateResume } from "../api/ResumeService";
 import { useForm, useFieldArray } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { generateResume } from "../api/ResumeService";
 import Resume from "../components/Resume";
+import PageLayout from "../components/PageLayout";
 
-const GenerateResume = () => {
+const inputSx = {
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "#333",
+    "& fieldset": { borderColor: "#555" },
+    "&:hover fieldset": { borderColor: "#7b1fa2" },
+    "&.Mui-focused fieldset": { borderColor: "#7b1fa2" },
+  },
+  "& .MuiInputLabel-root": { color: "#aaa" },
+  "& .MuiOutlinedInput-input": {
+    color: "white",
+    caretColor: "white",
+  },
+};
+
+export default function GenerateResume() {
+  const navigate = useNavigate();
+
+  // visibility states
+  const [showFormUI, setShowFormUI] = useState(false);
+  const [showResumeUI, setShowResumeUI] = useState(false);
+  const [showPromptInput, setShowPromptInput] = useState(true);
+
+  // prompt state
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // keep a stable ref to the textarea for selection restore
+  const promptRef = useRef(null);
+
+  // resume data + form
   const [data, setData] = useState({
-    personalInformation: {
-      fullName: "Durgesh Kumar Tiwari",
-    },
+    personalInformation: { fullName: "Durgesh Kumar Tiwari" },
     summary: "",
     skills: [],
     experience: [],
@@ -45,66 +71,62 @@ const GenerateResume = () => {
     interests: [],
   });
 
-  const { register, handleSubmit, control, setValue, reset } = useForm({
-    defaultValues: data,
-  });
-
-  const [showFormUI, setShowFormUI] = useState(false);
-  const [showResumeUI, setShowResumeUI] = useState(false);
-  const [showPromptInput, setShowPromptInput] = useState(true);
+  const { register, handleSubmit, control, reset } = useForm({ defaultValues: data });
 
   const experienceFields = useFieldArray({ control, name: "experience" });
   const educationFields = useFieldArray({ control, name: "education" });
-  const certificationsFields = useFieldArray({
-    control,
-    name: "certifications",
-  });
+  const certificationsFields = useFieldArray({ control, name: "certifications" });
   const projectsFields = useFieldArray({ control, name: "projects" });
   const languagesFields = useFieldArray({ control, name: "languages" });
   const interestsFields = useFieldArray({ control, name: "interests" });
   const skillsFields = useFieldArray({ control, name: "skills" });
 
-  //handle form submit
-  const onSubmit = (data) => {
-    console.log("Form Data:", data);
-    setData({ ...data });
+  // Preserve caret position and scroll while typing
+  const handlePromptChange = (e) => {
+    const start = e.target.selectionStart ?? 0;
+    const end = e.target.selectionEnd ?? start;
+    const top = e.target.scrollTop ?? 0;
 
+    setDescription(e.target.value);
+
+    requestAnimationFrame(() => {
+      if (!promptRef.current) return;
+      try {
+        promptRef.current.selectionStart = start;
+        promptRef.current.selectionEnd = end;
+        promptRef.current.scrollTop = top;
+      } catch {}
+    });
+  };
+
+  const onSubmit = (formData) => {
+    setData({ ...formData });
     setShowFormUI(false);
     setShowPromptInput(false);
     setShowResumeUI(true);
   };
 
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
-
   const handleGenerate = async () => {
-    console.log(description);
-    // server call to get resume
-
     try {
+      if (!description.trim()) {
+        toast.error("Please add a brief description to generate your resume.");
+        return;
+      }
       setLoading(true);
       const responseData = await generateResume(description);
-      console.log(responseData);
-      reset(responseData.data);
-
-      toast.success("Resume Generated Successfully!", {
-        duration: 3000,
-        position: "top-center",
-      });
+      const next = responseData?.data ?? responseData;
+      reset(next);
+      toast.success("Resume Generated Successfully!", { duration: 3000, position: "top-center" });
       setShowFormUI(true);
       setShowPromptInput(false);
       setShowResumeUI(false);
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      console.error(e);
       toast.error("Error Generating Resume!");
     } finally {
       setLoading(false);
-      setDescription("");
+      // keep description for further edits
     }
-  };
-
-  const handleClear = () => {
-    setDescription("");
   };
 
   const renderInput = (name, label, type = "text") => (
@@ -115,20 +137,25 @@ const GenerateResume = () => {
       variant="outlined"
       fullWidth
       margin="normal"
-      sx={{ mb: 2 }}
+      sx={{ mb: 2, ...inputSx }}
     />
   );
 
-  const renderFieldArray = (fields, label, name, keys) => {
-    return (
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-          {label}
-        </Typography>
-        
+  const renderFieldArray = (fields, label, name, keys) => (
+    <Box sx={{ mb: 4 }}>
+      <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
+        {label}
+      </Typography>
+      <Stack spacing={2}>
         {fields.fields.map((field, index) => (
-          <Card key={field.id} sx={{ mb: 3, boxShadow: 2 }}>
-            <CardContent>
+          <Card
+            key={field.id}
+            sx={{
+              background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+              border: "1px solid #444",
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
               <Grid container spacing={2}>
                 {keys.map((key) => (
                   <Grid item xs={12} sm={keys.length > 3 ? 6 : 12} key={key}>
@@ -136,7 +163,7 @@ const GenerateResume = () => {
                   </Grid>
                 ))}
               </Grid>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+              <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
                 <Button
                   variant="contained"
                   color="error"
@@ -150,252 +177,226 @@ const GenerateResume = () => {
             </CardContent>
           </Card>
         ))}
-        
-        <Button
+      </Stack>
+
+      <Button
+        variant="outlined"
+        color="primary"
+        onClick={() => fields.append(keys.reduce((acc, key) => ({ ...acc, [key]: "" }), {}))}
+        startIcon={<AddIcon />}
+        sx={{
+          mt: 2,
+          borderColor: "#7b1fa2",
+          color: "#ccc",
+          "&:hover": { borderColor: "#9c27b0", backgroundColor: "rgba(123,31,162,0.15)" },
+        }}
+      >
+        Add {label.slice(0, -1)}
+      </Button>
+    </Box>
+  );
+
+  const PromptInput = () => (
+    <Card
+      sx={{
+        background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+        border: "1px solid #444",
+      }}
+    >
+      <CardContent sx={{ p: 4 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+          <Avatar
+            sx={{
+              width: 64,
+              height: 64,
+              background: "linear-gradient(135deg, #7b1fa2, #f50057)",
+              boxShadow: "0 4px 20px rgba(123,31,162,0.4)",
+            }}
+          >
+            <BrainIcon sx={{ fontSize: 34 }} />
+          </Avatar>
+          <Box>
+            <Typography variant="h5" fontWeight={800}>
+              AI Resume Generator
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#aaa" }}>
+              Describe your background. We’ll generate a draft you can edit.
+            </Typography>
+          </Box>
+        </Box>
+
+        <TextField
+          inputRef={promptRef}
+          autoFocus
+          disabled={loading}
+          multiline
+          rows={8}
           variant="outlined"
-          color="primary"
-          onClick={() =>
-            fields.append(
-              keys.reduce((acc, key) => ({ ...acc, [key]: "" }), {})
-            )
-          }
-          startIcon={<AddIcon />}
-          sx={{ mt: 1 }}
-        >
-          Add {label.slice(0, -1)}
-        </Button>
-      </Box>
-    );
-  };
+          fullWidth
+          placeholder="Describe your professional background, skills, experience, education, and career goals..."
+          value={description}
+          onChange={handlePromptChange}
+          sx={inputSx}
+        />
 
-  function showFormFunction() {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Typography 
-              variant="h3" 
-              component="h1" 
-              gutterBottom 
-              sx={{ 
-                fontWeight: 'bold', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                gap: 2,
-                color: 'primary.main'
-              }}
-            >
-              <BookIcon fontSize="large" /> Resume Form
-            </Typography>
-          </Box>
-          
-          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-            <Card sx={{ mb: 4, boxShadow: 2 }}>
-              <CardContent>
-                <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-                  Personal Information
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    {renderInput("personalInformation.fullName", "Full Name")}
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    {renderInput("personalInformation.email", "Email", "email")}
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    {renderInput("personalInformation.phoneNumber", "Phone Number", "tel")}
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    {renderInput("personalInformation.location", "Location")}
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    {renderInput("personalInformation.linkedin", "LinkedIn", "url")}
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    {renderInput("personalInformation.gitHub", "GitHub", "url")}
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    {renderInput("personalInformation.portfolio", "Portfolio", "url")}
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mb: 4, boxShadow: 2 }}>
-              <CardContent>
-                <Typography variant="h5" gutterBottom sx={{ mb: 2, fontWeight: 600 }}>
-                  Summary
-                </Typography>
-                <TextField
-                  {...register("summary")}
-                  multiline
-                  rows={4}
-                  variant="outlined"
-                  fullWidth
-                  placeholder="Write a professional summary..."
-                />
-              </CardContent>
-            </Card>
-
-            {renderFieldArray(skillsFields, "Skills", "skills", ["title", "level"])}
-            
-            {renderFieldArray(experienceFields, "Experience", "experience", [
-              "jobTitle",
-              "company", 
-              "location",
-              "duration",
-              "responsibility",
-            ])}
-            
-            {renderFieldArray(educationFields, "Education", "education", [
-              "degree",
-              "university",
-              "location", 
-              "graduationYear",
-            ])}
-            
-            {renderFieldArray(
-              certificationsFields,
-              "Certifications",
-              "certifications",
-              ["title", "issuingOrganization", "year"]
-            )}
-            
-            {renderFieldArray(projectsFields, "Projects", "projects", [
-              "title",
-              "description",
-              "technologiesUsed",
-              "githubLink",
-            ])}
-
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-              <Grid item xs={12} md={6}>
-                {renderFieldArray(languagesFields, "Languages", "languages", ["name"])}
-              </Grid>
-              <Grid item xs={12} md={6}>
-                {renderFieldArray(interestsFields, "Interests", "interests", ["name"])}
-              </Grid>
-            </Grid>
-
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <Button 
-                type="submit" 
-                variant="contained" 
-                size="large"
-                sx={{ 
-                  px: 6, 
-                  py: 2, 
-                  fontSize: '1.1rem',
-                  borderRadius: 3,
-                  boxShadow: 3
-                }}
-              >
-                Submit Resume
-              </Button>
-            </Box>
-          </Box>
-        </Paper>
-      </Container>
-    );
-  }
-
-  function ShowInputField() {
-    return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Paper 
-          elevation={6} 
-          sx={{ 
-            p: 6, 
-            textAlign: 'center', 
-            borderRadius: 4,
-            background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-          }}
-        >
-          <Box sx={{ mb: 4 }}>
-            <Typography 
-              variant="h3" 
-              component="h1" 
-              gutterBottom 
-              sx={{ 
-                fontWeight: 'bold', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                gap: 2,
-                color: 'primary.main'
-              }}
-            >
-              <BrainIcon fontSize="large" /> AI Resume Generator
-            </Typography>
-            <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
-              Enter a detailed description about yourself to generate your professional resume.
-            </Typography>
-          </Box>
-          
-          <TextField
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3 }}>
+          <Button
             disabled={loading}
+            onClick={handleGenerate}
+            variant="contained"
+            size="large"
+            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+            sx={{
+              background: "linear-gradient(45deg, #7b1fa2, #f50057)",
+              "&:hover": { background: "linear-gradient(45deg, #9c27b0, #ff4081)" },
+            }}
+          >
+            {loading ? "Generating..." : "Generate Resume"}
+          </Button>
+
+          <Button
+            onClick={() => setDescription("")}
+            variant="outlined"
+            size="large"
+            startIcon={<TrashIcon />}
+            sx={{
+              borderColor: "#666",
+              color: "#ccc",
+              "&:hover": { borderColor: "#7b1fa2", backgroundColor: "rgba(123,31,162,0.15)" },
+            }}
+          >
+            Clear
+          </Button>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+
+  const ResumeForm = () => (
+    <Card
+      sx={{
+        background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+        border: "1px solid #444",
+      }}
+    >
+      <CardContent sx={{ p: 4 }}>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
+          Resume Form
+        </Typography>
+
+        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700 }}>
+            Personal Information
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              {renderInput("personalInformation.fullName", "Full Name")}
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              {renderInput("personalInformation.email", "Email", "email")}
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              {renderInput("personalInformation.phoneNumber", "Phone Number", "tel")}
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              {renderInput("personalInformation.location", "Location")}
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              {renderInput("personalInformation.linkedin", "LinkedIn", "url")}
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              {renderInput("personalInformation.gitHub", "GitHub", "url")}
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              {renderInput("personalInformation.portfolio", "Portfolio", "url")}
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 3, borderColor: "#333" }} />
+
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700 }}>
+            Summary
+          </Typography>
+          <TextField
+            {...register("summary")}
             multiline
-            rows={8}
+            rows={4}
             variant="outlined"
             fullWidth
-            placeholder="Describe your professional background, skills, experience, education, and career goals..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            sx={{ 
-              mb: 4,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
-                backgroundColor: 'white'
-              }
-            }}
+            placeholder="Write a professional summary..."
+            sx={inputSx}
           />
-          
-          <Stack direction="row" spacing={2} justifyContent="center">
+
+          <Divider sx={{ my: 3, borderColor: "#333" }} />
+
+          {renderFieldArray(skillsFields, "Skills", "skills", ["title", "level"])}
+          {renderFieldArray(experienceFields, "Experience", "experience", [
+            "jobTitle",
+            "company",
+            "location",
+            "duration",
+            "responsibility",
+          ])}
+          {renderFieldArray(educationFields, "Education", "education", [
+            "degree",
+            "university",
+            "location",
+            "graduationYear",
+          ])}
+          {renderFieldArray(certificationsFields, "Certifications", "certifications", [
+            "title",
+            "issuingOrganization",
+            "year",
+          ])}
+          {renderFieldArray(projectsFields, "Projects", "projects", [
+            "title",
+            "description",
+            "technologiesUsed",
+            "githubLink",
+          ])}
+
+          <Grid container spacing={3} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={6}>
+              {renderFieldArray(languagesFields, "Languages", "languages", ["name"])}
+            </Grid>
+            <Grid item xs={12} md={6}>
+              {renderFieldArray(interestsFields, "Interests", "interests", ["name"])}
+            </Grid>
+          </Grid>
+
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
             <Button
-              disabled={loading}
-              onClick={handleGenerate}
               variant="contained"
               size="large"
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-              sx={{ 
-                px: 4, 
-                py: 1.5,
-                borderRadius: 3,
-                boxShadow: 3
+              type="submit"
+              sx={{
+                background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+                "&:hover": { background: "linear-gradient(45deg, #66bb6a, #aed581)" },
               }}
             >
-              {loading ? 'Generating...' : 'Generate Resume'}
+              Submit Resume
             </Button>
-            
-            <Button
-              onClick={handleClear}
-              variant="outlined"
-              size="large"
-              startIcon={<TrashIcon />}
-              sx={{ 
-                px: 4, 
-                py: 1.5,
-                borderRadius: 3
-              }}
-            >
-              Clear
-            </Button>
-          </Stack>
-        </Paper>
-      </Container>
-    );
-  }
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
 
-  function showResume() {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+  const ResumePreview = () => (
+    <Card
+      sx={{
+        background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+        border: "1px solid #444",
+      }}
+    >
+      <CardContent sx={{ p: 4 }}>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
+          Resume Preview
+        </Typography>
         <Resume data={data} />
-
-        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 4 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="center" sx={{ mt: 3 }}>
           <Button
             variant="contained"
-            color="secondary"
             size="large"
             onClick={() => {
               setShowPromptInput(true);
@@ -403,19 +404,15 @@ const GenerateResume = () => {
               setShowResumeUI(false);
             }}
             startIcon={<RefreshIcon />}
-            sx={{ 
-              px: 4, 
-              py: 1.5,
-              borderRadius: 3,
-              boxShadow: 3
+            sx={{
+              background: "linear-gradient(45deg, #7b1fa2, #f50057)",
+              "&:hover": { background: "linear-gradient(45deg, #9c27b0, #ff4081)" },
             }}
           >
             Generate Another
           </Button>
-          
           <Button
             variant="contained"
-            color="success"
             size="large"
             onClick={() => {
               setShowPromptInput(false);
@@ -423,27 +420,62 @@ const GenerateResume = () => {
               setShowResumeUI(false);
             }}
             startIcon={<EditIcon />}
-            sx={{ 
-              px: 4, 
-              py: 1.5,
-              borderRadius: 3,
-              boxShadow: 3
+            sx={{
+              background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+              "&:hover": { background: "linear-gradient(45deg, #66bb6a, #aed581)" },
             }}
           >
             Edit Resume
           </Button>
-        </Box>
-      </Container>
-    );
-  }
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+
+  const rightHeaderContent = (
+    <Button
+      variant="outlined"
+      startIcon={<DashboardIcon />}
+      onClick={() => navigate("/dashboard")}
+      sx={{
+        borderColor: "#7b1fa2",
+        color: "white",
+        "&:hover": { borderColor: "#9c27b0", backgroundColor: "rgba(123,31,162,0.15)" },
+      }}
+      aria-label="Back to Dashboard"
+    >
+      Back to Dashboard
+    </Button>
+  );
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: '#f8fafc', py: 2 }}>
-      {showFormUI && showFormFunction()}
-      {showPromptInput && ShowInputField()}
-      {showResumeUI && showResume()}
-    </Box>
-  );
-};
+    <PageLayout
+      maxWidth="xl"
+      headerIcon={<BrainIcon sx={{ fontSize: 40 }} />}
+      title="AI Resume Builder"
+      subtitle="Generate, edit, and preview a professional resume tailored to you."
+      rightHeaderContent={rightHeaderContent}
+    >
+      {/* Center all sections horizontally via Grid container */}
+      <Grid container spacing={3} justifyContent="center">
+        {showPromptInput && (
+          <Grid item xs={12} md={8} lg={7}>
+            <PromptInput />
+          </Grid>
+        )}
 
-export default GenerateResume;
+        {showFormUI && (
+          <Grid item xs={12} md={10} lg={9}>
+            <ResumeForm />
+          </Grid>
+        )}
+
+        {showResumeUI && (
+          <Grid item xs={12} md={10} lg={9}>
+            <ResumePreview />
+          </Grid>
+        )}
+      </Grid>
+    </PageLayout>
+  );
+}
