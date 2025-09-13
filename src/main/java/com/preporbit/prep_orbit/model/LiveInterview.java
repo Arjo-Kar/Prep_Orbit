@@ -2,6 +2,8 @@ package com.preporbit.prep_orbit.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Entity
@@ -71,6 +73,7 @@ public class LiveInterview {
 
     public void setUsername(String username) {
     }
+
 
 
 }

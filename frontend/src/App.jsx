@@ -18,6 +18,7 @@ import InterviewFeedbackListPage from './pages/InterviewFeedbackListPage';
 import GenerateResume from './pages/GenerateResume';
 import LiveInterviewPage from './pages/LiveInterviewPage';
 import LiveInterviewFeedbackPage from './pages/LiveInterviewFeedbackPage';
+import InterviewAnalyticsPage from './pages/InterviewAnalyticsPage';
 
 function App() {
     return (
@@ -51,8 +52,10 @@ function App() {
                 {/* Live Interview routes */}
                 <Route path="/live-interview" element={<LiveInterviewPage />} />
                 <Route path="/live-interview/feedback/:interviewId" element={<LiveInterviewFeedbackPage />} />
+                 <Route path="/analytics" element={<InterviewAnalyticsPage />} />
 
                 <Route path="/" element={<LoginPage />} />
+
             </Routes>
         </BrowserRouter>
     );

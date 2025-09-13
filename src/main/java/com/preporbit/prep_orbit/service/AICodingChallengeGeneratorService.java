@@ -60,7 +60,8 @@ public class AICodingChallengeGeneratorService {
                 + "    - \"input\": string\n"
                 + "    - \"expected_output\": string\n"
                 + "    - \"visible\": boolean (true/false; first 2 should be true, last 3 false)\n"
-                + "Do NOT include any markdown, comments, code blocks, or extra text before or after the JSON.\n"
+                + "Do NOT include any markdown, comments, code blocks, or extra text before or after the JSON and make sure to " +
+                "double check your expected_output with each of the input.\n"
                 + "Return ONLY valid JSON, with all fields populated and NO null or missing fields.\n"
                 + "Example format:\n"
                 + "{\n"
