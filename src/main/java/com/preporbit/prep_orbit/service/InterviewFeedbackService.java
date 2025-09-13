@@ -104,12 +104,7 @@ public class InterviewFeedbackService {
         applyFeedbackMap(feedback, aiFeedback);
 
         // Optionally store metrics summary inside feedback text (append)
-        if (aiFeedback.get("feedback") != null) {
-            String augmented = aiFeedback.get("feedback") + "\n\n[Metrics] coverage=" +
-                    metrics.get("coveragePct") + "% avgAnswerLen=" + metrics.get("avgAnswerLen") +
-                    " chars answered=" + metrics.get("userAnswerCount") + "/" + metrics.get("expectedQuestions");
-            feedback.setFeedback(sanitizeLength(augmented, MAX_FEEDBACK_LENGTH));
-        }
+
 
         InterviewFeedback saved = feedbackRepository.save(feedback);
         logPersistResult(saved, aiFeedback, true);
@@ -448,6 +443,7 @@ public class InterviewFeedbackService {
                         "Each score MUST be integer 1–10 and obey the rubric constraints. If constraints force a cap, apply it.\n\n" +
                         rubric + "\n" +
                         "TRANSCRIPT:\n" + transcriptBlock + "\n\n" +
+                        "DO NOT output raw numeric coverage percentages, character counts, or phrases like 'avgAnswerLen' in the feedback text.\n" +
                         "QUESTION_ANSWER_PAIRS:\n" + responsesBlock + "\n" +
                         "Return ONLY the JSON object.";
     }
