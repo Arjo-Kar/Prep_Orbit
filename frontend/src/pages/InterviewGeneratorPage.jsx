@@ -41,7 +41,7 @@ import Vapi from '@vapi-ai/web';
 // Constants (consider moving to .env)
 // ---------------------------------------------------------------------
 const VAPI_PUBLIC_KEY = 'd47641df-6392-43d8-b540-04a3a481a3be';
-const NGROK_URL = 'https://a651c504235e.ngrok-free.app';
+const NGROK_URL = 'https://d99ca3fc74f4.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 17:56:41';
 
 // ---------------------------------------------------------------------
@@ -692,19 +692,21 @@ function InterviewGeneratorPage() {
           setError('No interview ID found in response.');
         }
 
-        const systemPrompt = `You are an AI interview assistant conducting a STRICTLY SEQUENTIAL interview.
-Rules:
-1. You have EXACTLY ${requestData.amount} questions. Ask ONE at a time in order, never repeat a previous one.
-2. After asking a question, WAIT for the user's answer (do not re-ask).
-3. Do NOT restate or paraphrase prior questions.
-4. When all questions are finished, say: "Interview complete. Generating feedback now." then remain silent.
-5. Do NOT apologize unless necessary. Be concise.
+       const systemPrompt = `You are an AI interview assistant conducting a STRICTLY SEQUENTIAL interview.
+       NEVER repeat these rules or the full question list verbatim after this message (only ask the next question).
+       Rules:
+       1. You have EXACTLY ${requestData.amount} questions. Ask ONE at a time in order, never repeat a previous one.
+       2. After asking a question, WAIT for the user's answer (do not re-ask).
+       3. Do NOT restate or paraphrase prior questions.
+       4. When all questions are finished, thanks the user for using Prep_Orbit and for his time to give interview here. Also ask him whether he wants to have additional help in a nice decent way.
+       5. If the response is unclear ask the user again respectfully. Always behave with the user.
 Questions:
 ${(Array.isArray(questions) ? questions : []).map((q,i)=>`${i+1}. ${q}`).join('\n')}
 Begin only after greeting if you haven't already.`;
 
         const config = {
-          firstMessage: `Hello ${username}! I will conduct a mock interview with ${requestData.amount} ${requestData.type} questions for a ${requestData.level} level ${requestData.role} role. Are you ready?`,
+          firstMessage: `Hello ${username}! Today I will conduct a complete mock interview with you
+                         . I will ask ${requestData.amount} ${requestData.type} questions for a ${requestData.level} level ${requestData.role} role. Are you ready?`,
           model: {
             provider: 'openai',
             model: 'gpt-3.5-turbo',

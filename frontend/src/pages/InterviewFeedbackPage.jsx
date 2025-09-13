@@ -1,467 +1,275 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+/* Additions:
+   - Polls a few times before using fallback.
+   - If ?fallback=1&code=429 present, shows a subtle notice & polls again.
+*/
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Box,
-  Container,
-  Typography,
-  Card,
-  CardContent,
-  Button,
-  Grid,
-  Paper,
-  Avatar,
-  Chip,
-  LinearProgress,
-  Divider,
-  Stack,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  CircularProgress,
-  Alert,
-  IconButton,
-  Tooltip
+  Box, Container, Typography, Card, CardContent, Button, Grid, Paper, Avatar, Chip,
+  LinearProgress, Divider, Stack, Accordion, AccordionSummary, AccordionDetails,
+  CircularProgress, Alert, IconButton, Tooltip
 } from '@mui/material';
 import {
-  ArrowBack,
-  TrendingUp,
-  CheckCircle,
-  Warning,
-  School,
-  EmojiEvents,
-  Assessment,
-  ExpandMore,
-  PlayArrow,
-  Download,
-  Share,
-  Refresh,
-  Chat as ChatIcon,
-  Psychology,
-  Code,
-  Speed,
-  Groups,
-  Architecture,
-  Star,
-  Timeline,
-  DataUsage,
-  Assignment,
-  QuestionAnswer
+  ArrowBack, TrendingUp, CheckCircle, Warning, School, EmojiEvents, Assessment,
+  ExpandMore, PlayArrow, Download, Share, Refresh, Chat as ChatIcon, Psychology, Code,
+  Speed, Groups, Architecture, Star, Timeline, DataUsage, Assignment, QuestionAnswer
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
-// Constants
-const NGROK_URL = 'https://a651c504235e.ngrok-free.app'; // Updated to current ngrok URL
-
+const NGROK_URL = 'https://d99ca3fc74f4.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 13:50:18';
 
-// Dark theme with enhanced styling
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
-    background: {
-      default: '#100827',
-      paper: 'rgba(25, 25, 25, 0.9)',
-    },
-    primary: {
-      main: '#7b1fa2',
-    },
-    secondary: {
-      main: '#f50057',
-    },
-    success: {
-      main: '#4caf50',
-    },
-    warning: {
-      main: '#ff9800',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: '#cccccc',
-    },
+    background: { default: '#100827', paper: 'rgba(25, 25, 25, 0.9)' },
+    primary: { main: '#7b1fa2' },
+    secondary: { main: '#f50057' },
+    success: { main: '#4caf50' },
+    warning: { main: '#ff9800' },
+    text: { primary: '#ffffff', secondary: '#cccccc' },
   },
   components: {
     MuiAccordion: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(25, 25, 25, 0.8)',
-          border: '1px solid #444',
-          '&:before': {
-            display: 'none',
-          },
-        },
-      },
-    },
-  },
+      styleOverrides: { root: { backgroundColor: 'rgba(25, 25, 25, 0.8)', border: '1px solid #444', '&:before': { display: 'none' } } }
+    }
+  }
 });
 
-const GradientBox = styled(Box)(({ theme }) => ({
-  background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
+const GradientBox = styled(Box)(() => ({
+  background: 'linear-gradient(135deg,#100827 0%,#1a0f3d 50%,#291a54 100%)',
   minHeight: '100vh',
-  color: 'white',
+  color: 'white'
 }));
-
-const ScoreCard = styled(Card)(({ theme }) => ({
-  background: 'linear-gradient(135deg, #4caf50, #8bc34a)',
+const ScoreCard = styled(Card)(() => ({
+  background: 'linear-gradient(135deg,#4caf50,#8bc34a)',
   color: 'white',
   textAlign: 'center',
   borderRadius: '20px',
-  transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: '0 12px 40px rgba(76, 175, 80, 0.3)',
-  }
+  transition: 'transform .3s, box-shadow .3s',
+  '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 40px rgba(76,175,80,.3)' }
 }));
-
-const FeedbackCard = styled(Card)(({ theme }) => ({
-  background: 'linear-gradient(180deg, #1c1c1c 0%, #101010 100%)',
+const FeedbackCard = styled(Card)(() => ({
+  background: 'linear-gradient(180deg,#1c1c1c 0%,#101010 100%)',
   border: '1px solid #444',
   borderRadius: '16px',
   height: '100%',
-  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-  '&:hover': {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 8px 30px rgba(123, 31, 162, 0.3)',
-    border: '1px solid #7b1fa2',
-  }
+  transition: 'transform .2s, box-shadow .2s',
+  '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 30px rgba(123,31,162,.3)', border: '1px solid #7b1fa2' }
 }));
-
-const ActionButton = styled(Button)(({ theme }) => ({
-  height: '48px',
-  borderRadius: '12px',
-  textTransform: 'none',
-  fontSize: '1rem',
-  fontWeight: 600,
-  transition: 'all 0.3s ease',
-  position: 'relative',
-  overflow: 'hidden',
-  '&:hover': {
-    transform: 'translateY(-2px)',
-  },
+const ActionButton = styled(Button)(() => ({
+  height: 48, borderRadius: 12, textTransform: 'none', fontSize: '1rem', fontWeight: 600,
+  position: 'relative', overflow: 'hidden',
+  '&:hover': { transform: 'translateY(-2px)' },
   '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: '-100%',
-    width: '100%',
-    height: '100%',
-    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-    transition: 'left 0.5s',
+    content: '""', position: 'absolute', top: 0, left: '-100%', width: '100%', height: '100%',
+    background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)',
+    transition: 'left .5s'
   },
-  '&:hover::before': {
-    left: '100%',
-  },
+  '&:hover::before': { left: '100%' }
 }));
-
-const TranscriptMessage = styled(Paper)(({ theme, role }) => ({
-  padding: theme.spacing(2.5),
-  marginBottom: theme.spacing(2),
-  borderRadius: '16px',
-  background: role === 'assistant'
-    ? 'linear-gradient(135deg, #7b1fa2, #9c27b0)'
-    : 'rgba(25, 25, 25, 0.8)',
+const TranscriptMessage = styled(Paper)(({ role }) => ({
+  padding: 16, marginBottom: 16, borderRadius: 16,
+  background: role === 'assistant' ? 'linear-gradient(135deg,#7b1fa2,#9c27b0)' : 'rgba(25,25,25,0.8)',
   border: role === 'assistant' ? 'none' : '1px solid #444',
   maxWidth: '85%',
   marginLeft: role === 'assistant' ? 0 : 'auto',
   marginRight: role === 'assistant' ? 'auto' : 0,
-  position: 'relative',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    bottom: -8,
-    left: role === 'assistant' ? 20 : 'auto',
-    right: role === 'assistant' ? 'auto' : 20,
-    border: role === 'assistant'
-      ? '8px solid transparent; border-top-color: #7b1fa2'
-      : '8px solid transparent; border-top-color: #333',
-  }
+  position: 'relative'
 }));
 
 const ScoreIcon = ({ category }) => {
   const icons = {
-    technical: <Code />,
-    communication: <QuestionAnswer />,
-    problemSolving: <Psychology />,
-    codeQuality: <Assignment />,
-    systemDesign: <Architecture />,
-    culturalFit: <Groups />,
-    performance: <Speed />,
-    creativity: <Star />
+    technical: <Code />, communication: <QuestionAnswer />, problemSolving: <Psychology />,
+    codeQuality: <Assignment />, systemDesign: <Architecture />, culturalFit: <Groups />,
+    performance: <Speed />, creativity: <Star />
   };
   return icons[category] || <DataUsage />;
 };
 
 function InterviewFeedbackPage() {
   const { interviewId, userId: paramUserId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [feedback, setFeedback] = useState(null);
   const [interview, setInterview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [pollNote, setPollNote] = useState('');
+  const pollAttemptsRef = useRef(0);
+  const MAX_POLL = 5;
 
-  // ✅ Get user info from localStorage with fallback
   const getUserInfo = () => {
-      const parsedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = parsedUser.id || localStorage.getItem('userId') || paramUserId || '1';
-      const username = parsedUser.name || parsedUser.username || localStorage.getItem('username') || 'Guest';
-      const authToken = localStorage.getItem('authToken');
-      return { userId, username, authToken };
-    };
-    const userInfo = getUserInfo();
+    const parsed = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = parsed.id || localStorage.getItem('userId') || paramUserId || '1';
+    const username = parsed.name || parsed.username || localStorage.getItem('username') || 'Guest';
+    const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
+    return { userId, username, authToken };
+  };
+  const userInfo = getUserInfo();
+
+  const query = new URLSearchParams(location.search);
+  const cameFromFallback = query.get('fallback') === '1';
+  const fallbackCode = query.get('code');
 
   useEffect(() => {
-    fetchData();
+    pollAttemptsRef.current = 0;
+    fetchData(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interviewId]);
 
-  // ✅ Enhanced data fetching with real backend integration
-  const fetchData = async () => {
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  const fetchData = async (allowPoll) => {
     try {
       setLoading(true);
       setError('');
+      const ui = getUserInfo();
 
-      const userInfo = getUserInfo();
-      console.log('🔍 Fetching feedback for:', { interviewId, userId: userInfo.userId, username: userInfo.username, timestamp: CURRENT_TIME });
+      const headers = {
+        'Authorization': `Bearer ${ui.authToken}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+      };
 
-      // ✅ Updated parallel fetch with better error handling
-      const [interviewResponse, feedbackResponse] = await Promise.allSettled([
-        // Fetch interview data
-        fetch(`${NGROK_URL}/api/interviews/${interviewId}`, {
-          headers: {
-            'Authorization': `Bearer ${userInfo.authToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          },
-          credentials: 'include'
-        }),
-        // Fetch feedback data
-        fetch(`${NGROK_URL}/api/interviews/${interviewId}/feedback`, {
-          headers: {
-            'Authorization': `Bearer ${userInfo.authToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          },
-          credentials: 'include'
-        })
+      const [intRes, fbRes] = await Promise.allSettled([
+        fetch(`${NGROK_URL}/api/interviews/${interviewId}`, { headers, credentials: 'include' }),
+        fetch(`${NGROK_URL}/api/interviews/${interviewId}/feedback`, { headers, credentials: 'include' })
       ]);
 
-      // ✅ Process interview data
-      let actualInterview = null;
-      if (interviewResponse.status === 'fulfilled' && interviewResponse.value.ok) {
-        const interviewData = await interviewResponse.value.json();
-        actualInterview = interviewData.interview || interviewData.data || interviewData;
-        console.log('✅ Interview data loaded:', actualInterview);
+      let actualInterview;
+      if (intRes.status === 'fulfilled' && intRes.value.ok) {
+        const data = await intRes.value.json();
+        actualInterview = data.interview || data.data || data;
       } else {
-        console.warn('⚠️ Interview data not found, using fallback');
         actualInterview = {
           id: interviewId,
-          role: 'Backend Developer',
+            role: 'Backend Developer',
           type: 'Technical',
           level: 'Mid-level',
-          techstack: ['Java', 'Spring Boot', 'MySQL', 'REST APIs'],
-          createdAt: CURRENT_TIME,
-          questions: Array.from({ length: 5 }, (_, i) => `Technical question ${i + 1} for your interview preparation`),
-          amount: 5
+          techstack: ['Java', 'Spring Boot'],
+          amount: 5,
+          questions: []
         };
       }
 
-      // ✅ Enhanced feedback processing
-      let actualFeedback = null;
-      if (feedbackResponse.status === 'fulfilled' && feedbackResponse.value.ok) {
-        const feedbackData = await feedbackResponse.value.json();
-        actualFeedback = feedbackData.feedback;
-        console.log('✅ Feedback data loaded:', actualFeedback);
-
-        if (actualFeedback) {
-          // ✅ Transform backend feedback to component format with better handling
-          const transformedFeedback = {
-            id: actualFeedback.id,
-            interviewId: actualFeedback.interviewId,
-            totalScore: Math.round(actualFeedback.overallScore * 10) || Math.round(actualFeedback.overallRating) || 78,
-            strengths: actualFeedback.strengths ?
-              (typeof actualFeedback.strengths === 'string' ?
-                actualFeedback.strengths.split('\n').filter(s => s.trim()).map(s => s.replace(/^[•\-\*]\s*/, '')) :
-                actualFeedback.strengths
-              ) :
-              [
-                'Excellent problem-solving approach and methodology',
-                'Strong technical foundation and understanding',
-                'Clear communication during interview process',
-                'Good preparation and requirement gathering',
-                'Methodical thinking and structured responses'
-              ],
-            weaknesses: actualFeedback.improvements || actualFeedback.areasForImprovement ?
-              (typeof (actualFeedback.improvements || actualFeedback.areasForImprovement) === 'string' ?
-                (actualFeedback.improvements || actualFeedback.areasForImprovement).split('\n').filter(w => w.trim()).map(w => w.replace(/^[•\-\*]\s*/, '')) :
-                (actualFeedback.improvements || actualFeedback.areasForImprovement)
-              ) :
-              [
-                'Could improve explanation of complex technical concepts',
-                'Practice articulating thought processes more clearly',
-                'Work on time management during problem-solving',
-                'Enhance knowledge of advanced system design patterns'
-              ],
-            recommendations: actualFeedback.recommendations ?
-              (typeof actualFeedback.recommendations === 'string' ?
-                actualFeedback.recommendations.split('\n').filter(r => r.trim()).map(r => r.replace(/^[•\-\*]\s*/, '')) :
-                actualFeedback.recommendations
-              ) :
-              [
-                'Practice coding problems daily on LeetCode and HackerRank',
-                'Review system design fundamentals and scalability concepts',
-                'Work on explaining technical solutions in simple terms',
-                'Practice mock interviews to build confidence',
-                'Study advanced Java concepts and Spring Boot best practices',
-                'Focus on database optimization and query performance',
-                'Learn about microservices architecture patterns',
-                'Practice API design and RESTful service development'
-              ],
-            scores: {
-              technical: actualFeedback.technicalScore * 10 || actualFeedback.technicalRating || 78,
-              communication: actualFeedback.communicationScore * 10 || actualFeedback.communicationRating || 82,
-              problemSolving: actualFeedback.problemSolvingScore * 10 || actualFeedback.problemSolvingRating || 76,
-              codeQuality: 74,
-              systemDesign: 72,
-              culturalFit: actualFeedback.overallScore * 10 || actualFeedback.overallRating || 80
-            },
-            finalAssessment: actualFeedback.feedback || actualFeedback.detailedFeedback ||
-              `Strong performance in the ${actualInterview.role} interview simulation. ${userInfo.username} demonstrated solid technical knowledge and good problem-solving skills. The candidate shows great potential for growth and would benefit from continued practice in system design and advanced technical concepts. Overall assessment suggests readiness for ${actualInterview.level} positions with focused preparation.`,
-            createdAt: actualFeedback.createdAt || CURRENT_TIME,
-            transcript: actualFeedback.transcript ?
-              (typeof actualFeedback.transcript === 'string' ?
-                JSON.parse(actualFeedback.transcript) :
-                actualFeedback.transcript
-              ) :
-              generateTranscript(actualInterview, userInfo),
-            interviewDuration: calculateDuration(actualInterview),
-            questionsAnswered: actualInterview.questions?.length || actualInterview.amount || 5,
-            totalQuestions: actualInterview.questions?.length || actualInterview.amount || 5
-          };
-
-          setFeedback(transformedFeedback);
-        } else {
-          // ✅ Generate comprehensive fallback feedback
-          const fallbackFeedback = generateFallbackFeedback(actualInterview, userInfo);
-          setFeedback(fallbackFeedback);
-        }
-      } else {
-        console.warn('⚠️ Feedback not found, generating fallback');
-        const fallbackFeedback = generateFallbackFeedback(actualInterview, userInfo);
-        setFeedback(fallbackFeedback);
+      let loadedFeedback = null;
+      if (fbRes.status === 'fulfilled' && fbRes.value.ok) {
+        const fbData = await fbRes.value.json();
+        loadedFeedback = fbData.feedback || null;
       }
 
+      if (!loadedFeedback) {
+        if (allowPoll && pollAttemptsRef.current < MAX_POLL) {
+          pollAttemptsRef.current += 1;
+          setPollNote(`Waiting for feedback analysis (attempt ${pollAttemptsRef.current}/${MAX_POLL})...`);
+          await sleep(1000 * pollAttemptsRef.current); // backoff
+          return fetchData(true);
+        }
+        // fallback
+        setFeedback(transformFeedback(generateFallbackFeedback(actualInterview, ui), actualInterview, ui));
+        setInterview(actualInterview);
+        setLoading(false);
+        return;
+      }
+
+      setFeedback(transformFeedback(loadedFeedback, actualInterview, ui));
       setInterview(actualInterview);
       setLoading(false);
-
-    } catch (err) {
-      console.error('❌ Error fetching feedback data:', err);
-      setError(`Failed to load feedback data: ${err.message}. Please check your connection and try again.`);
+    } catch (e) {
+      setError(e.message || 'Unknown error');
       setLoading(false);
     }
   };
 
-  // ✅ Enhanced generateTranscript function
-  const generateTranscript = (interview, userInfo) => {
-    const role = interview.role || 'Backend Developer';
-    const techStack = interview.techstack || ['Java', 'Spring Boot'];
-    const questionCount = interview.amount || 5;
+  const transformFeedback = (fb, interviewObj, ui) => {
+    // Accept both real backend obj and fallback structure
+    const safe = (v, def) => (v === undefined || v === null ? def : v);
+    const overall = fb.overallScore != null ? fb.overallScore : fb.totalScore;
+    const percent = overall > 10 ? overall : overall * 10;
 
-    return [
-      {
-        role: 'assistant',
-        content: `Hello ${userInfo.username}! Welcome to your ${role} interview session conducted on ${CURRENT_TIME}. I'm excited to assess your technical skills today. We'll be covering ${interview.type || 'technical'} questions focusing on ${techStack.join(', ')}. Are you ready to begin?`,
-        timestamp: CURRENT_TIME
-      },
-      {
-        role: 'user',
-        content: `Yes, I'm ready! I've been preparing for this ${role} interview and I'm confident about my ${techStack.join(' and ')} skills. Looking forward to demonstrating my knowledge and experience.`,
-        timestamp: addMinutes(CURRENT_TIME, 1)
-      },
-      {
-        role: 'assistant',
-        content: `Excellent! Let's start with our first question. Given your ${interview.level || 'mid-level'} experience, I'll be asking ${questionCount} questions that will test both your theoretical knowledge and practical problem-solving skills. Question 1: ${interview.questions?.[0] || 'Can you explain your experience with the technologies mentioned?'}`,
-        timestamp: addMinutes(CURRENT_TIME, 2)
-      },
-      {
-        role: 'user',
-        content: `Great question! I have extensive experience with ${techStack[0] || 'Java'} and have worked on several projects involving ${techStack.join(', ')}. In my previous role, I built scalable applications using these technologies and implemented best practices for performance optimization.`,
-        timestamp: addMinutes(CURRENT_TIME, 3)
-      },
-      {
-        role: 'assistant',
-        content: `Perfect! Your responses show excellent technical understanding and practical experience. We've completed all ${questionCount} questions and I'm impressed with your knowledge depth. Thank you for participating in this comprehensive interview assessment.`,
-        timestamp: addMinutes(CURRENT_TIME, 15)
-      }
-    ];
-  };
-
-  // ✅ Generate comprehensive fallback feedback
-  const generateFallbackFeedback = (interview, userInfo) => {
-    const role = interview.role || 'Backend Developer';
-    const techStack = interview.techstack || ['Java', 'Spring Boot'];
+    let transcript = [];
+    if (fb.transcript) {
+      if (typeof fb.transcript === 'string') {
+        try { transcript = JSON.parse(fb.transcript); } catch { transcript = []; }
+      } else if (Array.isArray(fb.transcript)) transcript = fb.transcript;
+    }
+    if (!transcript.length) transcript = generateTranscript(interviewObj, ui);
 
     return {
-      id: Date.now(),
-      interviewId: interviewId,
-      totalScore: 78,
-      strengths: [
-        `Strong foundation in ${techStack.join(' and ')} technologies`,
-        'Excellent problem-solving methodology and approach',
-        'Clear communication and articulation of technical concepts',
-        'Good understanding of software engineering principles',
-        'Demonstrated practical experience with real-world applications',
-        'Strong analytical thinking and logical reasoning skills'
-      ],
-      weaknesses: [
-        'Could improve knowledge of advanced design patterns',
-        'Practice explaining complex algorithms more concisely',
-        'Work on system design and scalability considerations',
-        'Enhance understanding of database optimization techniques',
-        'Could benefit from more experience with microservices architecture'
-      ],
-      recommendations: [
-        'Practice daily coding challenges on LeetCode (focus on medium-hard problems)',
-        'Study system design fundamentals - recommend "Designing Data-Intensive Applications"',
-        'Review advanced Java concepts: concurrency, JVM internals, and performance tuning',
-        'Practice mock interviews to improve articulation under time pressure',
-        'Learn about distributed systems and microservices patterns',
-        'Gain hands-on experience with cloud platforms (AWS, Azure, GCP)',
-        'Study database design and optimization techniques',
-        'Practice API design and RESTful service best practices',
-        'Learn about DevOps practices and CI/CD pipelines',
-        'Contribute to open-source projects to gain collaborative experience'
-      ],
+      id: fb.id || Date.now(),
+      interviewId: fb.interviewId || interviewId,
+      totalScore: Math.round(percent) || 75,
+      strengths: splitList(fb.strengths, [
+        'Clear communication', 'Structured thought process'
+      ]),
+      weaknesses: splitList(fb.improvements || fb.areasForImprovement, [
+        'Provide more concrete examples', 'Improve depth on system design trade-offs'
+      ]),
+      recommendations: splitList(fb.recommendations, [
+        'Practice medium-hard problems daily',
+        'Review core system design patterns',
+        'Refine explanation of performance considerations'
+      ]),
       scores: {
-        technical: 78,
-        communication: 82,
-        problemSolving: 76,
+        technical: toPercent(fb.technicalScore),
+        communication: toPercent(fb.communicationScore),
+        problemSolving: toPercent(fb.problemSolvingScore),
         codeQuality: 74,
-        systemDesign: 70,
-        culturalFit: 85
+        systemDesign: 72,
+        culturalFit: toPercent(fb.overallScore)
       },
-      finalAssessment: `${userInfo.username} demonstrated strong technical competency in the ${role} interview simulation. The candidate shows excellent communication skills and a solid understanding of ${techStack.join(' and ')} technologies. With focused preparation in system design and advanced technical concepts, ${userInfo.username} would be well-positioned for ${interview.level || 'mid-level'} positions. The interview session was conducted on ${CURRENT_TIME} and covered comprehensive technical assessment areas.`,
-      createdAt: CURRENT_TIME,
-      transcript: generateTranscript(interview, userInfo),
-      interviewDuration: calculateDuration(interview),
-      questionsAnswered: interview.amount || 5,
-      totalQuestions: interview.amount || 5
+      finalAssessment: fb.feedback || fb.finalAssessment ||
+        `Good performance in the ${interviewObj.role} mock interview.`,
+      createdAt: fb.createdAt || CURRENT_TIME,
+      transcript,
+      interviewDuration: calculateDuration(interviewObj),
+      questionsAnswered: transcript.filter(m => m.role === 'user').length,
+      totalQuestions: interviewObj.amount || interviewObj.questions?.length || 5
     };
   };
 
-  // ✅ Utility functions
-  const addMinutes = (dateString, minutes) => {
-    const date = new Date(dateString);
-    date.setMinutes(date.getMinutes() + minutes);
-    return date.toISOString();
+  const splitList = (raw, fallback) => {
+    if (!raw) return fallback;
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === 'string') {
+      return raw.split(/\r?\n|•|-|\*/).map(s => s.trim()).filter(Boolean);
+    }
+    return fallback;
   };
 
+  const toPercent = (v) => {
+    if (v == null) return 70;
+    const n = Number(v);
+    return n <= 10 ? n * 10 : n;
+  };
+
+  const generateTranscript = (interview, ui) => ([
+    {
+      role: 'assistant',
+      content: `Hello ${ui.username}! Welcome to your ${interview.role} interview session.`,
+      timestamp: CURRENT_TIME
+    }
+  ]);
+
+  const generateFallbackFeedback = (interview, ui) => ({
+    interviewId,
+    totalScore: 75,
+    strengths: 'Structured responses\nGood baseline knowledge',
+    improvements: 'Add deeper technical details\nClarify trade-offs sooner',
+    recommendations: 'Practice system design questions\nImprove algorithm optimization explanations',
+    overallScore: 7.5,
+    technicalScore: 7,
+    communicationScore: 8,
+    problemSolvingScore: 7,
+    feedback: `Fallback feedback generated for ${ui.username}.`
+  });
+
   const calculateDuration = (interview) => {
-    const questionCount = interview.amount || 5;
-    const estimatedMinutes = questionCount * 3; // 3 minutes per question average
-    return `${estimatedMinutes} minutes`;
+    const count = interview.amount || 5;
+    return `${count * 3} minutes`;
   };
 
   const getScoreColor = (score) => {
@@ -472,7 +280,6 @@ function InterviewFeedbackPage() {
     if (score >= 40) return '#ff5722';
     return '#f44336';
   };
-
   const getScoreLevel = (score) => {
     if (score >= 90) return 'Outstanding';
     if (score >= 80) return 'Excellent';
@@ -481,94 +288,69 @@ function InterviewFeedbackPage() {
     if (score >= 40) return 'Below Average';
     return 'Needs Improvement';
   };
+  const formatTimestamp = (ts) => new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-  // ✅ Enhanced action handlers
-  const handleRetakeInterview = () => {
-    navigate('/interview/new');
-  };
-
-  const handleNewInterview = () => {
-    navigate('/interview/new');
-  };
-
-  const handleBackToDashboard = () => {
-    navigate('/interview-prep');
-  };
+  const handleRetakeInterview = () => navigate('/interview/new');
+  const handleNewInterview = () => navigate('/interview/new');
+  const handleBackToDashboard = () => navigate('/interview-prep');
 
   const handleDownloadReport = async () => {
+    if (!feedback) return;
     setGeneratingReport(true);
     try {
-      // Simulate PDF generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Create downloadable content
-      const reportContent = `
+      await new Promise(r => setTimeout(r, 1200));
+      const txt = `
 INTERVIEW FEEDBACK REPORT
-Generated: ${CURRENT_TIME}
-Candidate: ${getUserInfo().username}
+Generated: ${new Date().toISOString()}
+Candidate: ${userInfo.username}
 Interview ID: ${interviewId}
 
 OVERALL SCORE: ${feedback.totalScore}/100 (${getScoreLevel(feedback.totalScore)})
 
 STRENGTHS:
-${feedback.strengths.map(s => `• ${s}`).join('\n')}
+${feedback.strengths.map(s => '• ' + s).join('\n')}
 
 AREAS FOR IMPROVEMENT:
-${feedback.weaknesses.map(w => `• ${w}`).join('\n')}
+${feedback.weaknesses.map(s => '• ' + s).join('\n')}
 
 RECOMMENDATIONS:
-${feedback.recommendations.map(r => `• ${r}`).join('\n')}
+${feedback.recommendations.map(s => '• ' + s).join('\n')}
 
 FINAL ASSESSMENT:
 ${feedback.finalAssessment}
-      `;
-
-      const blob = new Blob([reportContent], { type: 'text/plain' });
+`.trim();
+      const blob = new Blob([txt], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `interview-feedback-${interviewId}-${userInfo.username}.txt`;
+      a.download = `interview-feedback-${interviewId}.txt`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error('Failed to generate report:', error);
     } finally {
       setGeneratingReport(false);
     }
   };
 
   const handleShareFeedback = async () => {
+    if (!feedback) return;
+    const shareData = {
+      title: `Interview Feedback - ${feedback.totalScore}/100`,
+      text: `I completed my interview and scored ${feedback.totalScore}/100.`,
+      url: window.location.href
+    };
     try {
-      const shareData = {
-        title: `Interview Feedback - ${feedback.totalScore}/100`,
-        text: `I just completed my ${interview.role} interview and scored ${feedback.totalScore}/100! Check out my feedback report.`,
-        url: window.location.href
-      };
-
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
+      if (navigator.share) await navigator.share(shareData);
+      else {
         await navigator.clipboard.writeText(window.location.href);
-        alert('✅ Feedback link copied to clipboard!');
+        alert('Link copied to clipboard');
       }
-    } catch (error) {
-      console.error('Failed to share:', error);
-      alert('❌ Failed to share feedback');
+    } catch {
+      alert('Share failed');
     }
   };
 
-  const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
-
-  // ✅ Loading state
   if (loading) {
     return (
       <ThemeProvider theme={darkTheme}>
@@ -577,11 +359,13 @@ ${feedback.finalAssessment}
             <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="60vh">
               <CircularProgress sx={{ color: '#7b1fa2', mb: 3 }} size={60} />
               <Typography variant="h6" sx={{ color: '#aaa', mb: 1 }}>
-                Loading your feedback report...
+                {pollNote || 'Loading your feedback report...'}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#777' }}>
-                Analyzing interview performance • {CURRENT_TIME}
-              </Typography>
+              {cameFromFallback && fallbackCode === '429' && (
+                <Typography variant="caption" sx={{ color: '#ff9800' }}>
+                  Previous attempt throttled (429). Waiting for server to finish analysis...
+                </Typography>
+              )}
             </Box>
           </Container>
         </GradientBox>
@@ -589,38 +373,20 @@ ${feedback.finalAssessment}
     );
   }
 
-  // ✅ Error state
   if (error) {
     return (
       <ThemeProvider theme={darkTheme}>
         <GradientBox>
           <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Alert
-              severity="error"
-              sx={{
-                borderRadius: '12px',
-                mb: 3,
-                backgroundColor: 'rgba(244, 67, 54, 0.1)',
-                border: '1px solid rgba(244, 67, 54, 0.3)'
-              }}
-            >
-              <Typography variant="h6" gutterBottom>Unable to Load Feedback</Typography>
-              <Typography variant="body2">{error}</Typography>
+            <Alert severity="error" sx={{ borderRadius: 2, mb: 3 }}>
+              {error}
             </Alert>
             <Stack direction="row" spacing={2}>
-              <Button
-                variant="contained"
-                onClick={() => window.location.reload()}
-                startIcon={<Refresh />}
-              >
-                Retry Loading
+              <Button variant="contained" onClick={() => fetchData(true)} startIcon={<Refresh />}>
+                Retry
               </Button>
-              <Button
-                variant="outlined"
-                onClick={handleBackToDashboard}
-                startIcon={<ArrowBack />}
-              >
-                Back to Dashboard
+              <Button variant="outlined" onClick={handleBackToDashboard} startIcon={<ArrowBack />}>
+                Back
               </Button>
             </Stack>
           </Container>
@@ -629,33 +395,21 @@ ${feedback.finalAssessment}
     );
   }
 
-  // ✅ No data state
   if (!feedback || !interview) {
     return (
       <ThemeProvider theme={darkTheme}>
         <GradientBox>
           <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: 'rgba(25, 25, 25, 0.8)' }}>
-              <Typography variant="h6" gutterBottom sx={{ color: '#aaa' }}>
-                📊 Feedback Report Not Found
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#777', mb: 3 }}>
-                Interview ID: {interviewId} • {CURRENT_TIME}
+            <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: 'rgba(25,25,25,0.8)' }}>
+              <Typography variant="h6" sx={{ color: '#aaa', mb: 2 }}>
+                Feedback Not Available
               </Typography>
               <Stack direction="row" spacing={2} justifyContent="center">
-                <Button
-                  variant="contained"
-                  onClick={handleNewInterview}
-                  startIcon={<PlayArrow />}
-                >
+                <Button variant="contained" startIcon={<PlayArrow />} onClick={handleNewInterview}>
                   Start New Interview
                 </Button>
-                <Button
-                  variant="outlined"
-                  onClick={handleBackToDashboard}
-                  startIcon={<ArrowBack />}
-                >
-                  Back to Dashboard
+                <Button variant="outlined" startIcon={<ArrowBack />} onClick={handleBackToDashboard}>
+                  Dashboard
                 </Button>
               </Stack>
             </Paper>
@@ -665,22 +419,16 @@ ${feedback.finalAssessment}
     );
   }
 
-  // ✅ Main feedback display
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          {/* ✅ Enhanced Header */}
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={4}>
             <Box display="flex" alignItems="center">
               <Tooltip title="Back to Interview Dashboard">
                 <IconButton
                   onClick={handleBackToDashboard}
-                  sx={{
-                    color: '#aaa',
-                    mr: 2,
-                    '&:hover': { color: '#7b1fa2', backgroundColor: 'rgba(123, 31, 162, 0.1)' }
-                  }}
+                  sx={{ color: '#aaa', mr: 2, '&:hover': { color: '#7b1fa2', backgroundColor: 'rgba(123,31,162,0.1)' } }}
                 >
                   <ArrowBack />
                 </IconButton>
@@ -688,10 +436,9 @@ ${feedback.finalAssessment}
               <Box>
                 <Typography
                   variant="h4"
-                  component="h1"
                   fontWeight="bold"
                   sx={{
-                    background: 'linear-gradient(45deg, #7b1fa2, #f50057, #ff9800)',
+                    background: 'linear-gradient(45deg,#7b1fa2,#f50057,#ff9800)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     mb: 1
@@ -700,39 +447,21 @@ ${feedback.finalAssessment}
                   📊 Interview Feedback Report
                 </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
-                  <Chip
-                    label={interview.role || 'Backend Developer'}
-                    sx={{ backgroundColor: '#7b1fa2', color: 'white' }}
-                  />
-                  <Chip
-                    label={interview.type || 'Technical'}
-                    variant="outlined"
-                    sx={{ borderColor: '#7b1fa2', color: '#7b1fa2' }}
-                  />
+                  <Chip label={interview.role || 'Role'} sx={{ backgroundColor: '#7b1fa2', color: 'white' }} />
+                  <Chip label={interview.type || 'Type'} variant="outlined" sx={{ borderColor: '#7b1fa2', color: '#7b1fa2' }} />
                   <Typography variant="body2" sx={{ color: '#aaa' }}>
                     Generated: {new Date(feedback.createdAt).toLocaleDateString()} • User: {userInfo.username}
                   </Typography>
+                  {cameFromFallback && fallbackCode === '429' && (
+                    <Chip label="Recovered After 429" size="small" sx={{ background: '#ff9800', color: '#000' }} />
+                  )}
                 </Stack>
               </Box>
             </Box>
-
-            {/* ✅ Enhanced Action Buttons */}
             <Stack direction="row" spacing={2}>
               <Tooltip title="Share this feedback report">
-                <ActionButton
-                  variant="outlined"
-                  startIcon={<Share />}
-                  onClick={handleShareFeedback}
-                  sx={{
-                    borderColor: '#666',
-                    color: '#ccc',
-                    '&:hover': {
-                      borderColor: '#7b1fa2',
-                      backgroundColor: '#7b1fa220',
-                      color: '#7b1fa2'
-                    }
-                  }}
-                >
+                <ActionButton variant="outlined" startIcon={<Share />} onClick={handleShareFeedback}
+                  sx={{ borderColor: '#666', color: '#ccc', '&:hover': { borderColor: '#7b1fa2', backgroundColor: '#7b1fa220', color: '#7b1fa2' } }}>
                   Share
                 </ActionButton>
               </Tooltip>
@@ -742,15 +471,7 @@ ${feedback.finalAssessment}
                   startIcon={generatingReport ? <CircularProgress size={20} /> : <Download />}
                   onClick={handleDownloadReport}
                   disabled={generatingReport}
-                  sx={{
-                    borderColor: '#666',
-                    color: '#ccc',
-                    '&:hover': {
-                      borderColor: '#7b1fa2',
-                      backgroundColor: '#7b1fa220',
-                      color: '#7b1fa2'
-                    }
-                  }}
+                  sx={{ borderColor: '#666', color: '#ccc', '&:hover': { borderColor: '#7b1fa2', backgroundColor: '#7b1fa220', color: '#7b1fa2' } }}
                 >
                   {generatingReport ? 'Generating...' : 'Download'}
                 </ActionButton>
@@ -759,20 +480,10 @@ ${feedback.finalAssessment}
           </Box>
 
           <Grid container spacing={3}>
-            {/* ✅ Enhanced Overall Score Card */}
             <Grid item xs={12} lg={4}>
               <ScoreCard>
                 <CardContent sx={{ p: 4 }}>
-                  <Avatar
-                    sx={{
-                      width: 120,
-                      height: 120,
-                      mx: 'auto',
-                      mb: 3,
-                      background: 'rgba(255,255,255,0.2)',
-                      border: '3px solid rgba(255,255,255,0.3)'
-                    }}
-                  >
+                  <Avatar sx={{ width: 120, height: 120, mx: 'auto', mb: 3, background: 'rgba(255,255,255,0.2)', border: '3px solid rgba(255,255,255,0.3)' }}>
                     <EmojiEvents sx={{ fontSize: 60 }} />
                   </Avatar>
                   <Typography variant="h1" fontWeight="bold" mb={1} sx={{ fontSize: '3.5rem' }}>
@@ -781,66 +492,30 @@ ${feedback.finalAssessment}
                   <Typography variant="h6" mb={2} sx={{ opacity: 0.9 }}>
                     Overall Score
                   </Typography>
-                  <Chip
-                    label={getScoreLevel(feedback.totalScore)}
-                    sx={{
-                      backgroundColor: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      fontWeight: 'bold',
-                      fontSize: '1.1rem',
-                      py: 1,
-                      px: 2
-                    }}
-                  />
-
-                  {/* ✅ Enhanced Quick Stats */}
+                  <Chip label={getScoreLevel(feedback.totalScore)} sx={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold', fontSize: '1.1rem', py: 1, px: 2 }} />
                   <Box mt={4} pt={3} sx={{ borderTop: '2px solid rgba(255,255,255,0.2)' }}>
                     <Grid container spacing={3} textAlign="center">
                       <Grid item xs={4}>
-                        <Typography variant="h6" fontWeight="bold">
-                          {feedback.questionsAnswered}
-                        </Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                          Questions
-                        </Typography>
+                        <Typography variant="h6" fontWeight="bold">{feedback.questionsAnswered}</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.9 }}>Answers</Typography>
                       </Grid>
                       <Grid item xs={4}>
-                        <Typography variant="h6" fontWeight="bold">
-                          {feedback.interviewDuration}
-                        </Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                          Duration
-                        </Typography>
+                        <Typography variant="h6" fontWeight="bold">{feedback.interviewDuration}</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.9 }}>Duration</Typography>
                       </Grid>
                       <Grid item xs={4}>
-                        <Typography variant="h6" fontWeight="bold">
-                          {interview.level || 'Mid'}
-                        </Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                          Level
-                        </Typography>
+                        <Typography variant="h6" fontWeight="bold">{interview.level || 'Mid'}</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.9 }}>Level</Typography>
                       </Grid>
                     </Grid>
                   </Box>
-
-                  {/* ✅ Technology Stack */}
-                  {interview.techstack && interview.techstack.length > 0 && (
+                  {interview.techstack?.length > 0 && (
                     <Box mt={3} pt={3} sx={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 2 }}>
-                        Technologies Covered:
-                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9, mb: 2 }}>Technologies:</Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        {interview.techstack.map((tech, index) => (
-                          <Chip
-                            key={index}
-                            label={tech}
-                            size="small"
-                            sx={{
-                              backgroundColor: 'rgba(255,255,255,0.15)',
-                              color: 'white',
-                              fontSize: '0.75rem'
-                            }}
-                          />
+                        {interview.techstack.map((t,i)=>(
+                          <Chip key={i} label={t} size="small"
+                                sx={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', fontSize: '.75rem' }} />
                         ))}
                       </Stack>
                     </Box>
@@ -849,64 +524,44 @@ ${feedback.finalAssessment}
               </ScoreCard>
             </Grid>
 
-            {/* ✅ Enhanced Score Breakdown */}
             <Grid item xs={12} lg={8}>
               <FeedbackCard>
                 <CardContent sx={{ p: 4 }}>
                   <Box display="flex" alignItems="center" mb={3}>
                     <Timeline sx={{ color: '#7b1fa2', mr: 2, fontSize: 28 }} />
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                      Detailed Performance Analysis
-                    </Typography>
+                    <Typography variant="h6" fontWeight="bold">Detailed Performance Analysis</Typography>
                   </Box>
                   <Grid container spacing={3}>
-                    {Object.entries(feedback.scores).map(([category, score]) => (
-                      <Grid item xs={12} sm={6} key={category}>
-                        <Box sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                    {Object.entries(feedback.scores).map(([c, s]) => (
+                      <Grid item xs={12} sm={6} key={c}>
+                        <Box sx={{ p: 2, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.02)' }}>
                           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <Box display="flex" alignItems="center">
-                              <Box sx={{ color: getScoreColor(score), mr: 1 }}>
-                                <ScoreIcon category={category} />
+                              <Box sx={{ color: getScoreColor(s), mr: 1 }}>
+                                <ScoreIcon category={c} />
                               </Box>
-                              <Typography
-                                variant="body1"
-                                sx={{
-                                  color: 'white',
-                                  textTransform: 'capitalize',
-                                  fontWeight: 600,
-                                  fontSize: '0.95rem'
-                                }}
-                              >
-                                {category.replace(/([A-Z])/g, ' $1').trim()}
+                              <Typography variant="body1" sx={{ color: 'white', textTransform: 'capitalize', fontWeight: 600, fontSize: '.95rem' }}>
+                                {c.replace(/([A-Z])/g,' $1').trim()}
                               </Typography>
                             </Box>
-                            <Typography
-                              variant="h6"
-                              fontWeight="bold"
-                              sx={{ color: getScoreColor(score) }}
-                            >
-                              {score}%
-                            </Typography>
+                            <Typography variant="h6" fontWeight="bold" sx={{ color: getScoreColor(s) }}>{s}%</Typography>
                           </Box>
                           <LinearProgress
                             variant="determinate"
-                            value={score}
+                            value={s}
                             sx={{
                               height: 12,
                               borderRadius: 6,
                               backgroundColor: '#333',
                               '& .MuiLinearProgress-bar': {
-                                backgroundColor: getScoreColor(score),
+                                backgroundColor: getScoreColor(s),
                                 borderRadius: 6,
-                                transition: 'width 1s ease-in-out'
+                                transition: 'width 1s'
                               }
                             }}
                           />
-                          <Typography
-                            variant="caption"
-                            sx={{ color: '#aaa', mt: 1, display: 'block' }}
-                          >
-                            {getScoreLevel(score)}
+                          <Typography variant="caption" sx={{ color: '#aaa', mt: 1, display: 'block' }}>
+                            {getScoreLevel(s)}
                           </Typography>
                         </Box>
                       </Grid>
@@ -916,55 +571,21 @@ ${feedback.finalAssessment}
               </FeedbackCard>
             </Grid>
 
-            {/* ✅ Enhanced Strengths Section */}
             <Grid item xs={12} lg={6}>
               <FeedbackCard>
                 <CardContent sx={{ p: 4 }}>
                   <Box display="flex" alignItems="center" mb={3}>
                     <CheckCircle sx={{ color: '#4caf50', mr: 2, fontSize: 28 }} />
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                      Key Strengths ({feedback.strengths.length})
-                    </Typography>
+                    <Typography variant="h6" fontWeight="bold">Key Strengths ({feedback.strengths.length})</Typography>
                   </Box>
-                  <Stack spacing={3}>
-                    {feedback.strengths.map((strength, index) => (
-                      <Box
-                        key={index}
-                        display="flex"
-                        alignItems="flex-start"
-                        sx={{
-                          p: 2,
-                          borderRadius: '12px',
-                          backgroundColor: 'rgba(76, 175, 80, 0.05)',
-                          border: '1px solid rgba(76, 175, 80, 0.2)',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                            transform: 'translateX(4px)'
-                          }
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            backgroundColor: '#4caf50',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            mr: 2,
-                            mt: 0.5,
-                            flexShrink: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>
-                            {index + 1}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body1" sx={{ color: '#e0e0e0', lineHeight: 1.6 }}>
-                          {strength}
-                        </Typography>
+                  <Stack spacing={2}>
+                    {feedback.strengths.map((s,i)=>(
+                      <Box key={i} sx={{
+                        p: 2, borderRadius: 2, backgroundColor: 'rgba(76,175,80,0.06)',
+                        border: '1px solid rgba(76,175,80,0.2)', transition: '.2s',
+                        '&:hover': { backgroundColor: 'rgba(76,175,80,0.12)', transform: 'translateX(4px)' }
+                      }}>
+                        <Typography variant="body2" sx={{ color: '#e0e0e0' }}>{i+1}. {s}</Typography>
                       </Box>
                     ))}
                   </Stack>
@@ -972,55 +593,21 @@ ${feedback.finalAssessment}
               </FeedbackCard>
             </Grid>
 
-            {/* ✅ Enhanced Areas for Improvement */}
             <Grid item xs={12} lg={6}>
               <FeedbackCard>
                 <CardContent sx={{ p: 4 }}>
                   <Box display="flex" alignItems="center" mb={3}>
                     <Warning sx={{ color: '#ff9800', mr: 2, fontSize: 28 }} />
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                      Growth Opportunities ({feedback.weaknesses.length})
-                    </Typography>
+                    <Typography variant="h6" fontWeight="bold">Growth Opportunities ({feedback.weaknesses.length})</Typography>
                   </Box>
-                  <Stack spacing={3}>
-                    {feedback.weaknesses.map((weakness, index) => (
-                      <Box
-                        key={index}
-                        display="flex"
-                        alignItems="flex-start"
-                        sx={{
-                          p: 2,
-                          borderRadius: '12px',
-                          backgroundColor: 'rgba(255, 152, 0, 0.05)',
-                          border: '1px solid rgba(255, 152, 0, 0.2)',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                            transform: 'translateX(4px)'
-                          }
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            backgroundColor: '#ff9800',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            mr: 2,
-                            mt: 0.5,
-                            flexShrink: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>
-                            {index + 1}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body1" sx={{ color: '#e0e0e0', lineHeight: 1.6 }}>
-                          {weakness}
-                        </Typography>
+                  <Stack spacing={2}>
+                    {feedback.weaknesses.map((w,i)=>(
+                      <Box key={i} sx={{
+                        p: 2, borderRadius: 2, backgroundColor: 'rgba(255,152,0,0.06)',
+                        border: '1px solid rgba(255,152,0,0.2)', transition: '.2s',
+                        '&:hover': { backgroundColor: 'rgba(255,152,0,0.12)', transform: 'translateX(4px)' }
+                      }}>
+                        <Typography variant="body2" sx={{ color: '#e0e0e0' }}>{i+1}. {w}</Typography>
                       </Box>
                     ))}
                   </Stack>
@@ -1028,80 +615,31 @@ ${feedback.finalAssessment}
               </FeedbackCard>
             </Grid>
 
-            {/* ✅ Enhanced Recommendations */}
             <Grid item xs={12}>
               <FeedbackCard>
                 <CardContent sx={{ p: 4 }}>
                   <Box display="flex" alignItems="center" mb={3}>
                     <School sx={{ color: '#7b1fa2', mr: 2, fontSize: 28 }} />
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                      Personalized Learning Path ({feedback.recommendations.length} steps)
-                    </Typography>
+                    <Typography variant="h6" fontWeight="bold">Personalized Learning Path ({feedback.recommendations.length} steps)</Typography>
                   </Box>
                   <Grid container spacing={3}>
-                    {feedback.recommendations.map((recommendation, index) => (
-                      <Grid item xs={12} sm={6} lg={4} key={index}>
-                        <Paper
-                          sx={{
-                            p: 3,
-                            height: '100%',
-                            background: 'linear-gradient(135deg, rgba(123, 31, 162, 0.1), rgba(123, 31, 162, 0.05))',
-                            border: '1px solid rgba(123, 31, 162, 0.3)',
-                            borderRadius: '16px',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              transform: 'translateY(-4px)',
-                              border: '1px solid rgba(123, 31, 162, 0.5)',
-                              boxShadow: '0 8px 30px rgba(123, 31, 162, 0.2)'
-                            }
-                          }}
-                        >
-                          <Box display="flex" alignItems="flex-start">
-                            <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: '50%',
-                                background: 'linear-gradient(135deg, #7b1fa2, #9c27b0)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                fontSize: '0.9rem',
-                                fontWeight: 'bold',
-                                mr: 2,
-                                mt: 0.5,
-                                flexShrink: 0
-                              }}
-                            >
-                              {index + 1}
-                            </Box>
-                            <Box>
-                              <Typography
-                                variant="body1"
-                                sx={{
-                                  color: '#e0e0e0',
-                                  lineHeight: 1.6,
-                                  fontSize: '0.95rem'
-                                }}
-                              >
-                                {recommendation}
-                              </Typography>
-                              {/* Priority indicator */}
-                              {index < 3 && (
-                                <Chip
-                                  label="High Priority"
-                                  size="small"
-                                  sx={{
-                                    mt: 1,
-                                    backgroundColor: 'rgba(245, 0, 87, 0.2)',
-                                    color: '#f50057',
-                                    fontSize: '0.7rem'
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          </Box>
+                    {feedback.recommendations.map((r,i)=>(
+                      <Grid item xs={12} sm={6} lg={4} key={i}>
+                        <Paper sx={{
+                          p: 3, height: '100%',
+                          background: 'linear-gradient(135deg,rgba(123,31,162,0.1),rgba(123,31,162,0.05))',
+                          border: '1px solid rgba(123,31,162,0.3)',
+                          borderRadius: 2,
+                          transition: '.3s',
+                          '&:hover': { transform: 'translateY(-4px)', border: '1px solid rgba(123,31,162,0.5)', boxShadow: '0 8px 30px rgba(123,31,162,0.2)' }
+                        }}>
+                          <Typography variant="body2" sx={{ color: '#e0e0e0', lineHeight: 1.5 }}>
+                            {i+1}. {r}
+                          </Typography>
+                          {i < 3 && (
+                            <Chip label="High Priority" size="small"
+                                  sx={{ mt: 1, background: 'rgba(245,0,87,0.25)', color: '#f50057', fontSize: '0.65rem' }} />
+                          )}
                         </Paper>
                       </Grid>
                     ))}
@@ -1110,65 +648,37 @@ ${feedback.finalAssessment}
               </FeedbackCard>
             </Grid>
 
-            {/* ✅ Enhanced Final Assessment */}
             <Grid item xs={12}>
               <FeedbackCard>
                 <CardContent sx={{ p: 4 }}>
-                  <Box display="flex" alignItems="center" mb={3}>
+                  <Box display="flex" alignItems="center" mb={2}>
                     <Assessment sx={{ color: '#2196F3', mr: 2, fontSize: 28 }} />
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                      Final Assessment & Career Guidance
-                    </Typography>
+                    <Typography variant="h6" fontWeight="bold">Final Assessment & Career Guidance</Typography>
                   </Box>
-                  <Paper
-                    sx={{
-                      p: 4,
-                      background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05))',
-                      border: '1px solid rgba(33, 150, 243, 0.3)',
-                      borderRadius: '16px'
-                    }}
-                  >
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        color: '#e0e0e0',
-                        lineHeight: 1.8,
-                        fontStyle: 'italic',
-                        fontSize: '1.1rem',
-                        mb: 3
-                      }}
-                    >
+                  <Paper sx={{
+                    p: 4,
+                    background: 'linear-gradient(135deg,rgba(33,150,243,0.1),rgba(33,150,243,0.05))',
+                    border: '1px solid rgba(33,150,243,0.3)', borderRadius: 2
+                  }}>
+                    <Typography variant="body1" sx={{ color: '#e0e0e0', lineHeight: 1.7, fontStyle: 'italic', mb: 3 }}>
                       "{feedback.finalAssessment}"
                     </Typography>
-
-                    {/* Assessment metadata */}
-                    <Divider sx={{ my: 2, borderColor: 'rgba(33, 150, 243, 0.3)' }} />
-
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                    <Divider sx={{ my: 2, borderColor: 'rgba(33,150,243,0.3)' }} />
+                    <Grid container spacing={2}>
                       <Grid item xs={12} sm={4}>
-                        <Typography variant="caption" sx={{ color: '#aaa' }}>
-                          Assessment Date
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#e0e0e0' }}>
-                          {new Date(feedback.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
+                        <Typography variant="caption" sx={{ color: '#aaa' }}>Assessment Date</Typography>
+                        <Typography variant="body2">
+                          {new Date(feedback.createdAt).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={4}>
-                        <Typography variant="caption" sx={{ color: '#aaa' }}>
-                          Interview Focus
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#e0e0e0' }}>
+                        <Typography variant="caption" sx={{ color: '#aaa' }}>Interview Focus</Typography>
+                        <Typography variant="body2">
                           {interview.type} • {interview.level} Level
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={4}>
-                        <Typography variant="caption" sx={{ color: '#aaa' }}>
-                          Readiness Level
-                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#aaa' }}>Readiness Level</Typography>
                         <Typography variant="body2" sx={{ color: getScoreColor(feedback.totalScore) }}>
                           {getScoreLevel(feedback.totalScore)}
                         </Typography>
@@ -1179,21 +689,15 @@ ${feedback.finalAssessment}
               </FeedbackCard>
             </Grid>
 
-            {/* ✅ Enhanced Interview Transcript */}
             <Grid item xs={12}>
               <FeedbackCard>
                 <CardContent sx={{ p: 0 }}>
-                  <Accordion defaultExpanded={false} sx={{ boxShadow: 'none' }}>
-                    <AccordionSummary
-                      expandIcon={<ExpandMore sx={{ color: '#7b1fa2' }} />}
-                      sx={{ p: 3 }}
-                    >
+                  <Accordion>
+                    <AccordionSummary expandIcon={<ExpandMore sx={{ color: '#7b1fa2' }} />} sx={{ p: 3 }}>
                       <Box display="flex" alignItems="center">
                         <ChatIcon sx={{ color: '#7b1fa2', mr: 2, fontSize: 28 }} />
                         <Box>
-                          <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                            Interview Conversation Log
-                          </Typography>
+                          <Typography variant="h6" fontWeight="bold">Interview Conversation Log</Typography>
                           <Typography variant="caption" sx={{ color: '#aaa' }}>
                             {feedback.transcript.length} messages • Duration: {feedback.interviewDuration}
                           </Typography>
@@ -1201,49 +705,27 @@ ${feedback.finalAssessment}
                       </Box>
                     </AccordionSummary>
                     <AccordionDetails sx={{ p: 3, pt: 0 }}>
-                      <Box sx={{ maxHeight: '500px', overflowY: 'auto', pr: 1 }}>
-                        {feedback.transcript.map((message, index) => (
-                          <TranscriptMessage key={index} role={message.role}>
+                      <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
+                        {feedback.transcript.map((m,i)=>(
+                          <TranscriptMessage key={i} role={m.role}>
                             <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
                               <Box display="flex" alignItems="center">
-                                {message.role === 'assistant' ? (
-                                  <Psychology sx={{ mr: 1, fontSize: 16 }} />
-                                ) : (
-                                  <Avatar sx={{ width: 16, height: 16, mr: 1, fontSize: '0.7rem' }}>
-                                    A
-                                  </Avatar>
-                                )}
-                                <Typography
-                                  variant="subtitle2"
-                                  fontWeight="bold"
-                                  sx={{
-                                    color: message.role === 'assistant' ? 'rgba(255,255,255,0.9)' : '#7b1fa2',
-                                    textTransform: 'capitalize'
-                                  }}
-                                >
-                                  {message.role === 'assistant' ? 'AI Interviewer' : userInfo.username}
+                                {m.role === 'assistant'
+                                  ? <Psychology sx={{ mr: 1, fontSize: 16 }} />
+                                  : <Avatar sx={{ width: 16, height: 16, mr: 1, fontSize: '.7rem' }}>U</Avatar>}
+                                <Typography variant="subtitle2" fontWeight="bold"
+                                  sx={{ color: m.role === 'assistant' ? 'rgba(255,255,255,0.9)' : '#7b1fa2' }}>
+                                  {m.role === 'assistant' ? 'AI Interviewer' : userInfo.username}
                                 </Typography>
                               </Box>
-                              {message.timestamp && (
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    color: message.role === 'assistant' ? 'rgba(255,255,255,0.7)' : '#aaa',
-                                    fontSize: '0.75rem'
-                                  }}
-                                >
-                                  {formatTimestamp(message.timestamp)}
+                              {m.timestamp && (
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '.7rem' }}>
+                                  {formatTimestamp(m.timestamp)}
                                 </Typography>
                               )}
                             </Box>
-                            <Typography
-                              variant="body1"
-                              sx={{
-                                color: message.role === 'assistant' ? 'white' : '#e0e0e0',
-                                lineHeight: 1.6
-                              }}
-                            >
-                              {message.content}
+                            <Typography variant="body2" sx={{ color: m.role === 'assistant' ? 'white' : '#e0e0e0', lineHeight: 1.5 }}>
+                              {m.content}
                             </Typography>
                           </TranscriptMessage>
                         ))}
@@ -1254,135 +736,64 @@ ${feedback.finalAssessment}
               </FeedbackCard>
             </Grid>
 
-            {/* ✅ Enhanced Action Section */}
             <Grid item xs={12}>
-              <Paper
-                sx={{
-                  p: 5,
-                  background: 'linear-gradient(135deg, #7b1fa2, #f50057)',
-                  borderRadius: '20px',
-                  textAlign: 'center',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-              >
-                {/* Background decoration */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: -50,
-                    right: -50,
-                    width: 200,
-                    height: 200,
-                    borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.1)',
-                    opacity: 0.5
-                  }}
-                />
-
-                <Typography variant="h4" fontWeight="bold" mb={2} sx={{ color: 'white' }}>
-                  Ready for Your Next Challenge? 🚀
-                </Typography>
+              <Paper sx={{
+                p: 5,
+                background: 'linear-gradient(135deg,#7b1fa2,#f50057)',
+                borderRadius: 4,
+                textAlign: 'center',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <Box sx={{
+                  position: 'absolute', top: -50, right: -50, width: 200, height: 200,
+                  borderRadius: '50%', background: 'rgba(255,255,255,0.1)', opacity: 0.5
+                }} />
+                <Typography variant="h4" fontWeight="bold" mb={2}>Ready for Your Next Challenge? 🚀</Typography>
                 <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.9)', mb: 1 }}>
                   Continue your interview preparation journey
                 </Typography>
                 <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)', mb: 4 }}>
-                  Track your progress • Build confidence • Land your dream job
+                  Track progress • Build confidence • Land your dream job
                 </Typography>
-
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={3}
-                  justifyContent="center"
-                  sx={{ mt: 4 }}
-                >
-                  <ActionButton
-                    variant="contained"
-                    size="large"
-                    startIcon={<Refresh />}
-                    onClick={handleRetakeInterview}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="center" sx={{ mt: 4 }}>
+                  <ActionButton variant="contained" size="large" startIcon={<Refresh />} onClick={handleRetakeInterview}
                     sx={{
-                      background: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      px: 4,
-                      py: 1.5,
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      '&:hover': {
-                        background: 'rgba(255,255,255,0.3)',
-                        transform: 'translateY(-2px)',
-                      }
-                    }}
-                  >
+                      background: 'rgba(255,255,255,0.2)', color: 'white', px: 4, py: 1.5,
+                      border: '1px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(10px)',
+                      '&:hover': { background: 'rgba(255,255,255,0.3)', transform: 'translateY(-2px)' }
+                    }}>
                     Practice More Questions
                   </ActionButton>
-                  <ActionButton
-                    variant="contained"
-                    size="large"
-                    startIcon={<PlayArrow />}
-                    onClick={handleNewInterview}
+                  <ActionButton variant="contained" size="large" startIcon={<PlayArrow />} onClick={handleNewInterview}
                     sx={{
-                      background: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      px: 4,
-                      py: 1.5,
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      '&:hover': {
-                        background: 'rgba(255,255,255,0.3)',
-                        transform: 'translateY(-2px)',
-                      }
-                    }}
-                  >
+                      background: 'rgba(255,255,255,0.2)', color: 'white', px: 4, py: 1.5,
+                      border: '1px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(10px)',
+                      '&:hover': { background: 'rgba(255,255,255,0.3)', transform: 'translateY(-2px)' }
+                    }}>
                     Start New Interview
                   </ActionButton>
-                  <ActionButton
-                    variant="outlined"
-                    size="large"
-                    startIcon={<TrendingUp />}
-                    onClick={handleBackToDashboard}
+                  <ActionButton variant="outlined" size="large" startIcon={<TrendingUp />} onClick={handleBackToDashboard}
                     sx={{
-                      borderColor: 'rgba(255,255,255,0.5)',
-                      color: 'white',
-                      px: 4,
-                      py: 1.5,
-                      '&:hover': {
-                        borderColor: 'white',
-                        backgroundColor: 'rgba(255,255,255,0.1)',
-                        transform: 'translateY(-2px)',
-                      }
-                    }}
-                  >
+                      borderColor: 'rgba(255,255,255,0.5)', color: 'white', px: 4, py: 1.5,
+                      '&:hover': { borderColor: 'white', backgroundColor: 'rgba(255,255,255,0.1)', transform: 'translateY(-2px)' }
+                    }}>
                     View Progress
                   </ActionButton>
                 </Stack>
-
-                {/* Stats footer */}
                 <Box mt={4} pt={3} sx={{ borderTop: '1px solid rgba(255,255,255,0.3)' }}>
                   <Grid container spacing={4} textAlign="center">
                     <Grid item xs={12} sm={4}>
-                      <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                        Interview #{interviewId}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                        Session Completed
-                      </Typography>
+                      <Typography variant="h6" fontWeight="bold">Interview #{interviewId}</Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Session Completed</Typography>
                     </Grid>
                     <Grid item xs={12} sm={4}>
-                      <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                        {feedback.totalScore}% Score
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                        Performance Rating
-                      </Typography>
+                      <Typography variant="h6" fontWeight="bold">{feedback.totalScore}% Score</Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Performance Rating</Typography>
                     </Grid>
                     <Grid item xs={12} sm={4}>
-                      <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                        {CURRENT_TIME.split(' ')[1]}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                        Generated Today
-                      </Typography>
+                      <Typography variant="h6" fontWeight="bold">{CURRENT_TIME.split(' ')[1]}</Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Generated Today</Typography>
                     </Grid>
                   </Grid>
                 </Box>
