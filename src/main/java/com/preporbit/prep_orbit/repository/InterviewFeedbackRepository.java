@@ -26,4 +26,14 @@ public interface InterviewFeedbackRepository extends JpaRepository<InterviewFeed
 
     @Query("SELECT COUNT(f) FROM InterviewFeedback f WHERE f.userId = :userId")
     Long countFeedbackByUserId(@Param("userId") Long userId);
+    @Query("SELECT avg(f.communicationScore) FROM InterviewFeedback f WHERE f.userId = :userId")
+    Double getAverageCommunicationByUser(Long userId);
+
+    @Query("SELECT avg(f.problemSolvingScore) FROM InterviewFeedback f WHERE f.userId = :userId")
+    Double getAverageProblemSolvingByUser(Long userId);
+
+    @Query("SELECT count(f) FROM InterviewFeedback f WHERE f.userId = :userId")
+    Long getFeedbackCount(Long userId);
+    @Query("SELECT avg(f.technicalScore) FROM InterviewFeedback f WHERE f.userId = :userId")
+    Double getAverageTechnicalByUser(Long userId);
 }

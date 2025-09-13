@@ -3,6 +3,7 @@ package com.preporbit.prep_orbit.service;
 import com.preporbit.prep_orbit.model.Interview;
 import com.preporbit.prep_orbit.dto.InterviewRequestDto;
 import com.preporbit.prep_orbit.dto.InterviewResponseDto;
+import com.preporbit.prep_orbit.repository.InterviewFeedbackRepository;
 import com.preporbit.prep_orbit.repository.InterviewRepository;
 import com.preporbit.prep_orbit.config.InterviewAIConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +21,8 @@ import java.util.*;
 
 @Service
 public class InterviewService {
+    @Autowired
+    private InterviewFeedbackRepository interviewFeedbackRepository;
 
     private static final Logger logger = LoggerFactory.getLogger(InterviewService.class);
 
@@ -352,6 +355,38 @@ public class InterviewService {
         interviewRepository.save(interview);
 
         logger.info("Interview {} finalized by user: {}", id, userId);
+    }
+    public Map<String, Object> getUnifiedStats(Long userId) {
+        Map<String, Object> interviewStats = getInterviewStats(userId); // existing distribution stats
+
+        Double avgOverall = interviewFeedbackRepository.getAverageScoreByUserId(userId);
+        Double avgTech = interviewFeedbackRepository.getAverageTechnicalByUser(userId);
+        Double avgComm = interviewFeedbackRepository.getAverageCommunicationByUser(userId);
+        Double avgProb = interviewFeedbackRepository.getAverageProblemSolvingByUser(userId);
+        Long fbCount = interviewFeedbackRepository.getFeedbackCount(userId);
+
+        // last feedback date
+        String lastFeedbackDate = interviewFeedbackRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .findFirst()
+                .map(f -> f.getCreatedAt().toString())
+                .orElse(null);
+
+        Map<String,Object> merged = new HashMap<>();
+        merged.putAll(interviewStats);
+        merged.put("totalFeedbacks", fbCount != null ? fbCount : 0);
+        merged.put("averageOverallScore", avgOverall != null ? round1(avgOverall) : 0.0);
+        merged.put("averageTechnicalScore", avgTech != null ? round1(avgTech) : 0.0);
+        merged.put("averageCommunicationScore", avgComm != null ? round1(avgComm) : 0.0);
+        merged.put("averageProblemSolvingScore", avgProb != null ? round1(avgProb) : 0.0);
+        merged.put("lastFeedbackDate", lastFeedbackDate);
+        // simple improvement trend placeholder: you could compare last two feedbacks
+        merged.put("improvementTrend", "+0.0");
+        return merged;
+    }
+
+    private double round1(double val) {
+        return Math.round(val * 10.0) / 10.0;
     }
 
 }

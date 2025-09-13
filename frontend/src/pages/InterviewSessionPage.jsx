@@ -24,7 +24,7 @@ import Vapi from '@vapi-ai/web';
 
 // Constants
 const VAPI_PUBLIC_KEY ='d47641df-6392-43d8-b540-04a3a481a3be';
-const NGROK_URL = 'https://5b11c4dc0e03.ngrok-free.app';
+const NGROK_URL = 'https://d99ca3fc74f4.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 15:28:13';
 
 // Dark theme

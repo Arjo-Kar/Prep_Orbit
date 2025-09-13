@@ -485,7 +485,7 @@ public class InterviewController {
             logger.info("📊 Fetching interview stats for authenticated user: {} (ID: {}) at 2025-09-05 15:11:10",
                     authenticatedUsername, authenticatedUserId);
 
-            Map<String, Object> stats = interviewService.getInterviewStats(userId);
+            Map<String, Object> stats = interviewService.getUnifiedStats(userId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

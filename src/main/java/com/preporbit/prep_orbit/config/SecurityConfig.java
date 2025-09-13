@@ -39,7 +39,7 @@ public class SecurityConfig {
                 "https://api.vapi.ai",
                 "https://dashboard.vapi.ai",
                 "https://*.ngrok-free.app",
-                "https://a651c504235e.ngrok-free.app" // ✅ Your current ngrok URL
+                "https://d99ca3fc74f4.ngrok-free.app" // ✅ Your current ngrok URL
 
         ));
 

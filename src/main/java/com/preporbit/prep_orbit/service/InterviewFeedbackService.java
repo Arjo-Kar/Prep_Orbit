@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * InterviewFeedbackService
@@ -42,7 +43,7 @@ public class InterviewFeedbackService {
     private static final int MAX_STRENGTHS_LENGTH = 5000;
     private static final int MAX_IMPROVEMENTS_LENGTH = 5000;
     private static final int MAX_FEEDBACK_LENGTH = 12000;
-
+    private static final int DEFAULT_NEUTRAL_SCORE = 5; //
     /* Throttle map: interviewId -> last invocation timestamp */
     private final Map<Long, LocalDateTime> lastGeneration = new ConcurrentHashMap<>();
 
@@ -88,36 +89,129 @@ public class InterviewFeedbackService {
                 feedbackDto.getUserId(),
                 feedbackDto.getTranscript() == null ? 0 : feedbackDto.getTranscript().size());
 
-        if (feedbackDto.getTranscript() == null || feedbackDto.getTranscript().isEmpty()) {
-            logger.warn("⚠️ Empty transcript provided (fallback will still produce output)");
-        }
-
         InterviewFeedback feedback = upsertFeedback(feedbackDto);
 
         List<InterviewFeedbackDto.TranscriptMessage> sanitized =
                 sanitizeTranscript(feedbackDto.getTranscript());
         sanitized = truncateTranscriptIfNeeded(sanitized);
 
-        int approxChars = sanitized.stream()
-                .mapToInt(m -> m.getContent() == null ? 0 : m.getContent().length()).sum();
-
-        logger.info("🧼 Sanitized transcript messages={} approxChars={} firstSnippet='{}'",
-                sanitized.size(),
-                approxChars,
-                sanitized.isEmpty() ? "" :
-                        sanitized.get(0).getContent().substring(0,
-                                Math.min(120, sanitized.get(0).getContent().length()))
-        );
+        Map<String, Object> metrics = computeMetrics(feedbackDto, sanitized); // *** NEW
 
         feedback.setTranscript(convertTranscriptToJson(sanitized));
 
-        Map<String, Object> aiFeedback = generateComprehensiveAIFeedback(feedbackDto, sanitized);
+        Map<String, Object> aiFeedback = generateComprehensiveAIFeedback(feedbackDto, sanitized, metrics); // *** CHANGED signature
+        applyHeuristicCaps(aiFeedback, metrics); // *** NEW heuristic enforcement
         applyFeedbackMap(feedback, aiFeedback);
+
+        // Optionally store metrics summary inside feedback text (append)
+        if (aiFeedback.get("feedback") != null) {
+            String augmented = aiFeedback.get("feedback") + "\n\n[Metrics] coverage=" +
+                    metrics.get("coveragePct") + "% avgAnswerLen=" + metrics.get("avgAnswerLen") +
+                    " chars answered=" + metrics.get("userAnswerCount") + "/" + metrics.get("expectedQuestions");
+            feedback.setFeedback(sanitizeLength(augmented, MAX_FEEDBACK_LENGTH));
+        }
 
         InterviewFeedback saved = feedbackRepository.save(feedback);
         logPersistResult(saved, aiFeedback, true);
         return saved;
     }
+    private Map<String, Object> computeMetrics(InterviewFeedbackDto dto,
+                                               List<InterviewFeedbackDto.TranscriptMessage> sanitized) {
+        Map<String, Object> m = new HashMap<>();
+        if (sanitized == null || sanitized.isEmpty()) {
+            m.put("userAnswerCount", 0);
+            m.put("assistantQuestionCount", 0);
+            m.put("avgAnswerLen", 0);
+            m.put("coveragePct", 0);
+            m.put("expectedQuestions", dto.getTotalQuestions() != null ? dto.getTotalQuestions() : 0);
+            return m;
+        }
+
+        int assistantQuestions = 0;
+        int userAnswers = 0;
+        List<Integer> userLengths = new ArrayList<>();
+
+        for (int i = 0; i < sanitized.size(); i++) {
+            InterviewFeedbackDto.TranscriptMessage msg = sanitized.get(i);
+            String role = msg.getRole() == null ? "" : msg.getRole().toLowerCase();
+            String content = msg.getContent() == null ? "" : msg.getContent().trim();
+            if ("assistant".equals(role) && content.endsWith("?")) {
+                assistantQuestions++;
+                // Find next user message before another assistant
+                for (int j = i + 1; j < sanitized.size(); j++) {
+                    InterviewFeedbackDto.TranscriptMessage next = sanitized.get(j);
+                    if ("assistant".equalsIgnoreCase(next.getRole())) break;
+                    if ("user".equalsIgnoreCase(next.getRole())) {
+                        String ans = next.getContent() == null ? "" : next.getContent().trim();
+                        if (!ans.isEmpty()) {
+                            userAnswers++;
+                            userLengths.add(ans.length());
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        double avgLen = userLengths.stream().mapToInt(Integer::intValue).average().orElse(0);
+        int expected = dto.getTotalQuestions() != null
+                ? dto.getTotalQuestions()
+                : assistantQuestions;
+        int coveragePct = expected == 0
+                ? 0
+                : (int)Math.round((100.0 * userAnswers) / Math.max(1, expected));
+
+        m.put("assistantQuestionCount", assistantQuestions);
+        m.put("userAnswerCount", userAnswers);
+        m.put("avgAnswerLen", (int)Math.round(avgLen));
+        m.put("expectedQuestions", expected);
+        m.put("coveragePct", coveragePct);
+        return m;
+    }
+    private void applyHeuristicCaps(Map<String, Object> scores, Map<String, Object> metrics) {
+        int coverage = ((Number) metrics.getOrDefault("coveragePct", 0)).intValue();
+        int avgLen = ((Number) metrics.getOrDefault("avgAnswerLen", 0)).intValue();
+        int userAns = ((Number) metrics.getOrDefault("userAnswerCount", 0)).intValue();
+        int expected = ((Number) metrics.getOrDefault("expectedQuestions", 0)).intValue();
+
+        // Cap logic:
+        // 1. If coverage < 50% or user answered less than half of expected -> all <= 4
+        if (expected > 0 && (coverage < 50 || userAns * 2 < expected)) {
+            cap(scores, 4, "coverage<50%");
+        }
+        // 2. If avg answer length < 35 chars -> technical & problem solving <= 5
+        if (avgLen < 35) {
+            capField(scores, "technicalScore", 5, "short answers");
+            capField(scores, "problemSolvingScore", 5, "short answers");
+        }
+        // 3. If avg answer length < 20 -> overall <= 5
+        if (avgLen < 20) {
+            capField(scores, "overallScore", 5, "very short answers");
+        }
+        // 4. If no user answers -> everything = 3 (minimal)
+        if (userAns == 0) {
+            cap(scores, 3, "no answers");
+        }
+    }
+
+    private void cap(Map<String,Object> scores, int max, String reason) {
+        for (String k : List.of("overallScore","communicationScore","technicalScore","problemSolvingScore")) {
+            Object v = scores.get(k);
+            if (v instanceof Number n && n.intValue() > max) {
+                scores.put(k, max);
+            }
+        }
+        scores.put("capReason", reason);
+    }
+
+    private void capField(Map<String,Object> scores, String field, int max, String reason) {
+        Object v = scores.get(field);
+        if (v instanceof Number n && n.intValue() > max) {
+            scores.put(field, max);
+            scores.put("capReason", reason);
+        }
+    }
+
 
     public boolean feedbackExists(Long interviewId, Long userId) {
         return feedbackRepository.findByInterviewIdAndUserId(interviewId, userId).isPresent();
@@ -316,12 +410,11 @@ public class InterviewFeedbackService {
     }
 
     private String buildComprehensivePrompt(InterviewFeedbackDto dto,
-                                            List<InterviewFeedbackDto.TranscriptMessage> sanitized) {
-
-        StringBuilder transcriptBlock = new StringBuilder();
-        sanitized.forEach(m ->
-                transcriptBlock.append(m.getRole()).append(": ").append(m.getContent()).append("\n")
-        );
+                                            List<InterviewFeedbackDto.TranscriptMessage> sanitized,
+                                            Map<String,Object> metrics) {
+        String transcriptBlock = sanitized.stream()
+                .map(m -> m.getRole() + ": " + m.getContent())
+                .collect(Collectors.joining("\n"));
 
         StringBuilder responsesBlock = new StringBuilder();
         if (dto.getResponses() != null) {
@@ -331,17 +424,30 @@ public class InterviewFeedbackService {
             });
         }
 
+        int expected = (Integer) metrics.getOrDefault("expectedQuestions", 0);
+        int answered = (Integer) metrics.getOrDefault("userAnswerCount", 0);
+        int avgLen = (Integer) metrics.getOrDefault("avgAnswerLen", 0);
+        int coverage = (Integer) metrics.getOrDefault("coveragePct", 0);
+
+        String rubric =
+                "SCORING RUBRIC (MANDATORY):\n" +
+                        "- Start all scores at 10 then subtract penalties.\n" +
+                        "- Coverage (answered/expected): " + answered + "/" + expected + " (" + coverage + "%)\n" +
+                        "  * coverage < 50% => overallScore <= 4\n" +
+                        "  * 50-69% => overallScore <= 6\n" +
+                        "- Avg answer length (chars): " + avgLen + "\n" +
+                        "  * avgLen < 20 => technicalScore & problemSolvingScore <= 4\n" +
+                        "  * 20-34 => technicalScore & problemSolvingScore <= 6\n" +
+                        "- If answers are generic/no detail (e.g. 'I don't know', 'maybe', 'yes/no') reduce technical & problemSolving by 2–4.\n" +
+                        "- Use entire 1–10 range. 10 is exceptional depth + clarity. 5 is neutral/average. 3 is weak/superficial.\n" +
+                        "- Do NOT inflate scores when data is sparse.\n";
+
         return
-                "You are an expert technical + behavioral interview evaluator.\n" +
-                        "Return ONLY JSON (no markdown, no commentary). Schema:\n" +
-                        "{ \"feedback\": \"3-6 sentences\", \"overallScore\":7, \"communicationScore\":7, \"technicalScore\":7, \"problemSolvingScore\":7, \"strengths\": \"lines\", \"improvements\": \"lines\" }\n" +
-                        "Scores must be integers 1-10. Use newlines between bullet-like lines.\n\n" +
-                        "CONTEXT:\n" +
-                        "- TotalQuestions: " + nz(dto.getTotalQuestions()) + "\n" +
-                        "- TotalAnswers: " + nz(dto.getTotalAnswers()) + "\n" +
-                        "- DurationSeconds: " + nz(dto.getDuration()) + "\n" +
-                        "- Metadata: " + dto.getInterviewMetadata() + "\n\n" +
-                        "TRANSCRIPT:\n" + transcriptBlock + "\n" +
+                "You are an interview evaluator. Return ONLY JSON with keys:\n" +
+                        "{ \"feedback\":\"3-6 sentences summary\", \"overallScore\":5, \"communicationScore\":5, \"technicalScore\":5, \"problemSolvingScore\":5, \"strengths\":\"lines\", \"improvements\":\"lines\" }\n" +
+                        "Each score MUST be integer 1–10 and obey the rubric constraints. If constraints force a cap, apply it.\n\n" +
+                        rubric + "\n" +
+                        "TRANSCRIPT:\n" + transcriptBlock + "\n\n" +
                         "QUESTION_ANSWER_PAIRS:\n" + responsesBlock + "\n" +
                         "Return ONLY the JSON object.";
     }
@@ -361,21 +467,28 @@ public class InterviewFeedbackService {
     }
 
     private Map<String, Object> generateComprehensiveAIFeedback(InterviewFeedbackDto dto,
-                                                                List<InterviewFeedbackDto.TranscriptMessage> sanitized) {
+                                                                List<InterviewFeedbackDto.TranscriptMessage> sanitized,
+                                                                Map<String, Object> metrics) {
         if (!interviewAIConfig.isConfigured()) {
             logger.warn("AI not configured; using COMPREHENSIVE fallback feedback");
-            return createComprehensiveFallbackFeedback(dto, true);
+            Map<String, Object> fb = createComprehensiveFallbackFeedback(dto, true);
+            fb.putAll(metrics);
+            return fb;
         }
-        String prompt = buildComprehensivePrompt(dto, sanitized);
+        String prompt = buildComprehensivePrompt(dto, sanitized, metrics); // *** CHANGED
         Map<String, Object> parsed = callGemini(prompt);
-        if (parsed == null) return createComprehensiveFallbackFeedback(dto, true);
+        if (parsed == null) {
+            Map<String,Object> fb = createComprehensiveFallbackFeedback(dto, true);
+            fb.putAll(metrics);
+            return fb;
+        }
 
         parsed.put("fallback", false);
-        parsed.put("overallScore", normScore(parsed.get("overallScore"), 7));
-        parsed.put("communicationScore", normScore(parsed.get("communicationScore"), 7));
-        parsed.put("technicalScore", normScore(parsed.get("technicalScore"), 7));
-        parsed.put("problemSolvingScore", normScore(parsed.get("problemSolvingScore"), 7));
-
+        parsed.put("overallScore", normScore(parsed.get("overallScore"), DEFAULT_NEUTRAL_SCORE)); // *** CHANGED default
+        parsed.put("communicationScore", normScore(parsed.get("communicationScore"), DEFAULT_NEUTRAL_SCORE));
+        parsed.put("technicalScore", normScore(parsed.get("technicalScore"), DEFAULT_NEUTRAL_SCORE));
+        parsed.put("problemSolvingScore", normScore(parsed.get("problemSolvingScore"), DEFAULT_NEUTRAL_SCORE));
+        parsed.putAll(metrics); // expose metrics
         return parsed;
     }
 
@@ -470,14 +583,14 @@ public class InterviewFeedbackService {
     private Map<String, Object> createFallbackFeedback(boolean basic) {
         Map<String, Object> fb = new HashMap<>();
         fb.put("feedback", basic
-                ? "Thank you for completing the interview. Unable to generate detailed AI feedback right now."
-                : "Fallback: Detailed analysis pending. The interview transcript has been recorded.");
-        fb.put("overallScore", 7);
-        fb.put("communicationScore", 7);
-        fb.put("technicalScore", 7);
-        fb.put("problemSolvingScore", 7);
-        fb.put("strengths", "Good engagement; Maintained structure");
-        fb.put("improvements", "Provide deeper technical specifics; Elaborate on problem-solving steps");
+                ? "Preliminary (fallback) feedback due to AI unavailable."
+                : "Fallback comprehensive feedback (analysis pending).");
+        fb.put("overallScore", DEFAULT_NEUTRAL_SCORE);
+        fb.put("communicationScore", DEFAULT_NEUTRAL_SCORE);
+        fb.put("technicalScore", DEFAULT_NEUTRAL_SCORE);
+        fb.put("problemSolvingScore", DEFAULT_NEUTRAL_SCORE);
+        fb.put("strengths", "Engaged; Maintained basic structure");
+        fb.put("improvements", "Provide deeper technical specifics; Expand problem-solving rationale");
         fb.put("fallback", true);
         return fb;
     }
