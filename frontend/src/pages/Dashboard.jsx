@@ -688,6 +688,20 @@ export default function Dashboard() {
                       >
                         Chat with AI
                       </ActionButton>
+                      <ActionButton
+                        variant="contained"
+                        startIcon={<DescriptionIcon />}
+                        fullWidth
+                        onClick={() => navigate("/resume-analyzer")} // Update this route
+                        sx={{
+                          background: "linear-gradient(45deg, #2196F3, #21CBF3)",
+                          "&:hover": {
+                            background: "linear-gradient(45deg, #42a5f5, #4fc3f7)",
+                          },
+                        }}
+                      >
+                        Analyze Resume
+                      </ActionButton>
                     </Grid>
                     <Grid item xs={12} sm={6} md={6}>
                       <ActionButton

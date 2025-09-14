@@ -22,6 +22,7 @@ import LiveInterviewPage from "./pages/LiveInterviewPage";
 import LiveInterviewFeedbackPage from "./pages/LiveInterviewFeedbackPage";
 import InterviewAnalyticsPage from "./pages/InterviewAnalyticsPage";
 import LandingPage from "./pages/LandingPage";
+import ResumeAnalyzer from './pages/ResumeAnalyzer';
 
 export default function App() {
   return (
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/live-interview" element={<LiveInterviewPage />} />
           <Route path="/live-interview/feedback/:interviewId" element={<LiveInterviewFeedbackPage />} />
           <Route path="/analytics" element={<InterviewAnalyticsPage />} />
+          <Route path="/resume-analyzer" element={<ResumeAnalyzer />} />
         </Routes>
       </BrowserRouter>
     </AppThemeProvider>
