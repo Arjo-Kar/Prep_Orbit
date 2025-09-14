@@ -214,7 +214,7 @@ function LoginPage() {
         return;
       }
 
-      navigate('/dashboard'); // Redirect to dashboard on success
+      navigate('/'); // Redirect to LandingPage on success
     } catch (err) {
       setError('Login failed. Please check your credentials.');
       console.error('Login error:', err);

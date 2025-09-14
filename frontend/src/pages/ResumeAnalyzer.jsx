@@ -51,7 +51,9 @@ import {
   TextFields,
   SmartToy,
   Speed,
-  AutoFixHigh
+  AutoFixHigh,
+  ArrowBack,
+  Dashboard
 } from '@mui/icons-material';
 import { styled, keyframes } from '@mui/material/styles';
 import PageLayout from '../components/PageLayout';
@@ -289,7 +291,7 @@ function AnalysisProgress({ analyzing, currentStep, analysisMethod, details }) {
               sx={{ color: 'rgba(255,255,255,0.75)', lineHeight: 1.4 }}
             >
               {details.hasTextContent
-                ? '✔ Text detected'
+                ? '✓ Text detected'
                 : '⚠ Minimal text'}{' '}
               • {details.imagePages > 0 ? `${details.imagePages} pages` : 'No pages'} •
               Running...
@@ -824,7 +826,7 @@ const handleHistoryClick = async (item) => {
      const user = JSON.parse(rawUser);
      const userId = user.id;
 
-     console.log("📌 Fetching history for userId:", userId);
+     console.log("🔌 Fetching history for userId:", userId);
 
      const res = await fetch(`http://localhost:8080/api/resume/history?userId=${userId}`, {
        headers: { Authorization: `Bearer ${token}` }
@@ -836,7 +838,7 @@ const handleHistoryClick = async (item) => {
 
        console.log("📊 History API returned:", analyses);
 
-       // ✅ Keep full analysis objects, don’t trim
+       // ✅ Keep full analysis objects, don't trim
        setAnalysisHistory(analyses);
      } else {
        console.error("❌ Failed to fetch history, status:", res.status);
@@ -1095,6 +1097,23 @@ const handleHistoryClick = async (item) => {
       <Container maxWidth="xl" sx={{ py: 3 }}>
         {/* Hero */}
         <DarkGradientBox sx={{ mb: 4, textAlign: 'center' }}>
+          <Box sx={{ position: 'absolute', top: 16, left: 16 }}>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBack />}
+              onClick={() => window.location.href = '/dashboard'}
+              sx={{
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: 'rgba(255,255,255,0.85)',
+                '&:hover': {
+                  borderColor: '#64b5f6',
+                  backgroundColor: 'rgba(100,181,246,0.1)'
+                }
+              }}
+            >
+              Dashboard
+            </Button>
+          </Box>
           <Stack
             direction="row"
             spacing={2}

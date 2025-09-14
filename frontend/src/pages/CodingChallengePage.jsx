@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Play, RefreshCw, CheckCircle, XCircle, Clock, Database, Settings, ArrowLeft, Code, Terminal, Zap, Eye, EyeOff, Maximize, Minimize, RotateCcw, Copy } from 'lucide-react';
+import {
+  Play,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Database,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Copy
+} from 'lucide-react';
 import {
   Box,
   Button,
@@ -11,7 +21,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   Alert,
   IconButton
 } from '@mui/material';
@@ -19,11 +28,15 @@ import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CodeIcon from "@mui/icons-material/Code";
 
+/**
+ * Run improvements:
+ * - Use /submit for "Run" (backend doesn't have /run or /execute).
+ * - Normalize various response shapes to compute a clear verdict.
+ * - Show verdict even when only top-level counts are returned.
+ * - Added debug logging for raw run response.
+ * New button remains removed per your request.
+ */
 
-
-
-
-// Dark theme to match Dashboard.jsx
 const darkTheme = createTheme({
   palette: {
     mode: "dark",
@@ -31,39 +44,17 @@ const darkTheme = createTheme({
       default: "#100827",
       paper: "rgba(25, 25, 25, 0.8)",
     },
-    primary: {
-      main: "#7b1fa2",
-    },
-    secondary: {
-      main: "#f50057",
-    },
-    text: {
-      primary: "#ffffff",
-      secondary: "#cccccc",
-    },
+    primary: { main: "#7b1fa2" },
+    secondary: { main: "#f50057" },
+    text: { primary: "#ffffff", secondary: "#cccccc" },
   },
   typography: {
     fontFamily:
       'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   components: {
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: "16px",
-          backgroundImage: "none",
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: "12px",
-          textTransform: "none",
-          fontWeight: 600,
-        },
-      },
-    },
+    MuiPaper: { styleOverrides: { root: { borderRadius: "16px", backgroundImage: "none" } } },
+    MuiButton: { styleOverrides: { root: { borderRadius: "12px", textTransform: "none", fontWeight: 600 } } },
     MuiCard: {
       styleOverrides: {
         root: {
@@ -73,19 +64,10 @@ const darkTheme = createTheme({
         },
       },
     },
-    MuiSelect: {
-      styleOverrides: {
-        select: {
-          '&:focus': {
-            backgroundColor: 'transparent',
-          },
-        },
-      },
-    },
+    MuiSelect: { styleOverrides: { select: { '&:focus': { backgroundColor: 'transparent' } } } },
   },
 });
 
-// Styled components to match Dashboard.jsx
 const GradientBox = styled(Box)(({ theme }) => ({
   background: "linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)",
   minHeight: "100vh",
@@ -136,15 +118,13 @@ const ActionButton = styled(Button)(({ theme }) => ({
   fontSize: "1rem",
   fontWeight: 600,
   transition: "all 0.3s ease",
-  "&:hover": {
-    transform: "translateY(-2px)",
-  },
+  "&:hover": { transform: "translateY(-2px)" },
 }));
 
 const MainContainer = styled(Box)(({ theme }) => ({
   display: "flex",
   width: "100%",
-  height: "calc(100vh - 120px)", // Adjust for header height
+  height: "calc(100vh - 120px)",
   borderRadius: "16px",
   boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
   border: "1px solid rgba(45, 45, 45, 0.5)",
@@ -163,16 +143,12 @@ const MonacoLoader = ({ onMonacoReady, language, value, theme, options, onChange
       if (window.monaco) {
         if (editor) editor.dispose();
         editor = window.monaco.editor.create(containerRef.current, {
-          value: value,
-          language: language,
-          theme: theme,
+          value,
+          language,
+          theme,
           ...options,
         });
-
-        editor.onDidChangeModelContent(() => {
-          onChange(editor.getValue());
-        });
-
+        editor.onDidChangeModelContent(() => onChange(editor.getValue()));
         editorRef.current = editor;
         onMonacoReady(editor);
       }
@@ -183,9 +159,7 @@ const MonacoLoader = ({ onMonacoReady, language, value, theme, options, onChange
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs/loader.min.js";
       script.onload = () => {
         window.require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.29.1/min/vs' } });
-        window.require(['vs/editor/editor.main'], () => {
-          loadMonaco();
-        });
+        window.require(['vs/editor/editor.main'], () => loadMonaco());
       };
       document.body.appendChild(script);
     } else {
@@ -193,14 +167,12 @@ const MonacoLoader = ({ onMonacoReady, language, value, theme, options, onChange
     }
 
     return () => {
-      if (editorRef.current) {
-        editorRef.current.dispose();
-      }
+      if (editorRef.current) editorRef.current.dispose();
     };
   }, []);
 
   useEffect(() => {
-    if (editorRef.current) {
+    if (editorRef.current && window.monaco) {
       window.monaco.editor.setTheme(theme);
     }
   }, [theme]);
@@ -211,18 +183,22 @@ const MonacoLoader = ({ onMonacoReady, language, value, theme, options, onChange
 const CodingChallengePage = () => {
   const { id: challengeId } = useParams();
   const navigate = useNavigate();
+
   const [challenge, setChallenge] = useState(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+
   const [code, setCode] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('java');
-  const [submissionResult, setSubmissionResult] = useState(null);
+
+  const [submissionResult, setSubmissionResult] = useState(null); // for Run panel
+  const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
   const [selectedDifficulty, setSelectedDifficulty] = useState('medium');
-  const [showSettings, setShowSettings] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
-  const [authToken] = useState('mock-auth-token-123');
   const [showResults, setShowResults] = useState(true);
+  const [errorMessage, setErrorMessage] = useState(null);
+
   const [editorTheme, setEditorTheme] = useState('vs-dark');
   const [fontSize, setFontSize] = useState(14);
 
@@ -239,10 +215,10 @@ const CodingChallengePage = () => {
 // Time to show your coding skills! 💪
 
 function solve() {
-    // 🚀 Implement your solution here
-    // Read input, process data, return output
+  // 🚀 Implement your solution here
+  // Read input, process data, return output
 
-    return "Your answer here";
+  return "Your answer here";
 }
 
 // Test your solution
@@ -260,7 +236,6 @@ def solve():
     🚀 Implement your solution here
     Read input, process data, return output
     """
-
     return "Your answer here"
 
 # Test your solution
@@ -331,7 +306,6 @@ int main() {
     { value: 'hc-black', name: 'High Contrast' }
   ];
 
-  // Mock challenges
   const mockChallenges = {
     'challenge-1': {
       id: 'challenge-1',
@@ -345,6 +319,7 @@ int main() {
         { input: '1\n2', expectedOutput: '3' },
         { input: '10\n-5', expectedOutput: '5' },
       ],
+      difficulty: 'easy',
     },
     'challenge-2': {
       id: 'challenge-2',
@@ -358,10 +333,10 @@ int main() {
         { input: 'hello', expectedOutput: 'olleh' },
         { input: 'world', expectedOutput: 'dlrow' },
       ],
+      difficulty: 'medium',
     }
   };
 
-  // Override global styles for this page
   useEffect(() => {
     const originalRootStyle = document.getElementById("root")?.style.cssText;
     const originalBodyStyle = document.body.style.cssText;
@@ -396,6 +371,7 @@ int main() {
     monacoEditorInstance.current = editor;
   };
 
+  // Resizable split
   const onMouseDown = (e) => {
     e.preventDefault();
     isDragging.current = true;
@@ -420,12 +396,13 @@ int main() {
   const generateChallenge = async () => {
     setGenerating(true);
     setErrorMessage(null);
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 400));
     try {
       const newChallengeId = `challenge-${Math.floor(Math.random() * 2) + 1}`;
       const newChallenge = mockChallenges[newChallengeId];
       if (newChallenge) {
         setChallenge(newChallenge);
+        setSelectedDifficulty(newChallenge.difficulty || 'medium');
         setSubmissionResult(null);
         setCode(languageConfigs[selectedLanguage].template);
       } else {
@@ -438,17 +415,17 @@ int main() {
     }
   };
 
-  const fetchChallenge = async (challengeId) => {
+  const fetchChallenge = async (id) => {
     setLoading(true);
     setErrorMessage(null);
     try {
       const authToken = localStorage.getItem('authToken');
       const response = await fetch(
-        `http://localhost:8080/api/coding/challenge/${challengeId}`,
+        `http://localhost:8080/api/coding/challenge/${id}`,
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Authorization': `Bearer ${authToken || ''}`
           }
         }
       );
@@ -476,15 +453,142 @@ int main() {
       };
 
       setChallenge(challengeData);
+      setSelectedDifficulty(challengeData.difficulty || 'medium');
       setSubmissionResult(null);
       setCode(languageConfigs[selectedLanguage].template);
     } catch (error) {
-      setErrorMessage('Failed to load challenge. Please try again.');
+      setErrorMessage('Failed to load challenge. Loading a mock challenge.');
+      const fallback = mockChallenges['challenge-1'];
+      setChallenge(fallback);
+      setSelectedDifficulty(fallback.difficulty || 'medium');
+      setSubmissionResult(null);
+      setCode(languageConfigs[selectedLanguage].template);
     } finally {
       setLoading(false);
     }
   };
 
+  // ===== Normalization helpers for "Run" =====
+  const coerceBoolean = (v) => {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') return v.toLowerCase() === 'true';
+    if (typeof v === 'number') return v !== 0;
+    return false;
+  };
+
+  const mapTestCase = (tc) => {
+    const input = tc.input ?? tc.stdin ?? tc.caseInput ?? '';
+    const expectedOutput = tc.expectedOutput ?? tc.expected_output ?? tc.expected ?? '';
+    const actualOutput = tc.actualOutput ?? tc.actual_output ?? tc.output ?? tc.stdout ?? '';
+    const error = tc.error ?? tc.stderr ?? tc.message ?? '';
+    const visible = (typeof tc.visible !== 'undefined') ? coerceBoolean(tc.visible) : undefined;
+    const passedRaw =
+      tc.passed ??
+      tc.isPassed ??
+      tc.success ??
+      (typeof tc.status === 'string' ? tc.status.toLowerCase() === 'passed' : undefined);
+    const passed = coerceBoolean(passedRaw);
+    return { input, expectedOutput, actualOutput, error, passed, ...(typeof visible !== 'undefined' ? { visible } : {}) };
+  };
+
+  const normalizeRunResponse = (raw, maybeChallenge) => {
+    // If backend returns only counts
+    const topPassed = typeof raw?.passedTestCases === 'number' ? raw.passedTestCases : undefined;
+    const topTotal = typeof raw?.totalTestCases === 'number' ? raw.totalTestCases : undefined;
+
+    // Prefer any known arrays
+    let arr =
+      (Array.isArray(raw?.results) && raw.results) ||
+      (Array.isArray(raw?.sampleResults) && raw.sampleResults) ||
+      (Array.isArray(raw?.test_cases) && raw.test_cases) ||
+      (Array.isArray(raw?.testCases) && raw.testCases) ||
+      (Array.isArray(raw?.cases) && raw.cases) ||
+      [];
+
+    const all = arr.map(mapTestCase);
+
+    // Determine "sample" subset
+    let sample = all;
+    const hasVisibleFlags = all.some(x => typeof x.visible !== 'undefined');
+    if (hasVisibleFlags) {
+      const vis = all.filter(x => x.visible === true);
+      if (vis.length > 0) sample = vis;
+    } else if (maybeChallenge?.visibleTestCases?.length > 0 && all.length >= maybeChallenge.visibleTestCases.length) {
+      sample = all.slice(0, maybeChallenge.visibleTestCases.length);
+    }
+
+    let totalSample = sample.length;
+    let passedSample = sample.filter(x => x.passed).length;
+
+    // If no per-case data but counts exist, use them for verdict
+    if (totalSample === 0 && typeof topTotal === 'number') {
+      totalSample = topTotal;
+      passedSample = typeof topPassed === 'number' ? topPassed : 0;
+    }
+
+    let verdict;
+    if (totalSample === 0) {
+      verdict = "No sample results returned";
+    } else {
+      verdict = (passedSample === totalSample) ? "All Sample Passed" : "Some Sample Failed";
+    }
+
+    return {
+      verdict,
+      sampleResults: sample,
+      totalSample,
+      passedSample,
+      type: "run"
+    };
+  };
+
+  // Local mock evaluation for Run
+  const evaluateMockVisibleTestCases = (mockChallenge, userCode) => {
+    const results = mockChallenge.visibleTestCases.map(testCase => {
+      let actualOutput = "MockOutput";
+      let passed = false;
+
+      if (mockChallenge.id === 'challenge-1') {
+        const [a, b] = testCase.input.split("\n").map(Number);
+        const expected = (a + b).toString();
+        actualOutput = userCode.includes("a + b") || userCode.includes("solve()")
+          ? expected
+          : (a + b + 1).toString();
+        passed = actualOutput === testCase.expectedOutput;
+      } else if (mockChallenge.id === 'challenge-2') {
+        const str = testCase.input.trim();
+        const expected = str.split("").reverse().join("");
+        const looksCorrect =
+          userCode.includes("reverse") ||
+          userCode.includes("[::-1]") ||
+          userCode.includes("StringBuilder") ||
+          userCode.includes("Collections.reverse");
+        actualOutput = looksCorrect ? expected : str;
+        passed = actualOutput === testCase.expectedOutput;
+      }
+
+      return {
+        passed,
+        visible: true,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput,
+        actualOutput
+      };
+    });
+
+    const passedSample = results.filter(r => r.passed).length;
+    const totalSample = results.length;
+
+    return {
+      verdict: passedSample === totalSample ? "All Sample Passed" : "Some Sample Failed",
+      sampleResults: results,
+      totalSample,
+      passedSample,
+      type: "run"
+    };
+  };
+
+  // ===== Submit (navigate to result page) =====
   const submitSolution = async () => {
     if (!challenge || !code || typeof code !== 'string' || !code.trim()) {
       setErrorMessage('Please write some code before submitting.');
@@ -498,7 +602,7 @@ int main() {
       return;
     }
     const authToken = localStorage.getItem('authToken');
-    if (!authToken) {
+    if (!authToken && typeof challenge.id === 'number') {
       setErrorMessage('Authentication token not found. Please log in.');
       setSubmissionResult(null);
       return;
@@ -533,14 +637,16 @@ int main() {
           } catch {}
           setErrorMessage(errorMessageText);
           setSubmissionResult(null);
+          setSubmitting(false);
           return;
         }
 
         const result = await response.json();
-        navigate('/coding-challenge/result', {
-          state: { result, challenge }
-        });
+        setSubmissionResult(null);
+        setSubmitting(false);
+        navigate('/coding-challenge/result', { state: { result, challenge } });
       } else {
+        // Mock submit — navigate with local evaluation results
         const results = challenge.visibleTestCases.map(testCase => {
           let actualOutput = "MockOutput";
           let passed = false;
@@ -548,12 +654,19 @@ int main() {
           if (challenge.id === 'challenge-1') {
             const [a, b] = testCase.input.split("\n").map(Number);
             const expected = (a + b).toString();
-            actualOutput = code.includes("a + b") ? expected : (a + b + 1).toString();
+            actualOutput = code.includes("a + b") || code.includes("solve()")
+              ? expected
+              : (a + b + 1).toString();
             passed = actualOutput === testCase.expectedOutput;
           } else if (challenge.id === 'challenge-2') {
             const str = testCase.input.trim();
             const expected = str.split("").reverse().join("");
-            actualOutput = (code.includes("reverse") || code.includes("::-1")) ? expected : str;
+            const looksCorrect =
+              code.includes("reverse") ||
+              code.includes("[::-1]") ||
+              code.includes("StringBuilder") ||
+              code.includes("Collections.reverse");
+            actualOutput = looksCorrect ? expected : str;
             passed = actualOutput === testCase.expectedOutput;
           }
 
@@ -569,6 +682,7 @@ int main() {
         const passedTestCases = results.filter(r => r.passed).length;
         const totalTestCases = results.length;
 
+        setSubmitting(false);
         navigate('/coding-challenge/result', {
           state: {
             result: {
@@ -584,22 +698,40 @@ int main() {
     } catch (error) {
       setErrorMessage("Failed to submit solution. Please try again.");
       setSubmissionResult(null);
-    } finally {
       setSubmitting(false);
     }
   };
 
+  // ===== Run sample (use /submit and normalize to a verdict) =====
   const runSampleTestCases = async () => {
     if (!challenge || !code.trim()) {
       setErrorMessage('Please write some code before running.');
       return;
     }
+
+    // Local mock evaluation
+    if (typeof challenge.id !== 'number') {
+      setRunning(true);
+      setErrorMessage(null);
+      try {
+        const runResult = evaluateMockVisibleTestCases(challenge, code);
+        setSubmissionResult(runResult);
+        setShowResults(true);
+      } catch {
+        setErrorMessage("Failed to run sample test cases (mock).");
+      } finally {
+        setRunning(false);
+      }
+      return;
+    }
+
     const authToken = localStorage.getItem('authToken');
     if (!authToken) {
       setErrorMessage('Authentication token not found. Please log in.');
       return;
     }
-    setSubmitting(true);
+
+    setRunning(true);
     setErrorMessage(null);
 
     try {
@@ -615,36 +747,39 @@ int main() {
           body: JSON.stringify({
             source_code: code,
             language_id: languageId,
-            stdin: ""
+            stdin: "",
+            mode: "run" // harmless hint if backend ignores it
           })
         }
       );
       if (!response.ok) {
-        throw new Error('Failed to run sample test cases.');
+        let msg = `Failed to run sample test cases: ${response.status} ${response.statusText}`;
+        try {
+          const txt = await response.text();
+          if (txt) msg += ` - ${txt}`;
+        } catch {}
+        throw new Error(msg);
       }
-      const result = await response.json();
-      const visibleResults = result.results.filter(tc => tc.visible);
-      const passedSample = visibleResults.filter(tc => tc.passed).length;
-      const allSamplePassed = passedSample === visibleResults.length;
+      const raw = await response.json();
+      // Debug: inspect what backend returns to ensure normalization matches
+      // You can keep or remove this after verifying shape
+      // eslint-disable-next-line no-console
+      console.log("Run raw response:", raw);
 
-      setSubmissionResult({
-        verdict: allSamplePassed ? "All Sample Passed" : "Some Sample Failed",
-        sampleResults: visibleResults,
-        totalSample: visibleResults.length,
-        passedSample,
-        type: "run"
-      });
+      const normalized = normalizeRunResponse(raw, challenge);
+      setSubmissionResult(normalized);
+      setShowResults(true);
     } catch (error) {
-      setErrorMessage("Failed to run sample test cases.");
+      setErrorMessage(error?.message || "Failed to run sample test cases.");
     } finally {
-      setSubmitting(false);
+      setRunning(false);
     }
   };
 
   const handleLanguageChange = (newLanguage) => {
     setSelectedLanguage(newLanguage);
     setCode(languageConfigs[newLanguage].template);
-    if (monacoEditorInstance.current) {
+    if (monacoEditorInstance.current && window.monaco) {
       const oldModel = monacoEditorInstance.current.getModel();
       const newModel = window.monaco.editor.createModel(languageConfigs[newLanguage].template, newLanguage);
       monacoEditorInstance.current.setModel(newModel);
@@ -653,9 +788,10 @@ int main() {
   };
 
   const copyCode = () => {
-    if (monacoEditorInstance.current) {
-      navigator.clipboard.writeText(monacoEditorInstance.current.getValue());
-    }
+    const text = monacoEditorInstance.current
+      ? monacoEditorInstance.current.getValue()
+      : code;
+    navigator.clipboard.writeText(text || '');
   };
 
   const resetCode = () => {
@@ -672,7 +808,8 @@ int main() {
     } else {
       generateChallenge();
     }
-  }, [challengeId, authToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challengeId]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -681,9 +818,7 @@ int main() {
       }
     };
     window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   return (
@@ -697,9 +832,7 @@ int main() {
                 startIcon={<ArrowBackIcon />}
                 sx={{
                   background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
-                  '&:hover': {
-                    background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
-                  },
+                  '&:hover': { background: 'linear-gradient(45deg, #9c27b0, #ff4081)' },
                 }}
               >
                 Back to Dashboard
@@ -769,7 +902,7 @@ int main() {
                     border: '1px solid',
                   }}
                 >
-                  {selectedDifficulty.toUpperCase()}
+                  {selectedDifficulty?.toUpperCase?.() || 'MEDIUM'}
                 </Paper>
                 <Paper
                   sx={{
@@ -887,6 +1020,7 @@ int main() {
                       </Paper>
                     </Grid>
                   </Grid>
+
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
                       <Paper sx={{ p: 2.5, border: '1px solid #444', background: 'rgba(45, 45, 45, 0.5)' }}>
@@ -909,6 +1043,7 @@ int main() {
                       </Paper>
                     </Grid>
                   </Grid>
+
                   {challenge.visibleTestCases?.length > 0 && (
                     <Box sx={{ mt: 4 }}>
                       <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
@@ -965,9 +1100,7 @@ int main() {
               width: 6,
               cursor: 'ew-resize',
               backgroundColor: '#444',
-              '&:hover': {
-                backgroundColor: '#7b1fa2',
-              },
+              '&:hover': { backgroundColor: '#7b1fa2' },
               transition: 'background-color 0.3s',
             }}
           />
@@ -1004,6 +1137,7 @@ int main() {
                       ))}
                     </Select>
                   </FormControl>
+
                   <FormControl sx={{ m: 1, minWidth: 80 }}>
                     <Select
                       value={fontSize}
@@ -1030,6 +1164,7 @@ int main() {
                       ))}
                     </Select>
                   </FormControl>
+
                   <FormControl sx={{ m: 1, minWidth: 120 }}>
                     <Select
                       value={editorTheme}
@@ -1051,6 +1186,7 @@ int main() {
                     </Select>
                   </FormControl>
                 </Box>
+
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconButton onClick={copyCode} size="small" sx={{ color: '#ccc' }}>
                     <Copy sx={{ fontSize: 16 }} />
@@ -1058,9 +1194,11 @@ int main() {
                   <IconButton onClick={resetCode} size="small" sx={{ color: '#ccc' }}>
                     <RotateCcw sx={{ fontSize: 16 }} />
                   </IconButton>
+
+                  {/* Run */}
                   <ActionButton
                     onClick={runSampleTestCases}
-                    disabled={submitting || !challenge}
+                    disabled={running || submitting || !challenge}
                     variant="contained"
                     sx={{
                       background: 'linear-gradient(45deg, #2196f3, #21CBF3)',
@@ -1068,13 +1206,15 @@ int main() {
                         background: 'linear-gradient(45deg, #42a5f5, #4fc3f7)',
                       },
                     }}
-                    startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Play />}
+                    startIcon={running ? <CircularProgress size={16} color="inherit" /> : <Play />}
                   >
-                    {submitting ? 'Running...' : 'Run'}
+                    {running ? 'Running...' : 'Run'}
                   </ActionButton>
+
+                  {/* Submit */}
                   <ActionButton
                     onClick={submitSolution}
-                    disabled={submitting || !challenge}
+                    disabled={submitting || running || !challenge}
                     variant="contained"
                     sx={{
                       background: 'linear-gradient(45deg, #4caf50, #8bc34a)',
@@ -1086,23 +1226,11 @@ int main() {
                   >
                     {submitting ? 'Submitting...' : 'Submit'}
                   </ActionButton>
-                  <ActionButton
-                    onClick={generateChallenge}
-                    disabled={generating}
-                    variant="contained"
-                    sx={{
-                      background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #9c27b0, #ff4081)',
-                      },
-                    }}
-                    startIcon={generating ? <CircularProgress size={16} color="inherit" /> : <RefreshCw />}
-                  >
-                    New
-                  </ActionButton>
                 </Box>
               </Box>
             </Box>
+
+            {/* Editor */}
             <Box sx={{ flex: 1, position: 'relative' }}>
               <MonacoLoader
                 language={selectedLanguage}
@@ -1122,17 +1250,16 @@ int main() {
                   insertSpaces: true,
                   renderWhitespace: 'selection',
                   bracketPairColorization: { enabled: true },
-                  guides: {
-                    bracketPairs: true,
-                    indentation: true
-                  },
+                  guides: { bracketPairs: true, indentation: true },
                   padding: { top: 20, bottom: 20 }
                 }}
                 onChange={(val) => setCode(val || '')}
                 onMonacoReady={handleMonacoReady}
               />
             </Box>
-            {submissionResult && (
+
+            {/* In-page results (for "Run" only) */}
+            {submissionResult && submissionResult.type === "run" && (
               <Box
                 sx={{
                   borderTop: '1px solid #444',
@@ -1144,237 +1271,129 @@ int main() {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, borderBottom: '1px solid #444' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    {submissionResult.type === "run" ? (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {submissionResult.passedSample === submissionResult.totalSample ? (
-                          <>
-                            <CheckCircle sx={{ fontSize: 24, color: '#a5d6a7' }} />
-                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#a5d6a7' }}>
-                              {submissionResult.verdict}
-                            </Typography>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle sx={{ fontSize: 24, color: '#ef9a9a' }} />
-                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef9a9a' }}>
-                              {submissionResult.verdict}
-                            </Typography>
-                          </>
-                        )}
-                        <Paper sx={{ px: 1.5, py: 0.5, borderRadius: '24px', backgroundColor: '#333', border: '1px solid #555' }}>
-                          <Typography variant="body2" sx={{ color: '#ccc' }}>
-                            {submissionResult.passedSample}/{submissionResult.totalSample} passed
-                          </Typography>
-                        </Paper>
-                      </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {submissionResult.totalSample > 0 && submissionResult.passedSample === submissionResult.totalSample ? (
+                      <>
+                        <CheckCircle sx={{ fontSize: 24, color: '#a5d6a7' }} />
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#a5d6a7' }}>
+                          {submissionResult.verdict}
+                        </Typography>
+                      </>
+                    ) : submissionResult.totalSample > 0 ? (
+                      <>
+                        <XCircle sx={{ fontSize: 24, color: '#ef9a9a' }} />
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef9a9a' }}>
+                          {submissionResult.verdict}
+                        </Typography>
+                      </>
                     ) : (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {submissionResult.allPassed ? (
-                          <>
-                            <CheckCircle sx={{ fontSize: 24, color: '#a5d6a7' }} />
-                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#a5d6a7' }}>
-                              All Tests Passed!
-                            </Typography>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle sx={{ fontSize: 24, color: '#ef9a9a' }} />
-                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef9a9a' }}>
-                              Some Tests Failed
-                            </Typography>
-                          </>
-                        )}
-                        <Paper sx={{ px: 1.5, py: 0.5, borderRadius: '24px', backgroundColor: '#333', border: '1px solid #555' }}>
-                          <Typography variant="body2" sx={{ color: '#ccc' }}>
-                            {submissionResult.passedTestCases}/{submissionResult.totalTestCases} passed
-                          </Typography>
-                        </Paper>
-                      </Box>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ffcc80' }}>
+                        {submissionResult.verdict}
+                      </Typography>
                     )}
+                    <Paper sx={{ px: 1.5, py: 0.5, borderRadius: '24px', backgroundColor: '#333', border: '1px solid #555', ml: 1 }}>
+                      <Typography variant="body2" sx={{ color: '#ccc' }}>
+                        {submissionResult.passedSample}/{submissionResult.totalSample} passed
+                      </Typography>
+                    </Paper>
                   </Box>
                   <IconButton onClick={() => setShowResults(!showResults)} size="small" sx={{ color: '#ccc' }}>
                     {showResults ? <EyeOff sx={{ fontSize: 20 }} /> : <Eye sx={{ fontSize: 20 }} />}
                   </IconButton>
                 </Box>
-                {submissionResult.type === "run" && (
-                  <Box sx={{ p: 2, overflowY: 'auto', maxHeight: 256, spaceY: 2 }}>
-                    {submissionResult.sampleResults.map((tc, i) => (
-                      <Paper
-                        key={i}
-                        sx={{
-                          p: 2,
-                          mb: 2,
-                          borderRadius: '10px',
-                          border: '2px solid',
-                          borderColor: tc.passed ? '#4caf50' : '#f44336',
-                          background: tc.passed ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)'
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
-                            Sample Test Case {i + 1}
+
+                <Box sx={{ p: 2, overflowY: 'auto', maxHeight: 256, spaceY: 2 }}>
+                  {Array.isArray(submissionResult.sampleResults) && submissionResult.sampleResults.length > 0 ? submissionResult.sampleResults.map((tc, i) => (
+                    <Paper
+                      key={i}
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        borderRadius: '10px',
+                        border: '2px solid',
+                        borderColor: tc.passed ? '#4caf50' : '#f44336',
+                        background: tc.passed ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)'
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flex: 1 }}>
+                          Sample Test Case {i + 1}
+                        </Typography>
+                        {tc.passed ? (
+                          <Typography sx={{ color: '#4caf50', fontWeight: 'bold' }}>
+                            Passed
                           </Typography>
-                          {tc.passed ? (
-                            <Typography sx={{ color: '#4caf50', fontWeight: 'bold' }}>
-                              Passed
-                            </Typography>
-                          ) : (
-                            <Typography sx={{ color: '#f44336', fontWeight: 'bold' }}>
-                              Failed
+                        ) : (
+                          <Typography sx={{ color: '#f44336', fontWeight: 'bold' }}>
+                            Failed
+                          </Typography>
+                        )}
+                      </Box>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={4}>
+                          <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
+                            Input:
+                          </Typography>
+                          <Box
+                            component="pre"
+                            sx={{
+                              backgroundColor: '#222',
+                              p: 1,
+                              borderRadius: '6px',
+                              color: '#fff',
+                              fontFamily: 'monospace'
+                            }}
+                          >
+                            {tc.input}
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
+                            Expected Output:
+                          </Typography>
+                          <Box
+                            component="pre"
+                            sx={{
+                              backgroundColor: '#222',
+                              p: 1,
+                              borderRadius: '6px',
+                              color: '#2196f3',
+                              fontFamily: 'monospace'
+                            }}
+                          >
+                            {tc.expectedOutput}
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
+                            Your Output:
+                          </Typography>
+                          <Box
+                            component="pre"
+                            sx={{
+                              backgroundColor: '#222',
+                              p: 1,
+                              borderRadius: '6px',
+                              color: tc.passed ? '#4caf50' : '#f44336',
+                              fontFamily: 'monospace'
+                            }}
+                          >
+                            {tc.actualOutput}
+                          </Box>
+                          {!tc.passed && tc.error && (
+                            <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
+                              Error: {tc.error}
                             </Typography>
                           )}
-                        </Box>
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={4}>
-                            <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
-                              Input:
-                            </Typography>
-                            <Box
-                              component="pre"
-                              sx={{
-                                backgroundColor: '#222',
-                                p: 1,
-                                borderRadius: '6px',
-                                color: '#fff',
-                                fontFamily: 'monospace'
-                              }}
-                            >
-                              {tc.input}
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={4}>
-                            <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
-                              Expected Output:
-                            </Typography>
-                            <Box
-                              component="pre"
-                              sx={{
-                                backgroundColor: '#222',
-                                p: 1,
-                                borderRadius: '6px',
-                                color: '#2196f3',
-                                fontFamily: 'monospace'
-                              }}
-                            >
-                              {tc.expectedOutput}
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={4}>
-                            <Typography sx={{ fontWeight: 'bold', color: '#999' }}>
-                              Your Output:
-                            </Typography>
-                            <Box
-                              component="pre"
-                              sx={{
-                                backgroundColor: '#222',
-                                p: 1,
-                                borderRadius: '6px',
-                                color: tc.passed ? '#4caf50' : '#f44336',
-                                fontFamily: 'monospace'
-                              }}
-                            >
-                              {tc.actualOutput}
-                            </Box>
-                            {!tc.passed && tc.error && (
-                              <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
-                                Error: {tc.error}
-                              </Typography>
-                            )}
-                          </Grid>
                         </Grid>
-                      </Paper>
-                    ))}
-                  </Box>
-                )}
-                {submissionResult.type === "submit" && (
-                  <Box sx={{ p: 2, overflowY: 'auto', maxHeight: 256, spaceY: 2 }}>
-                    {Array.isArray(submissionResult?.results) && submissionResult.results.map((res, i) => (
-                      <Paper
-                        key={i}
-                        sx={{
-                          p: 2,
-                          mb: 2,
-                          borderRadius: '12px',
-                          background: '#20202a',
-                          border: res.passed ? '2px solid #4caf50' : '2px solid #f44336'
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                            Test Case {i + 1} {res.visible ? '(Sample)' : '(Hidden)'}
-                          </Typography>
-                          {res.passed ? (
-                            <CheckCircle sx={{ fontSize: 20, color: '#4caf50' }} />
-                          ) : (
-                            <XCircle sx={{ fontSize: 20, color: '#f44336' }} />
-                          )}
-                        </Box>
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={4}>
-                            <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>
-                              Input:
-                            </Typography>
-                            <Box
-                              component="pre"
-                              sx={{
-                                backgroundColor: '#181828',
-                                p: 1,
-                                borderRadius: '8px',
-                                color: '#fff',
-                                fontFamily: 'monospace',
-                                fontSize: '0.95em'
-                              }}
-                            >
-                              {res.input}
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={4}>
-                            <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>
-                              Expected Output:
-                            </Typography>
-                            <Box
-                              component="pre"
-                              sx={{
-                                backgroundColor: '#181828',
-                                p: 1,
-                                borderRadius: '8px',
-                                color: '#2196f3',
-                                fontFamily: 'monospace',
-                                fontSize: '0.95em'
-                              }}
-                            >
-                              {res.expectedOutput}
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={4}>
-                            <Typography sx={{ fontWeight: 'bold', color: '#aaa' }}>
-                              Your Output:
-                            </Typography>
-                            <Box
-                              component="pre"
-                              sx={{
-                                backgroundColor: '#181828',
-                                p: 1,
-                                borderRadius: '8px',
-                                color: res.passed ? '#4caf50' : '#f44336',
-                                fontFamily: 'monospace',
-                                fontSize: '0.95em'
-                              }}
-                            >
-                              {res.actualOutput}
-                            </Box>
-                            {!res.passed && res.error && (
-                              <Typography sx={{ color: '#f44336', fontSize: '0.95rem', mt: 1 }}>
-                                Error: {res.error}
-                              </Typography>
-                            )}
-                          </Grid>
-                        </Grid>
-                      </Paper>
-                    ))}
-                  </Box>
-                )}
+                      </Grid>
+                    </Paper>
+                  )) : (
+                    <Typography sx={{ color: '#ccc' }}>
+                      No sample results were returned by the server.
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             )}
           </EditorCard>
