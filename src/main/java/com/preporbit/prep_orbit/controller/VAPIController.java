@@ -17,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/vapi")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "https://api.vapi.ai", "https://dashboard.vapi.ai",
-        "https://a651c504235e.ngrok-free.app"})
+        "https://566a58615d0a.ngrok-free.app"})
 public class VAPIController {
 
     private static final Logger logger = LoggerFactory.getLogger(VAPIController.class);

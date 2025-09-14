@@ -2,6 +2,38 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 class CodingChallengeAPI {
+  // Get today's daily challenge (cached per user per day)
+  static async getDailyChallenge(authToken) {
+    try {
+      if (!authToken) {
+        throw new Error('Authentication token is required to get daily challenge.');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/ai-coding/daily-challenge`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch daily challenge: ${errorText}`);
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch daily challenge');
+      }
+
+      return data.challenge;
+    } catch (error) {
+      console.error('Error fetching daily challenge:', error);
+      throw error;
+    }
+  }
+
   // Generate a new coding challenge using AI
   static async generateChallenge(topics = ['arrays', 'algorithms'], difficulty = 'medium', authToken) {
     try {

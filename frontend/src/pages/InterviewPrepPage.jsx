@@ -43,7 +43,8 @@ import {
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
 /* ====================== Config ====================== */
-const NGROK_URL = 'https://c28dbe38c3c2.ngrok-free.app';
+const NGROK_URL = 'https://566a58615d0a.ngrok-free.app';
+const MAX_HISTORY_ITEMS = 10; // Limit to latest 10 interviews
 
 /* ====================== Theme ====================== */
 const darkTheme = createTheme({
@@ -234,23 +235,23 @@ function InterviewPrepPage() {
           return {
             ...iv,
             techstack: normalizedStack,
-            // createdAt fallback handled gracefully
             createdAt: iv.createdAt || new Date().toISOString(),
             hasFeedback: iv.hasFeedback === true
           };
         });
-        setInterviews(processed);
+
+        // Sort by creation date (newest first) and limit to latest 10
+        const sortedInterviews = processed.sort((a, b) =>
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        const limitedInterviews = sortedInterviews.slice(0, MAX_HISTORY_ITEMS);
+
+        setInterviews(limitedInterviews);
       } else {
         throw new Error(data.message || 'Invalid response format');
       }
     } catch (e) {
       setError(e.message || 'Failed to load interviews.');
-      // Optional dev mock (commented out)
-      /*
-      if (process.env.NODE_ENV === 'development') {
-        setInterviews([...mockDataHere]);
-      }
-      */
     } finally {
       firstLoadRef.current = false;
       setLoading(false);
@@ -461,7 +462,7 @@ function InterviewPrepPage() {
                       Ready to advance your interview skills? Track progress & practice with AI-powered sessions.
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#aaa' }}>
-                      {interviews.length} total interviews • {completionRate}% completion rate
+                      Showing latest {Math.min(interviews.length, MAX_HISTORY_ITEMS)} interviews • {completionRate}% completion rate
                     </Typography>
                   </Box>
                 </Box>
@@ -725,7 +726,7 @@ function InterviewPrepPage() {
                     {interviews.length}
                   </Typography>
                   <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                    Total Interviews
+                    Recent Interviews
                   </Typography>
                 </Grid>
                 <Grid item xs={4}>
@@ -779,7 +780,7 @@ function InterviewPrepPage() {
             mb={3}
           >
             <Typography variant="h4" fontWeight="bold">
-              Your Interview Journey 📚
+              Recent Interview History 📚
             </Typography>
             {interviews.length > 0 && (
               <Stack direction="row" spacing={2} alignItems="center">
@@ -787,6 +788,13 @@ function InterviewPrepPage() {
                   {interviews.filter(i => i.hasFeedback).length} completed •{' '}
                   {interviews.filter(i => !i.hasFeedback).length} pending
                 </Typography>
+                <Chip
+                  label={`Latest ${Math.min(interviews.length, MAX_HISTORY_ITEMS)}`}
+                  sx={{
+                    backgroundColor: '#7b1fa2',
+                    color: 'white'
+                  }}
+                />
                 <Chip
                   label={`${completionRate}% Complete`}
                   sx={{
@@ -1094,7 +1102,7 @@ function InterviewPrepPage() {
                     {interviews.length}
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#aaa' }}>
-                    Total Interviews
+                    Recent Interviews
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={3}>
@@ -1137,7 +1145,7 @@ function InterviewPrepPage() {
               <Divider sx={{ my: 2, borderColor: '#555' }} />
               <Typography variant="body2" sx={{ color: '#777' }}>
                 📊 Last updated: {dynamicLastUpdated} • Session ID:{' '}
-                {Date.now().toString().slice(-6)} • System Status: ✅ Online
+                {Date.now().toString().slice(-6)} • System Status: ✅ Online • Showing latest {MAX_HISTORY_ITEMS} interviews
               </Typography>
             </Paper>
           )}
