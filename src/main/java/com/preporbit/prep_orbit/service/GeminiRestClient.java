@@ -6,6 +6,7 @@ import java.util.Base64;
 import java.io.ByteArrayOutputStream;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,7 @@ public class GeminiRestClient {
 
     private final String apiKey;
     private final String model;
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client;
     private final ObjectMapper mapper = new ObjectMapper();
 
     // Base API URL
@@ -24,20 +25,55 @@ public class GeminiRestClient {
 
     public GeminiRestClient(
             @Value("${GOOGLE_API_KEY:}") String apiKey,
-            @Value("${resume.ai.model:gemini-1.5-flash}") String model) {
+            @Value("${resume.ai.model:gemini-2.5-flash}") String model) {
 
         if (apiKey == null || apiKey.isBlank()) {
             apiKey = System.getenv("GOOGLE_API_KEY");
         }
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("GOOGLE_API_KEY not configured: please set it in application.properties or as an environment variable.");
+            throw new IllegalStateException("GOOGLE_API_KEY not configured.");
         }
         this.apiKey = apiKey;
 
         if (model == null || model.isBlank()) {
-            this.model = "gemini-1.5-flash"; // default to free version
+            this.model = "gemini-2.5-flash"; // default
         } else {
             this.model = model;
+        }
+
+        // Custom timeouts (important for image analysis)
+        this.client = new OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(180, TimeUnit.SECONDS) // allow long responses
+                .build();
+    }
+
+    /** Core request executor with retry */
+    private String executeWithRetry(Request request) throws Exception {
+        int maxRetries = 5;
+        int attempt = 0;
+
+        while (true) {
+            try (Response response = client.newCall(request).execute()) {
+                if (response.isSuccessful()) {
+                    return response.body().string();
+                } else if ((response.code() == 503 || response.code() == 504) && attempt < maxRetries) {
+                    long wait = (long) Math.pow(2, attempt) * 1000; // exponential backoff
+                    Thread.sleep(wait);
+                    attempt++;
+                } else {
+                    throw new RuntimeException("Gemini API error: " + response.code() + " - " + response.body().string());
+                }
+            } catch (java.net.SocketTimeoutException e) {
+                if (attempt < maxRetries) {
+                    long wait = (long) Math.pow(2, attempt) * 1000;
+                    Thread.sleep(wait);
+                    attempt++;
+                } else {
+                    throw new RuntimeException("Gemini API timeout after retries", e);
+                }
+            }
         }
     }
 
@@ -46,10 +82,11 @@ public class GeminiRestClient {
         StringBuilder imageParts = new StringBuilder();
         for (BufferedImage img : images) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(img, "png", baos);
+            // 👉 Tip: downscale & compress images before sending to reduce payload
+            ImageIO.write(img, "jpg", baos); // use JPEG instead of PNG
             String base64Img = Base64.getEncoder().encodeToString(baos.toByteArray());
             imageParts.append(String.format(
-                    "{\"inline_data\": {\"mime_type\": \"image/png\", \"data\": \"%s\"}},", base64Img
+                    "{\"inline_data\": {\"mime_type\": \"image/jpeg\", \"data\": \"%s\"}},", base64Img
             ));
         }
         if (imageParts.length() > 0) imageParts.setLength(imageParts.length() - 1);
@@ -70,12 +107,7 @@ public class GeminiRestClient {
                 .post(RequestBody.create(payload, MediaType.get("application/json")))
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new RuntimeException("Gemini API error: " + response.code() + " - " + response.body().string());
-            }
-            return response.body().string();
-        }
+        return executeWithRetry(request);
     }
 
     /** Text-only resume analysis */
@@ -91,11 +123,6 @@ public class GeminiRestClient {
                 .post(RequestBody.create(payload, MediaType.get("application/json")))
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new RuntimeException("Gemini API error: " + response.code() + " - " + response.body().string());
-            }
-            return response.body().string();
-        }
+        return executeWithRetry(request);
     }
 }
