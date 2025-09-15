@@ -242,15 +242,22 @@ public class ResumeAnalysisController {
 
     // Keep all your existing endpoints (history, stats, etc.) unchanged
     @GetMapping("/history")
-    public ResponseEntity<List<ResumeHistoryDto>> getUserHistory(@RequestParam Long userId) {
-        List<ResumeAnalysis> analyses = resumeAnalysisService.getAnalysesForUser(userId);
+    public ResponseEntity<Map<String, Object>> getHistory(@RequestParam Long userId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            List<ResumeAnalysisResponse> history = resumeAnalysisService.getHistory(userId);
 
-        List<ResumeHistoryDto> dtos = analyses.stream()
-                .map(resumeAnalysisService::mapToHistoryDto) // 🔹 use service mapper
-                .toList();
+            response.put("success", true);
+            response.put("analyses", history);
 
-        return ResponseEntity.ok(dtos);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error fetching history: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
     }
+
 
 
     @GetMapping("/analysis/{id}")

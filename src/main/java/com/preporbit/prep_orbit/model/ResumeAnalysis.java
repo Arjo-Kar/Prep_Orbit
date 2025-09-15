@@ -2,6 +2,7 @@ package com.preporbit.prep_orbit.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "resume_analyses")
@@ -221,4 +222,6 @@ public class ResumeAnalysis {
                 ", createdAt=" + createdAt +
                 '}';
     }
+
+
 }

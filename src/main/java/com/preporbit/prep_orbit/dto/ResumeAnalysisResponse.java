@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 public class ResumeAnalysisResponse {
+    private Long id;
     private int overallScore;
     private Map<String, Integer> scores;
     private List<Suggestion> suggestions;
     private String extractedText;
     private Map<String, Object> details;
+    private List<String> pageImages;  // ✅ add this
 
     // Default constructor
     public ResumeAnalysisResponse() {}
@@ -19,10 +21,8 @@ public class ResumeAnalysisResponse {
         private String category;
         private String severity;
 
-        // Default constructor
         public Suggestion() {}
 
-        // Constructor with parameters
         public Suggestion(String title, String description, String category, String severity) {
             this.title = title;
             this.description = description;
@@ -30,7 +30,6 @@ public class ResumeAnalysisResponse {
             this.severity = severity;
         }
 
-        // Getters and setters
         public String getTitle() { return title; }
         public void setTitle(String title) { this.title = title; }
 
@@ -44,7 +43,7 @@ public class ResumeAnalysisResponse {
         public void setSeverity(String severity) { this.severity = severity; }
     }
 
-    // Getters and setters
+    // Existing getters & setters...
     public int getOverallScore() { return overallScore; }
     public void setOverallScore(int overallScore) { this.overallScore = overallScore; }
 
@@ -59,4 +58,16 @@ public class ResumeAnalysisResponse {
 
     public Map<String, Object> getDetails() { return details; }
     public void setDetails(Map<String, Object> details) { this.details = details; }
+
+    // ✅ New getter & setter
+    public List<String> getPageImages() { return pageImages; }
+    public void setPageImages(List<String> pageImages) { this.pageImages = pageImages; }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 }

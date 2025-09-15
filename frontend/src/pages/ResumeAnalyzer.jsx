@@ -679,6 +679,8 @@ function AnalysisMethodSelector({ capabilities, selectedMethod, onChange }) {
 
 /* ===================== Main Component ===================== */
 export default function ResumeAnalyzer() {
+    // 👇 Add this at the top with other useState hooks
+    const [imageUrls, setImageUrls] = useState([]);
 
   const [file, setFile] = useState(null);
   const [fileKey, setFileKey] = useState(null);
@@ -691,6 +693,7 @@ export default function ResumeAnalyzer() {
   const [analysisHistory, setAnalysisHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
+  const [secureImageUrls, setSecureImageUrls] = useState([]);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
     const currentUserId = user?.id;
@@ -731,55 +734,79 @@ export default function ResumeAnalyzer() {
       console.warn('Failed to load config', e);
     }
   };
+  useEffect(() => {
+    const loadImages = async () => {
+      if (selectedAnalysis?.pageImages) {
+        const token = localStorage.getItem("authToken");
+        const urls = [];
+
+        for (const url of selectedAnalysis.pageImages) {
+          const res = await fetch(`http://localhost:8080${url}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const blob = await res.blob();
+          urls.push(URL.createObjectURL(blob));
+        }
+
+        setImageUrls(urls);
+      }
+    };
+
+    loadImages();
+  }, [selectedAnalysis]);
+
 // Inside ResumeAnalyzer.jsx
 
 const handleHistoryClick = async (item) => {
+  const analysisId = item.id;   // ✅ always use id from backend
+  if (!analysisId) {
+    console.error("❌ No analysisId found in history item:", item);
+    return;
+  }
+
   try {
     const token = localStorage.getItem('authToken');
-    const res = await fetch(`http://localhost:8080/api/resume/analysis/${item.id}`, {
+    const res = await fetch(`http://localhost:8080/api/resume/analysis/${analysisId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    if (!res.ok) {
-      console.error("Failed to fetch analysis details");
-      return;
-    }
-
-    const data = await res.json();
-
-    if (data.success) {
-      // Use the actual analysis object from response
+    if (res.ok) {
+      const data = await res.json();
       setSelectedAnalysis(data.analysis);
-      setFile(null);
       setShowResults(true);
-      setTabValue(0); // switch to results view
+      setTabValue(0); // ✅ switch to Analyze tab automatically
     } else {
-      console.error("API responded with error:", data.message);
+      console.error('Failed to fetch analysis details');
     }
-  } catch (e) {
-    console.error("Error fetching analysis details:", e);
+  } catch (err) {
+    console.error(err);
   }
 };
 
 
 
-
  {selectedAnalysis?.pageImages?.length > 0 && (
-   <div className="resume-images">
-     <h3>Resume Pages</h3>
-     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+   <Box sx={{ mt: 3 }}>
+     <Typography variant="h6" sx={{ color: "white", mb: 2 }}>
+       Resume Pages
+     </Typography>
+     <Grid container spacing={2}>
        {selectedAnalysis.pageImages.map((url, idx) => (
-         <img
-           key={idx}
-           src={`http://localhost:8080/api/resume/images/${selectedAnalysis.userId}/${selectedAnalysis.id}/${url.split('/').pop()}`}
- // backend serves these URLs
-           alt={`Resume page ${idx + 1}`}
-           style={{ width: '300px', border: '1px solid #ddd', borderRadius: '6px' }}
-         />
+         <Grid item xs={12} md={6} key={idx}>
+           <Card sx={{ borderRadius: 2, overflow: "hidden" }}>
+             <img
+               src={`http://localhost:8080${url}`}   // ✅ just prepend backend host
+               alt={`Resume page ${idx + 1}`}
+               style={{ width: "100%", display: "block" }}
+             />
+           </Card>
+         </Grid>
        ))}
-     </div>
-   </div>
+     </Grid>
+   </Box>
  )}
+
+
 
 
   const handleFileSelect = (selectedFile) => {
@@ -811,44 +838,40 @@ const handleHistoryClick = async (item) => {
     handleFileSelect(e.dataTransfer.files[0]);
   };
   // put this near the top of your component, before analyzeResume
- const loadAnalysisHistory = async () => {
-   setLoadingHistory(true);
-   try {
-     const token = localStorage.getItem('authToken');
-     const rawUser = localStorage.getItem('user');
+const loadAnalysisHistory = async () => {
+  setLoadingHistory(true);
+  try {
+    const token = localStorage.getItem('authToken');
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
+      console.warn('⚠️ No user found in localStorage');
+      return;
+    }
 
-     if (!rawUser) {
-       console.warn("⚠️ No user found in localStorage");
-       setLoadingHistory(false);
-       return;
-     }
+    const parsedUser = JSON.parse(storedUser);
+    const currentUserId = parsedUser.id;
+    if (!currentUserId) {
+      console.warn('⚠️ No userId inside stored user');
+      return;
+    }
 
-     const user = JSON.parse(rawUser);
-     const userId = user.id;
+    const res = await fetch(`http://localhost:8080/api/resume/history?userId=${currentUserId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-     console.log("🔌 Fetching history for userId:", userId);
-
-     const res = await fetch(`http://localhost:8080/api/resume/history?userId=${userId}`, {
-       headers: { Authorization: `Bearer ${token}` }
-     });
-
-     if (res.ok) {
-       const data = await res.json();
-       const analyses = Array.isArray(data) ? data : (data.analyses || []);
-
-       console.log("📊 History API returned:", analyses);
-
-       // ✅ Keep full analysis objects, don't trim
-       setAnalysisHistory(analyses);
-     } else {
-       console.error("❌ Failed to fetch history, status:", res.status);
-     }
-   } catch (e) {
-     console.error("❌ History load failed", e);
-   } finally {
-     setLoadingHistory(false);
-   }
- };
+    if (res.ok) {
+      const data = await res.json();
+      console.log("📜 Raw history response:", data);   // add this
+      setAnalysisHistory(data.analyses || []);
+    } else {
+      console.error('Failed to fetch history:', res.status, res.statusText);
+    }
+  } catch (e) {
+    console.warn('History load failed', e);
+  } finally {
+    setLoadingHistory(false);
+  }
+};
 
 
 
@@ -1514,6 +1537,31 @@ const handleHistoryClick = async (item) => {
                         </Fade>
                       </Grid>
                     )}
+                    {showResults && selectedAnalysis && imageUrls.length > 0 && (
+                      <Box sx={{ mb: 4 }}>
+                        <Typography variant="h6" sx={{ color: "white", mb: 2 }}>
+                          Resume Preview
+                        </Typography>
+                        <Grid container spacing={2} wrap="nowrap" sx={{ overflowX: "auto" }}>
+                          {imageUrls.map((url, idx) => (
+                            <Grid item key={idx} sx={{ minWidth: "300px" }}>
+                              <Card sx={{ borderRadius: 2, overflow: "hidden" }}>
+                                <img
+                                  src={url}
+                                  alt={`Resume page ${idx + 1}`}
+                                  style={{
+                                    width: "100%",
+                                    maxHeight: "700px",   // ✅ keeps size reasonable
+                                    objectFit: "contain",
+                                    display: "block"
+                                  }}
+                                />
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Box>
+                    )}
 
                     <Grid item xs={12}>
                       {currentAnalysis && showResults ? (
@@ -1994,26 +2042,6 @@ const handleHistoryClick = async (item) => {
           </Grid>
         )}
 
-    {selectedAnalysis && analysisDetails.pageImages?.length > 0 && (
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="h6" sx={{ color: "white", mb: 2 }}>
-          Resume Pages
-        </Typography>
-        <Grid container spacing={2}>
-          {analysisDetails.pageImages.map((imgUrl, idx) => (
-            <Grid item xs={12} md={6} key={idx}>
-              <Card sx={{ borderRadius: 2, overflow: "hidden" }}>
-                <img
-                  src={imgUrl}
-                  alt={`Resume page ${idx + 1}`}
-                  style={{ width: "100%", display: "block" }}
-                />
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-    )}
 
 
         {/* History Tab */}

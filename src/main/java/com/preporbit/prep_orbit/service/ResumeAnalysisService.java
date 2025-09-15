@@ -1,8 +1,10 @@
 package com.preporbit.prep_orbit.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.util.Value;
+import org.springframework.beans.factory.annotation.Value;
+
 import com.preporbit.prep_orbit.dto.ResumeAnalysisResponse;
 import com.preporbit.prep_orbit.dto.ResumeHistoryDto;
 import com.preporbit.prep_orbit.model.ResumeAnalysis;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -31,6 +34,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * ResumeAnalysisService (completed version)
@@ -123,10 +127,26 @@ public class ResumeAnalysisService {
         details.put("summary", summary);
 
 // 7. Persist
+        // 7. Persist
         ResumeAnalysis saved = saveAnalysis(user.getId(), file, response, finalExtracted,
                 (long) details.getOrDefault("processingTimeMs", 0L));
 
         details.put("analysisId", saved.getId());
+
+// ✅ Attach DB id & images into response
+        response.setId(saved.getId());
+        if (saved.getPageImagesJson() != null) {
+            try {
+                List<String> pageImages = objectMapper.readValue(
+                        saved.getPageImagesJson(),
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)
+                );
+                response.setPageImages(pageImages);
+            } catch (Exception e) {
+                response.setPageImages(Collections.emptyList());
+            }
+        }
+
 
 
         System.out.printf("=== ✅ DONE (method=%s, score=%d, textChars=%d, time=%dms) ===%n",
@@ -238,21 +258,24 @@ public class ResumeAnalysisService {
         dto.setFilename(entity.getFilename());
         dto.setOverallScore(entity.getOverallScore());
         dto.setCreatedAt(entity.getCreatedAt());
+        dto.setAnalysisId(entity.getId());
+        dto.setId(entity.getId());
 
-        try {
-            if (entity.getAnalysisDetailsJson() != null) {
-                JsonNode details = objectMapper.readTree(entity.getAnalysisDetailsJson());
-                if (details.has("summary")) {
-                    dto.setSummary(details.get("summary").asText());
-                }
-                if (details.has("pageImages")) {
-                    List<String> imgs = new ArrayList<>();
-                    details.get("pageImages").forEach(n -> imgs.add(n.asText()));
-                    dto.setPageImages(imgs);
-                }
+
+
+        //dto.setUpdatedAt(entity.getUpdatedAt());
+
+        // Add page images
+        if (entity.getPageImagesJson() != null) {
+            try {
+                List<String> pageImages = objectMapper.readValue(
+                        entity.getPageImagesJson(),
+                        new TypeReference<List<String>>() {}
+                );
+                dto.setPageImages(pageImages);
+            } catch (Exception e) {
+                dto.setPageImages(Collections.emptyList());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
         return dto;
@@ -578,6 +601,8 @@ public class ResumeAnalysisService {
             entity.setOverallScore(analysis.getOverallScore());
             entity.setExtractedText(extractedText);
             entity.setProcessingTimeMs(processingTimeMs);
+            System.out.println("📂 Using imagesBaseDir: " + imagesBaseDir);
+
 
             // Save scores
             Map<String, Integer> scores = analysis.getScores();
@@ -600,8 +625,10 @@ public class ResumeAnalysisService {
             ResumeAnalysis savedEntity = resumeAnalysisRepository.save(entity);
 
             // 3. Use ID to create folder path
+
             String baseDir = imagesBaseDir + "/" + userId + "/" + savedEntity.getId();
             Files.createDirectories(Paths.get(baseDir));
+            System.out.println("📂 Images will be stored under: " + Paths.get(baseDir).toAbsolutePath());
 
             List<String> pageUrls = new ArrayList<>();
 
@@ -654,12 +681,13 @@ public class ResumeAnalysisService {
 
     /* ===================== HISTORY / RETRIEVAL ===================== */
 
-    public List<ResumeAnalysisResponse> getUserAnalysisHistory(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        List<ResumeAnalysis> list = resumeAnalysisRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
-        return list.stream().map(this::convertToResponse).toList();
+    public List<ResumeAnalysisResponse> getHistory(Long userId) {
+        List<ResumeAnalysis> entities = resumeAnalysisRepository.findByUserId(userId);
+        return entities.stream()
+                .map(this::convertToResponse) // <-- use full conversion (includes pageImages)
+                .collect(Collectors.toList());
     }
+
 
     public ResumeAnalysisResponse getAnalysisById(Long id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
@@ -710,8 +738,10 @@ public class ResumeAnalysisService {
     private ResumeAnalysisResponse convertToResponse(ResumeAnalysis entity) {
         try {
             ResumeAnalysisResponse resp = new ResumeAnalysisResponse();
+            resp.setId(entity.getId());
             resp.setOverallScore(entity.getOverallScore() == null ? 0 : entity.getOverallScore());
             resp.setExtractedText(entity.getExtractedText());
+
 
             Map<String, Integer> scores = new HashMap<>();
             scores.put("content", safeInt(entity.getContentScore()));
@@ -750,8 +780,25 @@ public class ResumeAnalysisService {
             details.put("createdAt", entity.getCreatedAt());
             details.put("processingTimeMs", entity.getProcessingTimeMs());
             resp.setDetails(details);
+            if (entity.getPageImagesJson() != null && !entity.getPageImagesJson().isBlank()) {
+                try {
+                    List<String> pageImages = objectMapper.readValue(
+                            entity.getPageImagesJson(),
+                            objectMapper.getTypeFactory().constructCollectionType(List.class, String.class)
+                    );
+
+                    // ✅ set both places
+                    details.put("pageImages", pageImages);
+                    resp.setPageImages(pageImages);
+
+                } catch (Exception e) {
+                    details.put("pageImages", Collections.emptyList());
+                    resp.setPageImages(Collections.emptyList());
+                }
+            }
 
             return resp;
+
         } catch (Exception e) {
             throw new RuntimeException("convertToResponse failed: " + e.getMessage(), e);
         }

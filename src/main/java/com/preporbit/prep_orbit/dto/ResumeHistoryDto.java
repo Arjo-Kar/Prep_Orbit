@@ -29,4 +29,8 @@ public class ResumeHistoryDto {
 
     public List<String> getPageImages() { return pageImages; }
     public void setPageImages(List<String> pageImages) { this.pageImages = pageImages; }
+
+    public void setAnalysisId(Long id) {
+        this.id = id;
+    }
 }

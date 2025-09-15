@@ -96,6 +96,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/interview/answers/**").authenticated()
                         .requestMatchers("/api/interviews/**").authenticated()
                         .requestMatchers("/api/vapi/interview/generate").authenticated()
+                        .requestMatchers("/api/resume/image/**").permitAll()
                         // ✅ All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
