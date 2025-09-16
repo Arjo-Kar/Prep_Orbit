@@ -27,6 +27,7 @@ import {
   FiberManualRecord as RecordIcon,
   Hearing as HearingIcon,
   Replay as ReplayIcon,
+  ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
@@ -388,7 +389,8 @@ function LiveInterviewPage() {
       if (!genRes.ok) {
         throw new Error("Failed to generate interview questions.");
       }
-      const genData = await genRes.json();
+      // Consume body if needed: const _genData = await genRes.json();
+
       // 3. Fetch questions for the given liveInterviewId
       const qRes = await fetch(
         `http://localhost:8080/api/interview/questions/live-interview/${data.id}`,
@@ -438,6 +440,27 @@ function LiveInterviewPage() {
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
+        {/* Back to Dashboard Button - fixed top-left */}
+        <Box sx={{ position: "fixed", top: 16, left: 16, zIndex: 2000 }}>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate("/dashboard")}
+            sx={{
+              borderColor: "#ad1fff",
+              color: "#fff",
+              background: "rgba(255,255,255,0.06)",
+              fontWeight: "bold",
+              "&:hover": {
+                borderColor: "#ff4fa7",
+                background: "rgba(173,31,255,0.18)",
+              },
+            }}
+          >
+            Back to Dashboard
+          </Button>
+        </Box>
+
         {formStep ? (
           <FullScreenWrapper>
             {/* --- Form Section --- */}

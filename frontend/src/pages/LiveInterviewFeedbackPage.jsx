@@ -11,12 +11,14 @@ import {
   Chip,
   Grid,
   Alert,
+  Button,
 } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 // ------------------------------------------------------------------
 // Config (replace with import.meta.env / process.env in real build)
@@ -146,6 +148,27 @@ function LiveInterviewFeedbackPage() {
       color: "white",
       py: { xs: 2, md: 6 }
     }}>
+      {/* Back to Dashboard Button - fixed top-left */}
+      <Box sx={{ position: "fixed", top: 16, left: 16, zIndex: 2000 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/dashboard")}
+          sx={{
+            borderColor: "#ad1fff",
+            color: "#fff",
+            background: "rgba(255,255,255,0.06)",
+            fontWeight: "bold",
+            "&:hover": {
+              borderColor: "#ff4fa7",
+              background: "rgba(173,31,255,0.18)",
+            },
+          }}
+        >
+          Back to Dashboard
+        </Button>
+      </Box>
+
       <Box sx={{ maxWidth: 1000, mx: "auto", p: { xs: 1, md: 3 } }}>
         <Card sx={{
           mb: 4,
