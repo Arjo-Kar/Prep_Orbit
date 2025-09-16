@@ -459,47 +459,61 @@ public class LiveInterviewService {
             throw new RuntimeException("Error calling Google TTS API: " + e.getMessage(), e);
         }
     }
+
     public String transcribeAudioWithWhisper(MultipartFile audioFile) {
+        File tempFile = null;
         try {
-            // Save audio to temp file
-            File tempFile = File.createTempFile("upload-", ".mp3");
+            // 1️⃣ Save MultipartFile to a temporary file
+            tempFile = File.createTempFile("upload-", ".mp3");
             audioFile.transferTo(tempFile);
 
-            // Build Python command
-            String pythonPath = "/Users/User/whisper-env/bin/python3";
-            String scriptPath = new File("python/whisper_transcribe.py").getAbsolutePath();
+            String pythonPath = "C:\\Users\\User\\whisper-env\\Scripts\\python.exe";
+            String scriptPath = "E:\\JavaFestProject\\Prep_Orbit\\python\\whisper_transcribe.py";
 
+            // 2️⃣ Build ProcessBuilder with arguments
             ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, tempFile.getAbsolutePath());
-            pb.redirectErrorStream(true);
+
+            // Optional: log temp file info
+            logger.info("Temp file path: {}", tempFile.getAbsolutePath());
+            logger.info("Temp file exists? {}", tempFile.exists());
+            logger.info("Temp file size: {}", tempFile.length());
+
+            pb.redirectErrorStream(true); // combine stdout & stderr
             Process process = pb.start();
 
-            // Capture output
+            // 3️⃣ Capture Python output using UTF-8 explicitly
             InputStream is = process.getInputStream();
             String output = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            String[] lines = output.split("\n");
 
-// Remove known warning lines and empty lines
+            process.waitFor();
+
+            // 4️⃣ Remove warnings / empty lines, keep last valid line
             String transcript = "";
-            for (String line : lines) {
+            for (String line : output.split("\n")) {
                 line = line.trim();
-                if (
-                        !line.isEmpty() &&
-                                !line.contains("FP16 is not supported on CPU; using FP32 instead") &&
-                                !line.startsWith("WARNING") &&
-                                !line.startsWith("UserWarning") &&
-                                !line.startsWith("Traceback")
-                ) {
-                    transcript = line; // last valid line will be the transcript
+                if (!line.isEmpty()
+                        && !line.contains("FP16 is not supported on CPU; using FP32 instead")
+                        && !line.startsWith("WARNING")
+                        && !line.startsWith("UserWarning")
+                        && !line.startsWith("Traceback")) {
+                    transcript = line; // last valid line is transcript
                 }
             }
 
-            process.waitFor();
-            tempFile.delete();
             return transcript.trim();
+
         } catch (Exception e) {
             throw new RuntimeException("Error transcribing audio locally with Whisper", e);
+        } finally {
+            // 5️⃣ Clean up temp file
+            if (tempFile != null && tempFile.exists()) {
+                boolean deleted = tempFile.delete();
+                logger.info("Temp file deleted? {}", deleted);
+            }
         }
     }
+
+
 
 
 

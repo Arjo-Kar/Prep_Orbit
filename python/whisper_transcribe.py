@@ -2,12 +2,13 @@ import sys
 import whisper
 import warnings
 
-warnings.filterwarnings("ignore")  # Suppress all warnings
+warnings.filterwarnings("ignore")  # Suppress warnings
 
 def transcribe(file_path):
-    model = whisper.load_model("small")  # or tiny/base/medium
+    model = whisper.load_model("small")
     result = model.transcribe(file_path)
-    print(result["text"])
+    # Encode to UTF-8 and decode to avoid Windows console issues
+    print(result["text"].encode('utf-8', errors='ignore').decode('utf-8'))
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
