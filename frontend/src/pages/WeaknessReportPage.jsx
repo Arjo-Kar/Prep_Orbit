@@ -368,21 +368,24 @@ const WeaknessReportPage = () => {
                               {weakness.topic}
                             </Typography>
                           }
+                          // PATCH: Use a fragment, not Box, for secondary!
                           secondary={
-                            <Box>
+                            <>
                               <Typography
                                 variant="body2"
                                 sx={{ color: "#ccc", display: "inline" }}
+                                component="span"
                               >
                                 Incorrect Answers: {weakness.incorrectCount}
                               </Typography>
                               <Typography
                                 variant="body2"
                                 sx={{ color: "#888", ml: 2, display: "inline" }}
+                                component="span"
                               >
                                 (Last updated: {new Date(weakness.lastUpdated).toLocaleString()})
                               </Typography>
-                            </Box>
+                            </>
                           }
                         />
                       </ListItem>
