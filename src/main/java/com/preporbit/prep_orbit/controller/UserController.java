@@ -1,10 +1,7 @@
 package com.preporbit.prep_orbit.controller;
-
-import com.preporbit.prep_orbit.dto.LoginRequest;
-import com.preporbit.prep_orbit.dto.LoginResponse;
-import com.preporbit.prep_orbit.dto.SignupRequest;
-import com.preporbit.prep_orbit.dto.StandardResponse;
 import com.preporbit.prep_orbit.service.UserService;
+import com.preporbit.prep_orbit.dto.*;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,8 +10,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+   @Autowired
+   private UserService userService;
 
     @PostMapping("/signup")
     public ResponseEntity<StandardResponse> signup(@RequestBody SignupRequest request) {
@@ -32,5 +29,10 @@ public class UserController {
     public ResponseEntity<LoginResponse> verifyEmail(@RequestParam("token") String token) {
         LoginResponse response = userService.verifyEmail(token);
         return ResponseEntity.status(response.getStatus()).body(response);
+    }
+    @GetMapping("/dashboard-stats")
+    public ResponseEntity<DashboardStatsDto> getUserDashboardStats(@RequestParam Long userId) {
+        DashboardStatsDto stats = userService.getUserDashboardStats(userId);
+        return ResponseEntity.ok(stats);
     }
 }

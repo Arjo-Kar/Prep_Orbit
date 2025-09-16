@@ -6,6 +6,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserChallengeStatsRepository extends JpaRepository<UserChallengeStats, Long> {
@@ -15,4 +19,7 @@ public interface UserChallengeStatsRepository extends JpaRepository<UserChalleng
 
     @Query("SELECT COUNT(ucs) FROM UserChallengeStats ucs WHERE ucs.userId = :userId")
     Long countByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT u.createdAt FROM UserChallengeStats u WHERE u.userId = :userId")
+    List<LocalDateTime> getActivityDates(@Param("userId") Long userId);
 }
