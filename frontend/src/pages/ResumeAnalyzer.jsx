@@ -681,7 +681,7 @@ function AnalysisMethodSelector({ capabilities, selectedMethod, onChange }) {
 export default function ResumeAnalyzer() {
     // 👇 Add this at the top with other useState hooks
     const [imageUrls, setImageUrls] = useState([]);
-
+    const [imageLoading, setImageLoading] = useState(false);
   const [file, setFile] = useState(null);
   const [fileKey, setFileKey] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -734,26 +734,31 @@ export default function ResumeAnalyzer() {
       console.warn('Failed to load config', e);
     }
   };
-  useEffect(() => {
-    const loadImages = async () => {
-      if (selectedAnalysis?.pageImages) {
-        const token = localStorage.getItem("authToken");
-        const urls = [];
+ useEffect(() => {
+   const loadImages = async () => {
+     if (selectedAnalysis?.pageImages) {
+       setImageLoading(true); // <-- Start loading
+       const token = localStorage.getItem("authToken");
+       const urls = [];
 
-        for (const url of selectedAnalysis.pageImages) {
-          const res = await fetch(`http://localhost:8080${url}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const blob = await res.blob();
-          urls.push(URL.createObjectURL(blob));
-        }
+       for (const url of selectedAnalysis.pageImages) {
+         const res = await fetch(`http://localhost:8080${url}`, {
+           headers: { Authorization: `Bearer ${token}` },
+         });
+         const blob = await res.blob();
+         urls.push(URL.createObjectURL(blob));
+       }
 
-        setImageUrls(urls);
-      }
-    };
+       setImageUrls(urls);
+       setImageLoading(false); // <-- End loading
+     } else {
+       setImageUrls([]);
+       setImageLoading(false);
+     }
+   };
 
-    loadImages();
-  }, [selectedAnalysis]);
+   loadImages();
+ }, [selectedAnalysis]);
 
 // Inside ResumeAnalyzer.jsx
 
@@ -1369,22 +1374,24 @@ const loadAnalysisHistory = async () => {
                   </Grid>
                 )}
 
-                <Grid item xs={12} lg={6}>
-                  <Slide direction="right" in timeout={600}>
-                    <Box>
-                      <EnhancedPDFViewer
-                        file={file}
-                        fileKey={fileKey}
-                        analyzing={analyzing}
-                        onCapabilities={(caps) => setCapabilities(caps)}
-                      />
-                    </Box>
-                  </Slide>
-                </Grid>
+               {file && !selectedAnalysis && (
+                 <Grid item xs={12} lg={6}>
+                   <Slide direction="right" in timeout={600}>
+                     <Box>
+                       <EnhancedPDFViewer
+                         file={file}
+                         fileKey={fileKey}
+                         analyzing={analyzing}
+                         onCapabilities={(caps) => setCapabilities(caps)}
+                       />
+                     </Box>
+                   </Slide>
+                 </Grid>
+               )}
 
                 <Grid item xs={12} lg={6}>
                   <Grid container spacing={3}>
-                    {file && (
+                    {file && !selectedAnalysis &&(
                       <Grid item xs={12}>
                         <Fade in timeout={600}>
                           <AnalysisMethodCard>
@@ -1537,11 +1544,26 @@ const loadAnalysisHistory = async () => {
                         </Fade>
                       </Grid>
                     )}
-                    {showResults && selectedAnalysis && imageUrls.length > 0 && (
-                      <Box sx={{ mb: 4 }}>
-                        <Typography variant="h6" sx={{ color: "white", mb: 2 }}>
-                          Resume Preview
-                        </Typography>
+                  {showResults && selectedAnalysis && (
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="h6" sx={{ color: "white", mb: 2 }}>
+                        Resume Preview
+                      </Typography>
+                      {imageLoading ? (
+                        <Box sx={{
+                          textAlign: "center",
+                          py: 6,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}>
+                          <CircularProgress sx={{ color: "#64b5f6", mb: 2 }} />
+                          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
+                            Loading resume preview...
+                          </Typography>
+                        </Box>
+                      ) : (
                         <Grid container spacing={2} wrap="nowrap" sx={{ overflowX: "auto" }}>
                           {imageUrls.map((url, idx) => (
                             <Grid item key={idx} sx={{ minWidth: "300px" }}>
@@ -1551,7 +1573,7 @@ const loadAnalysisHistory = async () => {
                                   alt={`Resume page ${idx + 1}`}
                                   style={{
                                     width: "100%",
-                                    maxHeight: "700px",   // ✅ keeps size reasonable
+                                    maxHeight: "700px",
                                     objectFit: "contain",
                                     display: "block"
                                   }}
@@ -1560,9 +1582,9 @@ const loadAnalysisHistory = async () => {
                             </Grid>
                           ))}
                         </Grid>
-                      </Box>
-                    )}
-
+                      )}
+                    </Box>
+                  )}
                     <Grid item xs={12}>
                       {currentAnalysis && showResults ? (
                         <Fade in timeout={700}>
