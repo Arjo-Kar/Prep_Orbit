@@ -23,6 +23,7 @@ import LiveInterviewFeedbackPage from "./pages/LiveInterviewFeedbackPage";
 import InterviewAnalyticsPage from "./pages/InterviewAnalyticsPage";
 import LandingPage from "./pages/LandingPage";
 import ResumeAnalyzer from './pages/ResumeAnalyzer';
+import CodingChallengeRunResultPage from './pages/CodingChallengeRunResultPage'
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/gemini" element={<GeminiChatPage />} />
           <Route path="/coding-challenge/:id" element={<CodingChallengePage />} />
           <Route path="/coding-challenge/result" element={<CodingChallengeResultPage />} />
+          <Route path="/coding-challenge/run-result" element={<CodingChallengeRunResultPage />} />
           <Route path="/practice-weak-areas" element={<PracticeWeakAreasPage />} />
           <Route path="/report/weaknesses" element={<WeaknessReportPage />} />
 
