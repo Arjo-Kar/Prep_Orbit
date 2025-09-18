@@ -44,7 +44,21 @@ public class InterviewAnswerController {
         Long userId = getUserIdFromAuthentication(authentication);
         return liveInterviewService.generateFeedbackForUser(answerId, userId);
     }
-
+    // In InterviewAnswerController.java
+    @GetMapping("/user/{userId}/feedbacks")
+    public List<InterviewAnswer> getAllFeedbacksForUser(@PathVariable Long userId) {
+        // Optionally, add authentication check so only the user can access their own feedbacks
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long authUserId = getUserIdFromAuthentication(authentication);
+        if (!authUserId.equals(userId)) throw new RuntimeException("Access denied");
+        return liveInterviewService.getAllAnswersWithFeedbackForUser(userId);
+    }
+    @GetMapping("/{answerId}/stored-feedback")
+    public LiveFeedbackDto getStoredFeedbackForAnswer(@PathVariable Long answerId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = getUserIdFromAuthentication(authentication);
+        return liveInterviewService.getStoredFeedbackForUser(answerId, userId);
+    }
     private Long getUserIdFromAuthentication(Authentication authentication) {
         String email = authentication.getName();
         Optional<User> userOpt = userRepository.findByEmail(email);

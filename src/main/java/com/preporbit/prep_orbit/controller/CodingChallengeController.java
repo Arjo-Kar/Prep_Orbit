@@ -31,4 +31,11 @@ public class CodingChallengeController {
     ) {
         return codingChallengeService.evaluateSubmission(id, submission);
     }
+    @PostMapping("/challenge/{id}/run")
+    public CodingChallengeResultDto runSolution(
+            @PathVariable Long id,
+            @RequestBody CodingChallengeSubmissionDto submission
+    ) {
+        return codingChallengeService.evaluateSubmissionVisible(id, submission);
+    }
 }

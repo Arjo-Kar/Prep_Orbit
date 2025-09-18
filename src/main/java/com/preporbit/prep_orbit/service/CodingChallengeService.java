@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
-
 public class CodingChallengeService {
     private final CodingChallengeRepository challengeRepo;
     private final ChallengeTestCaseRepository testCaseRepo;
@@ -40,9 +39,6 @@ public class CodingChallengeService {
             dto.setVisible(tc.isVisible());
             return dto;
         }).collect(Collectors.toList());
-
-        // Ensure at least 2 visible test cases
-
 
         CodingChallengeDto dto = new CodingChallengeDto();
         dto.setId(challenge.getId());
@@ -99,6 +95,49 @@ public class CodingChallengeService {
         resultDto.setTotalTestCases(allTestCases.size());
         resultDto.setPassedTestCases(passed.get());
         resultDto.setAllPassed(passed.get() == allTestCases.size());
+
+        return resultDto;
+    }
+
+    // NEW: Evaluate only visible test cases (for "Run" action)
+    public CodingChallengeResultDto evaluateSubmissionVisible(Long challengeId, CodingChallengeSubmissionDto submission) {
+        CodingChallenge challenge = challengeRepo.findById(challengeId)
+                .orElseThrow(() -> new RuntimeException("Challenge not found"));
+
+        // Fetch only visible test cases
+        List<ChallengeTestCase> visibleCases = testCaseRepo.findByCodingChallengeIdAndIsVisible(challengeId, true);
+
+        CodingChallengeResultDto resultDto = new CodingChallengeResultDto();
+        AtomicInteger passed = new AtomicInteger();
+
+        List<CodingChallengeResultDto.TestCaseResult> testCaseResults = visibleCases.stream().map(tc -> {
+            System.out.println("RUN (visible only) - Source Code: " + submission.getSourceCode());
+            System.out.println("RUN (visible only) - LangID: " + submission.getLanguageId());
+            System.out.println("RUN (visible only) - Test Input: " + tc.getInput());
+
+            String actualOutput = judge0Service.executeCode(
+                    submission.getSourceCode(),
+                    submission.getLanguageId(),
+                    tc.getInput()
+            );
+
+            CodingChallengeResultDto.TestCaseResult tcResult = new CodingChallengeResultDto.TestCaseResult();
+            tcResult.setInput(tc.getInput());
+            tcResult.setExpectedOutput(tc.getExpectedOutput());
+            tcResult.setActualOutput(actualOutput);
+            tcResult.setVisible(true);
+
+            boolean isPassed = actualOutput != null && actualOutput.trim().equals(tc.getExpectedOutput().trim());
+            tcResult.setPassed(isPassed);
+            tcResult.setError(isPassed ? null : "Output mismatch");
+            if (isPassed) passed.getAndIncrement();
+            return tcResult;
+        }).collect(Collectors.toList());
+
+        resultDto.setResults(testCaseResults);
+        resultDto.setTotalTestCases(visibleCases.size());
+        resultDto.setPassedTestCases(passed.get());
+        resultDto.setAllPassed(passed.get() == visibleCases.size());
 
         return resultDto;
     }

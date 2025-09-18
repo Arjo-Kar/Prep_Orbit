@@ -1,5 +1,6 @@
 package com.preporbit.prep_orbit.controller;
 
+import com.preporbit.prep_orbit.dto.LiveInterviewFeedbackDto;
 import com.preporbit.prep_orbit.dto.LiveInterviewRequestDto;
 import com.preporbit.prep_orbit.model.LiveInterview;
 import com.preporbit.prep_orbit.model.User;
@@ -78,6 +79,12 @@ public class LiveInterviewController {
         }
     }
 
+    @GetMapping("/with-feedbacks")
+    public List<LiveInterviewFeedbackDto> getAllLiveInterviewFeedbacks() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = getUserIdFromAuthentication(authentication);
+        return liveInterviewService.getAllLiveInterviewFeedbacksForUser(userId);
+    }
 
     @PostMapping("/tts")
     public ResponseEntity<byte[]> textToSpeechGoogle(@RequestBody Map<String, String> request) {

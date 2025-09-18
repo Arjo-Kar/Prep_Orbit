@@ -9,4 +9,5 @@ public interface InterviewAnswerRepository extends JpaRepository<InterviewAnswer
 
     // Correct navigation into the @ManyToOne field liveInterview (its id) + user scoping + ordering
     List<InterviewAnswer> findByLiveInterview_IdAndUserIdOrderByIdAsc(Long liveInterviewId, Long userId);
+    List<InterviewAnswer> findByUserIdAndFeedbackIsNotNullOrderByIdDesc(Long userId);
 }

@@ -12,6 +12,7 @@ public class InterviewAnswer {
     private Long userId;
 
     private Integer rating;
+
     @Column(name = "answer", columnDefinition = "TEXT")
     private String answer;
 
@@ -21,6 +22,8 @@ public class InterviewAnswer {
     @Column(name = "feedback", columnDefinition = "TEXT")
     private String feedback;
 
+    @Column(name = "suggestion", columnDefinition = "TEXT")
+    private String suggestion;
 
     @ManyToOne
     @JoinColumn(name = "question_id")
@@ -98,5 +101,13 @@ public class InterviewAnswer {
 
     public void setLiveInterview(LiveInterview liveInterview) {
         this.liveInterview = liveInterview;
+    }
+
+    public String getSuggestion() {
+        return suggestion;
+    }
+
+    public void setSuggestion(String suggestion) {
+        this.suggestion = suggestion;
     }
 }
