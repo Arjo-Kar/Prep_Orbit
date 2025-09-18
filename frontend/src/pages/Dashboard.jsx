@@ -722,36 +722,6 @@ export default function Dashboard() {
                 </Grid>
               </CardContent>
             </MainCard>
-
-            {/* Recent Activity */}
-            <MainCard>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
-                  Recent Activity
-                </Typography>
-                <Divider sx={{ my: 2, borderColor: "#444" }} />
-                <Box textAlign="center" py={6}>
-                  <Avatar
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      mx: "auto",
-                      mb: 2,
-                      background: "linear-gradient(135deg, #666, #999)",
-                    }}
-                  >
-                    <Terminal sx={{ fontSize: 40 }} />
-                  </Avatar>
-                  <Typography variant="h6" sx={{ color: "#aaa", mb: 1 }}>
-                    Your recent activity will appear here
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "#777" }}>
-                    Start solving challenges and taking quizzes to see your
-                    progress!
-                  </Typography>
-                </Box>
-              </CardContent>
-            </MainCard>
           </Stack>
         </Grid>
       </Grid>

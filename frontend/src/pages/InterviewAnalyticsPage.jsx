@@ -69,7 +69,7 @@ import { useNavigate } from 'react-router-dom';
 /* ----------------------------------------------------------------
    Configuration
 -------------------------------------------------------------------*/
-const API_BASE = 'http://localhost:8080'; // Strictly using port 8080 as requested
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'; // Strictly using port 8080 as requested
 
 /* ----------------------------------------------------------------
    Dark Theme (self-contained)

@@ -16,7 +16,7 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
-const NGROK_URL = 'https://8f4aed0d5373.ngrok-free.app';
+const NGROK_URL = import.meta.env.VITE_NGROK_URL || 'http://localhost:8080';
 const CURRENT_TIME = '2025-09-05 13:50:18';
 
 const darkTheme = createTheme({

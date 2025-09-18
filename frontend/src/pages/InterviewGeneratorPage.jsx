@@ -40,8 +40,8 @@ import Vapi from '@vapi-ai/web';
 // ---------------------------------------------------------------------
 // Constants (consider moving to .env)
 // ---------------------------------------------------------------------
-const VAPI_PUBLIC_KEY = 'd47641df-6392-43d8-b540-04a3a481a3be';
-const NGROK_URL = 'https://8f4aed0d5373.ngrok-free.app';
+const VAPI_PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY || 'd47641df-6392-43d8-b540-04a3a481a3be';
+const NGROK_URL = import.meta.env.VITE_NGROK_URL || 'http://localhost:8080';
 const CURRENT_TIME = '2025-09-05 17:56:41';
 
 // ---------------------------------------------------------------------
