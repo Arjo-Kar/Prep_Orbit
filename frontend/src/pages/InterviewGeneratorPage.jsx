@@ -41,7 +41,7 @@ import Vapi from '@vapi-ai/web';
 // Constants (consider moving to .env)
 // ---------------------------------------------------------------------
 const VAPI_PUBLIC_KEY = 'd47641df-6392-43d8-b540-04a3a481a3be';
-const NGROK_URL = 'https://566a58615d0a.ngrok-free.app';
+const NGROK_URL = ' https://87e0bd6486d1.ngrok-free.app';
 const CURRENT_TIME = '2025-09-05 17:56:41';
 
 // ---------------------------------------------------------------------

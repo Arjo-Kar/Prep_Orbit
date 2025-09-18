@@ -227,7 +227,7 @@ const QuizSessionPage = () => {
       if (!token) throw new Error("User not authenticated");
 
       // Format answers for backend: send only letter value
-      const formattedAnswers = quizData.questions.map((question, i) => ({
+      const formattedAnswers = quizData.questions.map((question) => ({
         questionId: question.id,
         userAnswer: answers[question.id] || ''
       }));
@@ -515,9 +515,8 @@ const QuizSessionPage = () => {
                                   }
                                 }}
                               >
-                                {/* Value is the letter, label is the text (multi-line is fine) */}
                                 <FormControlLabel
-                                  value={String.fromCharCode(65 + i)} // 'A', 'B', 'C', 'D'
+                                  value={String.fromCharCode(65 + i)} // 'A', 'B', 'C', 'D' (value sent to backend)
                                   control={
                                     <Radio
                                       sx={{
@@ -536,8 +535,6 @@ const QuizSessionPage = () => {
                                         fontWeight: answers[q.id] === String.fromCharCode(65 + i) ? 600 : 400
                                       }}
                                     >
-                                      {/* Show letter for reference, and then the option text (multi-line allowed) */}
-                                      <span style={{fontWeight:600, color:'#7b1fa2'}}>{String.fromCharCode(65 + i)}) </span>
                                       {choice}
                                     </Typography>
                                   }

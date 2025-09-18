@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
@@ -14,7 +14,6 @@ import {
   Avatar,
   LinearProgress,
   Stack,
-  Divider,
   CircularProgress,
 } from "@mui/material";
 import {
@@ -34,16 +33,9 @@ const darkTheme = createTheme({
       default: "#100827",
       paper: "rgba(25, 25, 25, 0.8)",
     },
-    primary: {
-      main: "#7b1fa2",
-    },
-    secondary: {
-      main: "#f50057",
-    },
-    text: {
-      primary: "#ffffff",
-      secondary: "#cccccc",
-    },
+    primary: { main: "#7b1fa2" },
+    secondary: { main: "#f50057" },
+    text: { primary: "#ffffff", secondary: "#cccccc" },
   },
   typography: {
     fontFamily:
@@ -52,10 +44,7 @@ const darkTheme = createTheme({
   components: {
     MuiPaper: {
       styleOverrides: {
-        root: {
-          borderRadius: "16px",
-          backgroundImage: "none",
-        },
+        root: { borderRadius: "16px", backgroundImage: "none" },
       },
     },
     MuiButton: {
@@ -92,54 +81,41 @@ const GradientBox = styled(Box)(({ theme }) => ({
 const HeaderCard = styled(Card)(({ theme }) => ({
   background: "linear-gradient(90deg, #1a0f3d 0%, #23164a 50%, #2d1a54 100%)",
   backdropFilter: "blur(8px)",
-  boxShadow: "0 4px 30px rgba(0, 0, 0, 0.5)",
+  boxShadow: "0 4px 30px rgba(0,0,0,0.5)",
   border: "1px solid rgba(126, 87, 194, 0.5)",
   marginBottom: theme.spacing(4),
 }));
 
 const QuestionCard = styled(Card)(({ theme }) => ({
-  background:
-    "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+  background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
   border: "1px solid #444",
-  boxShadow: "0 8px 30px rgba(0, 0, 0, 0.3)",
+  boxShadow: "0 8px 30px rgba(0,0,0,0.3)",
   transition: "all 0.3s ease",
   "&:hover": {
     transform: "translateY(-2px)",
-    boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
     border: "1px solid #4caf50",
   },
 }));
 
-const StyledRadio = styled(Radio)(({ theme }) => ({
+const StyledRadio = styled(Radio)({
   color: "#666",
-  "&.Mui-checked": {
-    color: "#4caf50",
-  },
-  "&:hover": {
-    backgroundColor: "rgba(76, 175, 80, 0.1)",
-  },
-}));
+  "&.Mui-checked": { color: "#4caf50" },
+  "&:hover": { backgroundColor: "rgba(76, 175, 80, 0.1)" },
+});
 
-const OptionLabel = styled(FormControlLabel)(({ theme }) => ({
+const OptionLabel = styled(FormControlLabel)({
   margin: 0,
   padding: "12px 16px",
   borderRadius: "12px",
   border: "1px solid #444",
   transition: "all 0.2s ease",
   backgroundColor: "rgba(51, 51, 51, 0.5)",
-  "&:hover": {
-    backgroundColor: "rgba(76, 175, 80, 0.1)",
-    border: "1px solid #4caf50",
-  },
-  "& .MuiFormControlLabel-label": {
-    color: "#ccc",
-    fontSize: "1rem",
-    lineHeight: 1.5,
-    flex: 1,
-  },
-}));
+  "&:hover": { backgroundColor: "rgba(76, 175, 80, 0.1)", border: "1px solid #4caf50" },
+  "& .MuiFormControlLabel-label": { color: "#ccc", fontSize: "1rem", lineHeight: 1.5, flex: 1 },
+});
 
-const GradientButton = styled(Button)(({ theme }) => ({
+const GradientButton = styled(Button)({
   background: "linear-gradient(45deg, #4caf50, #8bc34a)",
   height: "48px",
   fontSize: "1.1rem",
@@ -148,13 +124,11 @@ const GradientButton = styled(Button)(({ theme }) => ({
     transform: "translateY(-2px)",
     boxShadow: "0 8px 25px rgba(76, 175, 80, 0.4)",
   },
-  "&:disabled": {
-    background: "linear-gradient(45deg, #666, #888)",
-  },
+  "&:disabled": { background: "linear-gradient(45deg, #666, #888)" },
   transition: "all 0.3s ease",
-}));
+});
 
-const BackButton = styled(Button)(({ theme }) => ({
+const BackButton = styled(Button)({
   position: "absolute",
   top: "20px",
   left: "20px",
@@ -163,37 +137,33 @@ const BackButton = styled(Button)(({ theme }) => ({
   border: "1px solid rgba(255, 255, 255, 0.2)",
   color: "white",
   zIndex: 1001,
-  "&:hover": {
-    background: "rgba(123, 31, 162, 0.3)",
-    transform: "translateX(-5px)",
-  },
+  "&:hover": { background: "rgba(123, 31, 162, 0.3)", transform: "translateX(-5px)" },
   transition: "all 0.3s ease",
-}));
+});
 
-const PracticeContainer = styled(Container)(({ theme }) => ({
+const PracticeContainer = styled(Container)({
   position: "relative",
   zIndex: 1,
   width: "100%",
   maxWidth: "none !important",
   margin: "0 auto",
   padding: "20px",
-}));
+});
 
-const LoadingCard = styled(Card)(({ theme }) => ({
-  background:
-    "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+const LoadingCard = styled(Card)({
+  background: "linear-gradient(180deg, rgba(28,28,28,0.95) 0%, rgba(16,16,16,0.95) 100%)",
   border: "1px solid #444",
   minHeight: "300px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-}));
+});
 
 // Helpers
 const letters = ["A", "B", "C", "D", "E", "F"];
-const extractQuestionId = (q) => q.id ?? q.questionId ?? q._id ?? q.uuid ?? q.key ?? null;
+const extractQuestionId = (q) =>
+  q.id ?? q.questionId ?? q._id ?? q.uuid ?? q.key ?? q.qid ?? null;
 
-// Turn any option (string or object) into a clean display text
 const optionToText = (opt) => {
   if (typeof opt === "string") return opt;
   if (opt?.label) return opt.label;
@@ -203,22 +173,84 @@ const optionToText = (opt) => {
   return String(opt ?? "");
 };
 
-// Remove leading markers like "A)", "A.", "A -", etc. for nicer display
-const stripLeadingLetter = (s) =>
-  s.replace(/^\s*[A-Za-z]\s*[\.\)\-:]\s*/, "").trim();
+// Remove leading markers like "A)", "A.", "A -", etc. for display only
+const stripLeadingLetter = (s) => s.replace(/^\s*[A-Za-z]\s*[\.\)\-:]\s*/, "").trim();
+
+// Extract raw options from different shapes
+const extractRawOptions = (q) => {
+  if (Array.isArray(q.options)) return q.options;
+  if (Array.isArray(q.choices)) return q.choices;
+  // Support optionA .. optionD
+  const optKeys = ["optionA", "optionB", "optionC", "optionD", "a", "b", "c", "d"];
+  const collected = optKeys
+    .map((k) => q[k])
+    .filter((v) => typeof v === "string" && v.trim().length > 0);
+  if (collected.length) return collected;
+  return [];
+};
 
 // Normalize options to [{ code: 'A', text: '...' }, ...]
 const normalizeOptions = (q) => {
-  const raw = Array.isArray(q.options)
-    ? q.options
-    : Array.isArray(q.choices)
-    ? q.choices
-    : [];
+  const raw = extractRawOptions(q);
   return raw.slice(0, 4).map((opt, idx) => {
     const text = stripLeadingLetter(optionToText(opt));
     return { code: letters[idx], text };
   });
 };
+
+// Robustly find questions and sessionId from arbitrary response shapes
+const pickQuestionsAndSession = (data) => {
+  let questions = [];
+  let sessionId =
+    data?.sessionId ?? data?.quizSessionId ?? data?.id ?? data?.practiceSessionId ?? null;
+
+  if (Array.isArray(data)) {
+    questions = data;
+  } else if (Array.isArray(data?.questions)) {
+    questions = data.questions;
+  } else if (Array.isArray(data?.weakQuestions)) {
+    questions = data.weakQuestions;
+  } else if (Array.isArray(data?.data?.questions)) {
+    questions = data.data.questions;
+    sessionId = sessionId ?? data?.data?.sessionId;
+  } else if (Array.isArray(data?.data)) {
+    // Sometimes the API just returns { data: [ {question...}, ... ] }
+    questions = data.data;
+  } else {
+    // Try to find an array of question-like objects anywhere
+    const found = findArrayWithQuestions(data);
+    if (Array.isArray(found)) questions = found;
+  }
+
+  return { questions, sessionId };
+};
+
+// Heuristic: find first array with objects that look like questions
+const findArrayWithQuestions = (obj, seen = new Set()) => {
+  if (!obj || typeof obj !== "object") return null;
+  if (seen.has(obj)) return null;
+  seen.add(obj);
+
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
+    if (Array.isArray(val) && val.length) {
+      const first = val[0];
+      if (
+        typeof first === "object" &&
+        (("questionText" in first) || ("question" in first) || ("text" in first) || ("options" in first) || ("choices" in first))
+      ) {
+        return val;
+      }
+    } else if (val && typeof val === "object") {
+      const res = findArrayWithQuestions(val, seen);
+      if (res) return res;
+    }
+  }
+  return null;
+};
+
+// Short-lived cache to avoid double-hitting backend in dev (StrictMode)
+const CACHE_TTL_MS = 4000; // 4 seconds
 
 const PracticeWeakAreasPage = () => {
   const navigate = useNavigate();
@@ -230,8 +262,10 @@ const PracticeWeakAreasPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [practiceSessionId, setPracticeSessionId] = useState(null);
 
+  const requestIdRef = useRef(0);
+
   // Override global styles for this page
-  React.useEffect(() => {
+  useEffect(() => {
     const originalRootStyle = document.getElementById("root")?.style.cssText;
     const originalBodyStyle = document.body.style.cssText;
 
@@ -244,28 +278,41 @@ const PracticeWeakAreasPage = () => {
       root.style.height = "100vh";
       root.style.width = "100vw";
     }
-
     document.body.style.display = "block";
     document.body.style.placeItems = "initial";
 
     return () => {
-      if (root && originalRootStyle !== undefined) {
-        root.style.cssText = originalRootStyle;
-      }
-      if (originalBodyStyle !== undefined) {
-        document.body.style.cssText = originalBodyStyle;
-      }
+      if (root && originalRootStyle !== undefined) root.style.cssText = originalRootStyle;
+      if (originalBodyStyle !== undefined) document.body.style.cssText = originalBodyStyle;
     };
   }, []);
 
   const numQuestions = parseInt(searchParams.get("numQuestions") || "5", 10);
 
-  // Fetch weak area questions
+  // Fetch weak area questions with cache to avoid StrictMode double POST
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
+       if (hasFetchedRef.current) return; // prevent second call
+        hasFetchedRef.current = true;
     const fetchWeakAreaQuestions = async () => {
+      const myId = ++requestIdRef.current;
+      setLoading(true);
+      setError(null);
+
+      const cacheKey = `weak-areas:${numQuestions}`;
       try {
-        setLoading(true);
-        setError(null);
+        // Try cache first
+        const cachedRaw = sessionStorage.getItem(cacheKey);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached?.ts && Date.now() - cached.ts < CACHE_TTL_MS && Array.isArray(cached.questions)) {
+            if (myId !== requestIdRef.current) return;
+            setQuestions(cached.questions);
+            setPracticeSessionId(cached.sessionId ?? null);
+            setLoading(false);
+            return;
+          }
+        }
 
         const token = localStorage.getItem("authToken");
         if (!token) throw new Error("User not authenticated");
@@ -275,49 +322,47 @@ const PracticeWeakAreasPage = () => {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            // Optional idempotency key if you add server-side support
+            "X-Idempotency-Key": `weak-areas:${numQuestions}`,
           },
           body: JSON.stringify({ numQuestions }),
         });
 
         if (!res.ok) {
-          throw new Error(
-            `Failed to fetch weak area questions: ${res.status} ${res.statusText}`
-          );
+          throw new Error(`Failed to fetch weak area questions: ${res.status} ${res.statusText}`);
         }
 
         const data = await res.json();
+        if (myId !== requestIdRef.current) return;
 
-        let questionsList = [];
-        let sessionId = null;
-
-        if (Array.isArray(data)) {
-          questionsList = data;
-        } else if (data.questions && Array.isArray(data.questions)) {
-          questionsList = data.questions;
-          sessionId = data.sessionId;
-        } else if (data.sessionId && data.questions) {
-          questionsList = data.questions;
-          sessionId = data.sessionId;
-        } else {
-          // Try common formats
-          questionsList = data?.data || [];
-          sessionId = data?.sessionId || null;
-        }
-
-        // Attach normalized options to each question for consistent rendering/submission
-        const normalized = questionsList.map((q) => ({
+        const { questions: rawQuestions, sessionId } = pickQuestionsAndSession(data);
+        const normalized = (rawQuestions || []).map((q) => ({
           ...q,
           _normalizedOptions: normalizeOptions(q),
           _questionId: extractQuestionId(q),
+          questionText: q.questionText ?? q.question ?? q.text ?? q.prompt ?? "",
         }));
 
         setQuestions(normalized);
         setPracticeSessionId(sessionId ?? null);
+
+        // Cache the normalized result to prevent immediate re-fetch
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify({ ts: Date.now(), questions: normalized, sessionId: sessionId ?? null })
+        );
+
+        if (import.meta?.env?.DEV) {
+          // eslint-disable-next-line no-console
+          console.debug("Weak-areas response (parsed):", { data, normalized, sessionId });
+        }
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("Error fetching weak area questions:", err);
+        if (myId !== requestIdRef.current) return;
         setError(err.message);
       } finally {
-        setLoading(false);
+        if (myId === requestIdRef.current) setLoading(false);
       }
     };
 
@@ -325,15 +370,11 @@ const PracticeWeakAreasPage = () => {
   }, [numQuestions]);
 
   const handleChange = (questionIndex, valueCode) => {
-    // Always store A/B/C/D
-    setAnswers((prev) => ({ ...prev, [questionIndex]: valueCode }));
+    setAnswers((prev) => ({ ...prev, [questionIndex]: valueCode })); // store A/B/C/D
   };
 
   const handleSubmit = async () => {
-    const unansweredCount = questions.reduce(
-      (acc, _, idx) => acc + (answers[idx] ? 0 : 1),
-      0
-    );
+    const unansweredCount = questions.reduce((acc, _, idx) => acc + (answers[idx] ? 0 : 1), 0);
     if (unansweredCount > 0) {
       const proceed = window.confirm(
         `You have ${unansweredCount} unanswered ${unansweredCount === 1 ? "question" : "questions"}. Do you want to submit anyway?`
@@ -346,26 +387,17 @@ const PracticeWeakAreasPage = () => {
       const token = localStorage.getItem("authToken");
       if (!token) throw new Error("User not authenticated");
 
-      // Build payload from stable codes (A/B/C/D)
       const formattedAnswers = questions
         .map((q, index) => {
           const code = answers[index]; // 'A' | 'B' | 'C' | 'D'
           if (!code) return null;
-
-          // Find answer text for optional debugging/backends that accept text
           const opt = q._normalizedOptions.find((o) => o.code === code);
           const answerText = opt?.text ?? "";
-
-          return {
-            questionId: q._questionId,
-            userAnswer: code,
-            answerText, // optional; harmless if backend ignores it
-          };
+          return { questionId: q._questionId, userAnswer: code, answerText };
         })
         .filter(Boolean);
 
       const requestBody = { answers: formattedAnswers };
-      // Fallback submit URL if practiceSessionId is missing
       const submitUrl = practiceSessionId
         ? `http://localhost:8080/api/quiz/${practiceSessionId}/submit`
         : `http://localhost:8080/api/quiz/weak-areas/submit`;
@@ -381,40 +413,28 @@ const PracticeWeakAreasPage = () => {
 
       if (!response.ok) {
         let errorMessage = `Failed to submit practice quiz: ${response.status} ${response.statusText}`;
-
         try {
           const errorData = await response.json();
-          if (errorData.message) {
-            errorMessage += ` - ${errorData.message}`;
-          }
+          if (errorData.message) errorMessage += ` - ${errorData.message}`;
         } catch {
           try {
             const errorText = await response.text();
             if (errorText) errorMessage += ` - ${errorText}`;
           } catch {}
         }
-
         if (response.status === 403) {
-          errorMessage =
-            "Access denied. You may not be authorized to submit this practice quiz.";
+          errorMessage = "Access denied. You may not be authorized to submit this practice quiz.";
         } else if (response.status === 404) {
-          errorMessage =
-            "Practice session not found. Please try refreshing the page.";
+          errorMessage = "Practice session not found. Please try refreshing the page.";
         } else if (response.status === 401) {
           errorMessage = "Your session has expired. Please log in again.";
         }
-
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
-
-      // Prefer server-provided sessionId if it responds with one
       const resolvedSessionId =
-        practiceSessionId ||
-        data?.sessionId ||
-        data?.quizSessionId ||
-        "practice";
+        practiceSessionId || data?.sessionId || data?.quizSessionId || "practice";
 
       navigate(`/quiz/${resolvedSessionId}/results`, {
         state: { result: data, questionCount: questions.length },
@@ -422,6 +442,7 @@ const PracticeWeakAreasPage = () => {
 
       setError(null);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error("Error submitting practice quiz:", err);
       setError(err.message);
     } finally {
@@ -455,8 +476,7 @@ const PracticeWeakAreasPage = () => {
           ) : error ? (
             <Card
               sx={{
-                background:
-                  "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+                background: "linear-gradient(180deg, rgba(28,28,28,0.95) 0%, rgba(16,16,16,0.95) 100%)",
                 border: "1px solid #f44336",
               }}
             >
@@ -489,8 +509,7 @@ const PracticeWeakAreasPage = () => {
           ) : questions.length === 0 ? (
             <Card
               sx={{
-                background:
-                  "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+                background: "linear-gradient(180deg, rgba(28,28,28,0.95) 0%, rgba(16,16,16,0.95) 100%)",
                 border: "1px solid #444",
               }}
             >
@@ -510,8 +529,8 @@ const PracticeWeakAreasPage = () => {
                   No Weak Areas Found
                 </Typography>
                 <Typography variant="body1" sx={{ color: "#ccc", mb: 3 }}>
-                  No weak area questions available. Complete some quizzes first to
-                  identify areas for improvement.
+                  We couldn’t find questions in the response. Please try again, or complete some
+                  quizzes first to identify areas for improvement.
                 </Typography>
                 <Button
                   variant="contained"
@@ -559,8 +578,7 @@ const PracticeWeakAreasPage = () => {
                           Practice Your Weak Areas
                         </Typography>
                         <Typography variant="h6" sx={{ color: "#aaa" }}>
-                          These {questions.length} questions are based on topics where you need
-                          improvement
+                          These {questions.length} questions are based on topics where you need improvement
                         </Typography>
                       </Box>
                     </Box>
@@ -583,30 +601,12 @@ const PracticeWeakAreasPage = () => {
                         height: 8,
                         borderRadius: 4,
                         backgroundColor: "#333",
-                        "& .MuiLinearProgress-bar": {
-                          backgroundColor: "#4caf50",
-                          borderRadius: 4,
-                        },
+                        "& .MuiLinearProgress-bar": { backgroundColor: "#4caf50", borderRadius: 4 },
                       }}
                     />
                   </Box>
                 </CardContent>
               </HeaderCard>
-
-              {/* Error Message */}
-              {error && (
-                <Alert
-                  severity="error"
-                  variant="filled"
-                  sx={{
-                    mb: 3,
-                    borderRadius: "12px",
-                    background: "linear-gradient(45deg, #f44336, #d32f2f)",
-                  }}
-                >
-                  {error}
-                </Alert>
-              )}
 
               {/* Questions */}
               <Stack spacing={4} mb={4}>
@@ -616,12 +616,11 @@ const PracticeWeakAreasPage = () => {
                       {/* Question Header */}
                       <Box
                         sx={{
-                          background:
-                            "linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(139, 195, 74, 0.1))",
+                          background: "linear-gradient(135deg, rgba(76,175,80,0.1), rgba(139,195,74,0.1))",
                           borderRadius: "12px",
                           p: 3,
                           mb: 3,
-                          border: "1px solid rgba(76, 175, 80, 0.3)",
+                          border: "1px solid rgba(76,175,80,0.3)",
                         }}
                       >
                         <Box display="flex" alignItems="center" mb={2}>
@@ -629,8 +628,7 @@ const PracticeWeakAreasPage = () => {
                             sx={{
                               width: 32,
                               height: 32,
-                              background:
-                                "linear-gradient(135deg, #4caf50, #8bc34a)",
+                              background: "linear-gradient(135deg, #4caf50, #8bc34a)",
                               mr: 2,
                               fontSize: "0.9rem",
                               fontWeight: "bold",
@@ -644,14 +642,9 @@ const PracticeWeakAreasPage = () => {
                         </Box>
                         <Typography
                           variant="body1"
-                          sx={{
-                            color: "#e0e0e0",
-                            lineHeight: 1.6,
-                            fontSize: "1.1rem",
-                            pl: 5,
-                          }}
+                          sx={{ color: "#e0e0e0", lineHeight: 1.6, fontSize: "1.1rem", pl: 5 }}
                         >
-                          {q.questionText ?? q.question ?? q.text ?? ""}
+                          {q.questionText}
                         </Typography>
                       </Box>
 
@@ -710,8 +703,7 @@ const PracticeWeakAreasPage = () => {
               {/* Submit Section */}
               <Card
                 sx={{
-                  background:
-                    "linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(16, 16, 16, 0.95) 100%)",
+                  background: "linear-gradient(180deg, rgba(28,28,28,0.95) 0%, rgba(16,16,16,0.95) 100%)",
                   border: "1px solid #444",
                 }}
               >
@@ -725,9 +717,7 @@ const PracticeWeakAreasPage = () => {
                         onClick={handleSubmit}
                         disabled={submitting}
                         size="large"
-                        startIcon={
-                          submitting ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />
-                        }
+                        startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
                       >
                         {submitting ? "Submitting..." : "Submit Practice Quiz"}
                       </GradientButton>
@@ -738,10 +728,7 @@ const PracticeWeakAreasPage = () => {
                         sx={{
                           borderColor: "#666",
                           color: "#ccc",
-                          "&:hover": {
-                            borderColor: "#7b1fa2",
-                            backgroundColor: "rgba(123, 31, 162, 0.1)",
-                          },
+                          "&:hover": { borderColor: "#7b1fa2", backgroundColor: "rgba(123,31,162,0.1)" },
                         }}
                       >
                         Back to Dashboard

@@ -27,6 +27,7 @@ import {
   FiberManualRecord as RecordIcon,
   Hearing as HearingIcon,
   Replay as ReplayIcon,
+  ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
@@ -138,6 +139,7 @@ const VoiceVibrator = ({ active }) => (
 function LiveInterviewPage() {
   // Pre-interview form state
   const [formStep, setFormStep] = useState(true);
+  const [type, setType] = useState("technical"); // Default value: "tec
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState("Intermediate");
   const [strengthsInput, setStrengthsInput] = useState("");
@@ -166,6 +168,7 @@ function LiveInterviewPage() {
   const audioChunksRef = useRef([]);
   const recordTimerRef = useRef(null);
   const audioPlayerRef = useRef(null);
+
 
   // Camera access
   useEffect(() => {
@@ -355,13 +358,14 @@ function LiveInterviewPage() {
           "Content-Type": "application/json",
           Authorization: authToken ? `Bearer ${authToken}` : undefined,
         },
-        body: JSON.stringify({
-          topic,
-          level,
-          strengths,
-          experience,
-          profile,
-        }),
+       body: JSON.stringify({
+         position: topic, // topic/domain
+         type,            // interview type from dropdown
+         level,
+         strengths,
+         experience,
+         profile,
+       })
       });
       if (!res.ok) {
         throw new Error("Failed to create interview session.");
@@ -388,7 +392,8 @@ function LiveInterviewPage() {
       if (!genRes.ok) {
         throw new Error("Failed to generate interview questions.");
       }
-      const genData = await genRes.json();
+      // Consume body if needed: const _genData = await genRes.json();
+
       // 3. Fetch questions for the given liveInterviewId
       const qRes = await fetch(
         `http://localhost:8080/api/interview/questions/live-interview/${data.id}`,
@@ -438,6 +443,27 @@ function LiveInterviewPage() {
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
+        {/* Back to Dashboard Button - fixed top-left */}
+        <Box sx={{ position: "fixed", top: 16, left: 16, zIndex: 2000 }}>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate("/dashboard")}
+            sx={{
+              borderColor: "#ad1fff",
+              color: "#fff",
+              background: "rgba(255,255,255,0.06)",
+              fontWeight: "bold",
+              "&:hover": {
+                borderColor: "#ff4fa7",
+                background: "rgba(173,31,255,0.18)",
+              },
+            }}
+          >
+            Back to Dashboard
+          </Button>
+        </Box>
+
         {formStep ? (
           <FullScreenWrapper>
             {/* --- Form Section --- */}
@@ -458,16 +484,39 @@ function LiveInterviewPage() {
                         style: { background: "#190c36", color: "#fff" }
                       }}
                     />
-                    <Select
-                      value={level}
-                      onChange={e => setLevel(e.target.value)}
-                      fullWidth
-                      sx={{ background: "#190c36", color: "#fff" }}
-                    >
-                      <MenuItem value="Beginner">Beginner</MenuItem>
-                      <MenuItem value="Intermediate">Intermediate</MenuItem>
-                      <MenuItem value="Expert">Expert</MenuItem>
-                    </Select>
+
+                    <Box>
+                       <Typography variant="subtitle1" sx={{ color: "#ad1fff", fontWeight: "bold", mb: 0 }}>
+                         Level
+                       </Typography>
+                       <Select
+                         value={level}
+                         onChange={e => setLevel(e.target.value)}
+                         fullWidth
+                         sx={{ background: "#190c36", color: "#fff", mt: 0 }}
+                       >
+                         <MenuItem value="Beginner">Beginner</MenuItem>
+                         <MenuItem value="Intermediate">Intermediate</MenuItem>
+                         <MenuItem value="Expert">Expert</MenuItem>
+                       </Select>
+                     </Box>
+
+                     {/* Type label + dropdown */}
+                     <Box mt={2}>
+                       <Typography variant="subtitle1" sx={{ color: "#ad1fff", fontWeight: "bold", mb: 0 }}>
+                         Type
+                       </Typography>
+                       <Select
+                         value={type}
+                         onChange={e => setType(e.target.value)}
+                         fullWidth
+                         sx={{ background: "#190c36", color: "#fff", mt: 0 }}
+                       >
+                         <MenuItem value="technical">Technical</MenuItem>
+                         <MenuItem value="behavioural">Behavioural</MenuItem>
+                         <MenuItem value="mixed">Mixed</MenuItem>
+                       </Select>
+                     </Box>
                     <Box>
                       <TextField
                         label="Strengths (comma separated)"
@@ -492,6 +541,7 @@ function LiveInterviewPage() {
                       >
                         Add Strengths
                       </Button>
+
                       <Box sx={{ mt: 1 }}>
                         {strengths.map((strength) => (
                           <Chip
@@ -539,6 +589,24 @@ function LiveInterviewPage() {
                     >
                       {loading ? <CircularProgress size={24} color="inherit" /> : "Start Interview"}
                     </Button>
+                      <Button
+                                          variant="contained"
+                                          color="secondary"
+                                          fullWidth
+                                          sx={{
+                                            mt: 3,
+                                            py: 1.5,
+                                            fontWeight: "bold",
+                                            fontSize: 16,
+                                            background: "linear-gradient(90deg, #ad1fff 0%, #ff4fa7 100%)",
+                                            color: "#fff",
+                                            borderRadius: "12px",
+                                            boxShadow: "0 4px 14px #ad1fff33"
+                                          }}
+                                          onClick={() => navigate("/all-interview-feedbacks")}
+                                        >
+                                          View All Interview Feedbacks
+                                        </Button>
                   </Stack>
                 </form>
               </CardContent>

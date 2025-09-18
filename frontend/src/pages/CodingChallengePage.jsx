@@ -85,8 +85,8 @@ const HeaderCard = styled(Paper)(({ theme }) => ({
   backdropFilter: "blur(8px)",
   boxShadow: "0 4px 30px rgba(0, 0, 0, 0.5)",
   border: "1px solid rgba(126, 87, 194, 0.5)",
-  marginBottom: theme.spacing(4),
-  padding: theme.spacing(2),
+  marginBottom: theme.spacing(0.5),
+  padding: theme.spacing(0.5),
   position: "sticky",
   top: 0,
   zIndex: 30,
@@ -704,77 +704,129 @@ int main() {
 
   // ===== Run sample (use /submit and normalize to a verdict) =====
   const runSampleTestCases = async () => {
-    if (!challenge || !code.trim()) {
-      setErrorMessage('Please write some code before running.');
-      return;
-    }
+  if (!challenge || !code.trim()) {
+    setErrorMessage('Please write some code before running.');
+    return;
+  }
 
-    // Local mock evaluation
-    if (typeof challenge.id !== 'number') {
-      setRunning(true);
-      setErrorMessage(null);
-      try {
-        const runResult = evaluateMockVisibleTestCases(challenge, code);
-        setSubmissionResult(runResult);
-        setShowResults(true);
-      } catch {
-        setErrorMessage("Failed to run sample test cases (mock).");
-      } finally {
-        setRunning(false);
-      }
-      return;
-    }
+  // Helper to map any case shape to the result page shape
+  const mapToResultCase = (tc) => ({
+    input: tc.input ?? tc.stdin ?? '',
+    expectedOutput: tc.expectedOutput ?? tc.expected_output ?? tc.expected ?? '',
+    actualOutput: tc.actualOutput ?? tc.actual_output ?? tc.output ?? tc.stdout ?? '',
+    visible: typeof tc.visible === 'boolean' ? tc.visible : true,
+    passed: Boolean(
+      tc.passed ??
+      tc.isPassed ??
+      tc.success ??
+      (typeof tc.status === 'string' && tc.status.toLowerCase() === 'passed')
+    ),
+    error: tc.error ?? tc.stderr ?? tc.message ?? null,
+  });
 
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) {
-      setErrorMessage('Authentication token not found. Please log in.');
-      return;
-    }
-
+  // If you're using mock challenges (no numeric id), evaluate locally and navigate
+  if (typeof challenge.id !== 'number') {
     setRunning(true);
     setErrorMessage(null);
-
     try {
-      const languageId = languageConfigs[selectedLanguage].id;
-      const response = await fetch(
-        `http://localhost:8080/api/coding/challenge/${challenge.id}/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({
-            source_code: code,
-            language_id: languageId,
-            stdin: "",
-            mode: "run" // harmless hint if backend ignores it
-          })
-        }
-      );
-      if (!response.ok) {
-        let msg = `Failed to run sample test cases: ${response.status} ${response.statusText}`;
-        try {
-          const txt = await response.text();
-          if (txt) msg += ` - ${txt}`;
-        } catch {}
-        throw new Error(msg);
-      }
-      const raw = await response.json();
-      // Debug: inspect what backend returns to ensure normalization matches
-      // You can keep or remove this after verifying shape
-      // eslint-disable-next-line no-console
-      console.log("Run raw response:", raw);
+      const runResult = evaluateMockVisibleTestCases(challenge, code); // returns { sampleResults, passedSample, totalSample }
+      const results = (runResult.sampleResults || []).map(mapToResultCase);
+      const passedTestCases = results.filter(r => r.passed).length;
+      const totalTestCases = results.length;
 
-      const normalized = normalizeRunResponse(raw, challenge);
-      setSubmissionResult(normalized);
-      setShowResults(true);
-    } catch (error) {
-      setErrorMessage(error?.message || "Failed to run sample test cases.");
+      navigate('/coding-challenge/result', {
+        state: {
+          result: {
+            allPassed: totalTestCases > 0 && passedTestCases === totalTestCases,
+            totalTestCases,
+            passedTestCases,
+            results,
+          },
+          challenge,
+        },
+      });
+    } catch (e) {
+      setErrorMessage("Failed to run sample test cases (mock).");
     } finally {
       setRunning(false);
     }
-  };
+    return;
+  }
+
+  const authToken = localStorage.getItem('authToken');
+  if (!authToken) {
+    setErrorMessage('Authentication token not found. Please log in.');
+    return;
+  }
+
+  setRunning(true);
+  setErrorMessage(null);
+
+  try {
+    const languageId = languageConfigs[selectedLanguage].id;
+    const response = await fetch(
+      `http://localhost:8080/api/coding/challenge/${challenge.id}/run`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          source_code: code,
+          language_id: languageId,
+          stdin: '',
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      let msg = `Failed to run sample test cases: ${response.status} ${response.statusText}`;
+      try {
+        const txt = await response.text();
+        if (txt) msg += ` - ${txt}`;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    const raw = await response.json();
+    // Prefer raw.results if present; otherwise fall back to known arrays
+    const rawCases =
+      (Array.isArray(raw.results) && raw.results) ||
+      (Array.isArray(raw.sampleResults) && raw.sampleResults) ||
+      (Array.isArray(raw.test_cases) && raw.test_cases) ||
+      (Array.isArray(raw.testCases) && raw.testCases) ||
+      (Array.isArray(raw.cases) && raw.cases) ||
+      [];
+
+    const results = rawCases.map(mapToResultCase);
+
+    // Compute counts; if backend already provided them, we can use them,
+    // but recompute to be safe for visible-only runs.
+    const totalTestCases =
+      typeof raw.totalTestCases === 'number' ? raw.totalTestCases : results.length;
+    const passedTestCases =
+      typeof raw.passedTestCases === 'number'
+        ? raw.passedTestCases
+        : results.filter(r => r.passed).length;
+
+    navigate('/coding-challenge/run-result', {
+      state: {
+        result: {
+          allPassed: totalTestCases > 0 && passedTestCases === totalTestCases,
+          totalTestCases,
+          passedTestCases,
+          results,
+        },
+        challenge,
+      },
+    });
+  } catch (error) {
+    setErrorMessage(error?.message || "Failed to run sample test cases.");
+  } finally {
+    setRunning(false);
+  }
+};
 
   const handleLanguageChange = (newLanguage) => {
     setSelectedLanguage(newLanguage);
@@ -832,11 +884,14 @@ int main() {
                 startIcon={<ArrowBackIcon />}
                 sx={{
                   background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
+                  color: 'white', // text and icon will be white
                   '&:hover': { background: 'linear-gradient(45deg, #9c27b0, #ff4081)' },
+                  fontWeight: 'bold'
                 }}
               >
                 Back to Dashboard
               </ActionButton>
+
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Box
                   sx={{

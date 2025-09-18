@@ -43,7 +43,7 @@ import {
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
 /* ====================== Config ====================== */
-const NGROK_URL = 'https://566a58615d0a.ngrok-free.app';
+const NGROK_URL = ' https://87e0bd6486d1.ngrok-free.app';
 const MAX_HISTORY_ITEMS = 10; // Limit to latest 10 interviews
 
 /* ====================== Theme ====================== */

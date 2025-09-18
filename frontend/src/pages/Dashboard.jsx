@@ -94,8 +94,6 @@ const StatTile = ({ title, value, icon, gradient }) => (
   </StatsCard>
 );
 
-// ... imports and styled components remain unchanged ...
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -111,6 +109,9 @@ export default function Dashboard() {
   // Challenge state
   const [dailyChallenge, setDailyChallenge] = useState(null);
   const [loadingChallenge, setLoadingChallenge] = useState(true);
+
+  // Button loading indicator (which button is pressed)
+  const [loadingButton, setLoadingButton] = useState("");
 
   // Stats state (will be updated from backend)
   const [stats, setStats] = useState({
@@ -177,6 +178,7 @@ export default function Dashboard() {
   }, []);
 
   const handleLogout = () => {
+    setLoadingButton("logout");
     localStorage.removeItem("authToken");
     localStorage.removeItem("user");
     navigate("/");
@@ -242,6 +244,7 @@ export default function Dashboard() {
   const handleStartQuiz = async (e) => {
     e.preventDefault();
     setMessage("");
+    setLoadingButton("startQuiz");
     try {
       const topicList = topics
         .split(",")
@@ -249,6 +252,7 @@ export default function Dashboard() {
         .filter((t) => t.length > 0);
       if (topicList.length === 0) {
         setMessage("Please enter at least one topic.");
+        setLoadingButton("");
         return;
       }
       const response = await startQuiz(topicList, parseInt(numQuestions, 10));
@@ -256,16 +260,24 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Start quiz error:", error);
       setMessage(error.message || "Failed to start quiz.");
+      setLoadingButton("");
     }
   };
 
-  const handlePracticeWeakAreas = () =>
+  const handlePracticeWeakAreas = () => {
+    setLoadingButton("startPractice");
     navigate(`/practice-weak-areas?numQuestions=${numWeakQuestions}`);
+  };
 
-  const startCodingChallenge = (challengeId) =>
+  const startCodingChallenge = (challengeId) => {
+    setLoadingButton("startDaily");
     navigate(`/coding-challenge/${challengeId}`);
+  };
 
-  const handleGenerateResumeClick = () => navigate("/resume-generate");
+  const handleGenerateResumeClick = () => {
+    setLoadingButton("generateResume");
+    navigate("/resume-generate");
+  };
 
   const rightHeader = (
     <Stack direction="row" spacing={2} alignItems="center">
@@ -285,6 +297,7 @@ export default function Dashboard() {
         variant="outlined"
         startIcon={<LogoutIcon />}
         onClick={handleLogout}
+        disabled={loadingButton === "logout"}
         sx={{
           borderColor: "#7b1fa2",
           color: "white",
@@ -295,10 +308,71 @@ export default function Dashboard() {
           },
         }}
       >
-        Logout
+        {loadingButton === "logout" ? "Loading..." : "Logout"}
       </Button>
     </Stack>
   );
+
+  // Quick Actions data (clean, consistent grid)
+  const quickActions = [
+    {
+      key: "generateResume",
+      label: "Generate Resume",
+      icon: <DescriptionIcon />,
+      gradient: "linear-gradient(45deg, #2196F3, #21CBF3)",
+      onClick: () => handleGenerateResumeClick(),
+    },
+    {
+      key: "analyzeResume",
+      label: "Analyze Resume",
+      icon: <DescriptionIcon />,
+      gradient: "linear-gradient(45deg, #2196F3, #21CBF3)",
+      onClick: () => {
+        setLoadingButton("analyzeResume");
+        navigate("/resume-analyzer");
+      },
+    },
+    {
+      key: "viewReports",
+      label: "View Reports",
+      icon: <TrendingUpIcon />,
+      gradient: "linear-gradient(45deg, #9c27b0, #ab47bc)",
+      onClick: () => {
+        setLoadingButton("viewReports");
+        navigate("/report/weaknesses");
+      },
+    },
+    {
+      key: "chatAi",
+      label: "Chat with AI",
+      icon: <ChatIcon />,
+      gradient: "linear-gradient(45deg, #ff9800, #ffc107)",
+      onClick: () => {
+        setLoadingButton("chatAi");
+        navigate("/gemini");
+      },
+    },
+    {
+      key: "interviewPrep",
+      label: "Interview Prep",
+      icon: <MicIcon />,
+      gradient: "linear-gradient(45deg, #607d8b, #78909c)",
+      onClick: () => {
+        setLoadingButton("interviewPrep");
+        navigate("/interview-prep");
+      },
+    },
+    {
+      key: "liveInterview",
+      label: "Live Interview",
+      icon: <InterviewIcon />,
+      gradient: "linear-gradient(45deg, #0d47a1, #1a237e)",
+      onClick: () => {
+        setLoadingButton("liveInterview");
+        navigate("/live-interview");
+      },
+    },
+  ];
 
   return (
     <PageLayout
@@ -330,7 +404,7 @@ export default function Dashboard() {
                 <Grid item xs={12} sm={6}>
                   <StatTile
                     title="Quizzes Taken"
-                    value={stats.totalQuizzesTaken??0}
+                    value={stats.totalQuizzesTaken ?? 0}
                     icon={<BrainIcon />}
                     gradient="linear-gradient(135deg, #2196F3, #21CBF3)"
                   />
@@ -347,14 +421,14 @@ export default function Dashboard() {
                   <StatTile
                     title="Accuracy"
                     value={`${stats.accuracy ?? 0}%`}
-                    icon={<Award />}  // you can choose a different icon if you like
+                    icon={<Award />}
                     gradient="linear-gradient(135deg, #00c853, #64dd17)"
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <StatTile
                     title="Current Streak"
-                    value={`${stats.streak??0} days`}
+                    value={`${stats.streak ?? 0} days`}
                     icon={<TrendingUp />}
                     gradient="linear-gradient(135deg, #ff9800, #ffc107)"
                   />
@@ -363,12 +437,11 @@ export default function Dashboard() {
                 <Grid item xs={12} sm={6}>
                   <StatTile
                     title="Rank"
-                    value={stats.rank??'Participant'}
+                    value={stats.rank ?? "Participant"}
                     icon={<TrendingUpIcon />}
                     gradient="linear-gradient(135deg, #7b1fa2, #f50057)"
                   />
                 </Grid>
-                {/* Weekly Target tile removed as requested */}
               </Grid>
             </Box>
 
@@ -380,12 +453,7 @@ export default function Dashboard() {
                   p: 3,
                 }}
               >
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                  sx={{ mb: 1 }}
-                >
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                   <Calendar />
                   <Typography variant="h6" fontWeight="bold">
                     Today's Coding Challenge
@@ -403,12 +471,7 @@ export default function Dashboard() {
 
               <CardContent sx={{ p: 3 }}>
                 {loadingChallenge ? (
-                  <Box
-                    display="flex"
-                    flexDirection="column"
-                    alignItems="center"
-                    py={4}
-                  >
+                  <Box display="flex" flexDirection="column" alignItems="center" py={4}>
                     <CircularProgress sx={{ color: "#4caf50", mb: 2 }} />
                     <Typography variant="body2" sx={{ color: "#aaa" }}>
                       Loading today's challenge...
@@ -416,18 +479,10 @@ export default function Dashboard() {
                   </Box>
                 ) : dailyChallenge ? (
                   <Box>
-                    <Typography
-                      variant="h6"
-                      fontWeight="bold"
-                      gutterBottom
-                      sx={{ color: "white" }}
-                    >
+                    <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
                       {dailyChallenge.title}
                     </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}
-                    >
+                    <Typography variant="body2" sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}>
                       {dailyChallenge.description
                         ? dailyChallenge.description.substring(0, 150) + "..."
                         : "A new coding challenge awaits!"}
@@ -443,18 +498,9 @@ export default function Dashboard() {
                           border: "1px solid #555",
                         }}
                       >
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={0.5}
-                        >
-                          <Clock
-                            sx={{ fontSize: 16, color: "#90caf9" }}
-                          />
-                          <Typography
-                            variant="body2"
-                            sx={{ color: "#ccc" }}
-                          >
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <Clock sx={{ fontSize: 16, color: "#90caf9" }} />
+                          <Typography variant="body2" sx={{ color: "#ccc" }}>
                             {dailyChallenge.timeLimitMs || "1000"}ms
                           </Typography>
                         </Stack>
@@ -468,20 +514,11 @@ export default function Dashboard() {
                           border: "1px solid #555",
                         }}
                       >
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={0.5}
-                        >
-                          <BrainIcon
-                            sx={{ fontSize: 16, color: "#ce93d8" }}
-                          />
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <BrainIcon sx={{ fontSize: 16, color: "#ce93d8" }} />
                           <Typography
                             variant="body2"
-                            sx={{
-                              color: "#ccc",
-                              textTransform: "capitalize",
-                            }}
+                            sx={{ color: "#ccc", textTransform: "capitalize" }}
                           >
                             {dailyChallenge.difficulty || "Medium"}
                           </Typography>
@@ -495,28 +532,32 @@ export default function Dashboard() {
                         startIcon={<Play />}
                         fullWidth
                         onClick={() =>
-                          dailyChallenge &&
-                          dailyChallenge.id &&
-                          startCodingChallenge(dailyChallenge.id)
+                          dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)
                         }
-                        disabled={!dailyChallenge || !dailyChallenge.id}
+                        disabled={!dailyChallenge || !dailyChallenge.id || loadingButton === "startDaily"}
                         sx={{
                           py: 1.5,
-                          background:
-                            "linear-gradient(45deg, #4caf50, #8bc34a)",
+                          background: "linear-gradient(45deg, #4caf50, #8bc34a)",
                           "&:hover": {
-                            background:
-                              "linear-gradient(45deg, #66bb6a, #aed581)",
+                            background: "linear-gradient(45deg, #66bb6a, #aed581)",
                           },
                         }}
                       >
-                        Start Daily Challenge
+                        {loadingButton === "startDaily" ? "Loading..." : "Start Daily Challenge"}
                       </Button>
                       <Button
                         variant="outlined"
                         startIcon={<RefreshCw />}
                         fullWidth
-                        onClick={loadDailyChallenge}
+                        onClick={async () => {
+                          setLoadingButton("newChallenge");
+                          try {
+                            await loadDailyChallenge();
+                          } finally {
+                            setLoadingButton("");
+                          }
+                        }}
+                        disabled={loadingButton === "newChallenge"}
                         sx={{
                           borderColor: "#666",
                           color: "#ccc",
@@ -526,7 +567,7 @@ export default function Dashboard() {
                           },
                         }}
                       >
-                        New Challenge
+                        {loadingButton === "newChallenge" || loadingChallenge ? "Loading..." : "New Challenge"}
                       </Button>
                     </Stack>
                   </Box>
@@ -538,10 +579,18 @@ export default function Dashboard() {
                     <Button
                       variant="text"
                       size="small"
-                      onClick={loadDailyChallenge}
+                      onClick={async () => {
+                        setLoadingButton("retryDaily");
+                        try {
+                          await loadDailyChallenge();
+                        } finally {
+                          setLoadingButton("");
+                        }
+                      }}
+                      disabled={loadingButton === "retryDaily"}
                       sx={{ color: "#7b1fa2" }}
                     >
-                      Try loading again
+                      {loadingButton === "retryDaily" ? "Loading..." : "Try loading again"}
                     </Button>
                   </Box>
                 )}
@@ -551,12 +600,7 @@ export default function Dashboard() {
             {/* Start Knowledge Quiz */}
             <MainCard>
               <CardContent sx={{ p: 3 }}>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  gutterBottom
-                  sx={{ color: "white" }}
-                >
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
                   Start Knowledge Quiz
                 </Typography>
                 <Box component="form" onSubmit={handleStartQuiz} sx={{ mt: 2 }}>
@@ -586,17 +630,16 @@ export default function Dashboard() {
                       variant="contained"
                       size="large"
                       fullWidth
+                      disabled={loadingButton === "startQuiz"}
                       sx={{
                         py: 1.5,
-                        background:
-                          "linear-gradient(45deg, #7b1fa2, #f50057)",
+                        background: "linear-gradient(45deg, #7b1fa2, #f50057)",
                         "&:hover": {
-                          background:
-                            "linear-gradient(45deg, #9c27b0, #ff4081)",
+                          background: "linear-gradient(45deg, #9c27b0, #ff4081)",
                         },
                       }}
                     >
-                      Start Quiz
+                      {loadingButton === "startQuiz" ? "Loading..." : "Start Quiz"}
                     </Button>
                   </Stack>
                 </Box>
@@ -606,18 +649,10 @@ export default function Dashboard() {
             {/* Practice Weak Areas */}
             <MainCard>
               <CardContent sx={{ p: 3 }}>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  gutterBottom
-                  sx={{ color: "white" }}
-                >
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
                   Practice Weak Areas
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}
-                >
+                <Typography variant="body2" sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}>
                   Focus on topics you've previously struggled with.
                 </Typography>
                 <Stack spacing={3}>
@@ -645,138 +680,45 @@ export default function Dashboard() {
                     size="large"
                     fullWidth
                     onClick={handlePracticeWeakAreas}
+                    disabled={loadingButton === "startPractice"}
                     sx={{
                       py: 1.5,
-                      background:
-                        "linear-gradient(45deg, #4caf50, #8bc34a)",
+                      background: "linear-gradient(45deg, #4caf50, #8bc34a)",
                       "&:hover": {
-                        background:
-                          "linear-gradient(45deg, #66bb6a, #aed581)",
+                        background: "linear-gradient(45deg, #66bb6a, #aed581)",
                       },
                     }}
                   >
-                    Start Practice Session
+                    {loadingButton === "startPractice" ? "Loading..." : "Start Practice Session"}
                   </Button>
                 </Stack>
               </CardContent>
             </MainCard>
 
-            {/* Quick Actions */}
+            {/* Quick Actions (Re-arranged into a clean, responsive grid) */}
             <MainCard>
               <CardContent sx={{ p: 3 }}>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  gutterBottom
-                  sx={{ color: "white", mb: 3 }}
-                >
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white", mb: 3 }}>
                   Quick Actions
                 </Typography>
-                <Grid container spacing={2} justifyContent="center">
-                  <Grid item xs={12} sm={6} md={6}>
-                    <ActionButton
-                      variant="contained"
-                      startIcon={<DescriptionIcon />}
-                      fullWidth
-                      onClick={handleGenerateResumeClick}
-                      sx={{
-                        background:
-                          "linear-gradient(45deg, #2196F3, #21CBF3)",
-                        "&:hover": {
-                          background:
-                            "linear-gradient(45deg, #42a5f5, #4fc3f7)",
-                        },
-                      }}
-                    >
-                      Generate Resume
-                    </ActionButton>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={6}>
-                    <ActionButton
-                      variant="contained"
-                      startIcon={<TrendingUpIcon />}
-                      fullWidth
-                      onClick={() => navigate("/report/weaknesses")}
-                      sx={{
-                        background:
-                          "linear-gradient(45deg, #9c27b0, #ab47bc)",
-                        "&:hover": {
-                          background:
-                            "linear-gradient(45deg, #ba68c8, #ce93d8)",
-                        },
-                      }}
-                    >
-                      View Reports
-                    </ActionButton>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={6}>
-                    <ActionButton
-                      variant="contained"
-                      startIcon={<ChatIcon />}
-                      fullWidth
-                      onClick={() => navigate("/gemini")}
-                      sx={{
-                        background:
-                          "linear-gradient(45deg, #ff9800, #ffc107)",
-                        "&:hover": {
-                          background:
-                            "linear-gradient(45deg, #ffb74d, #ffcc80)",
-                        },
-                      }}
-                    >
-                      Chat with AI
-                    </ActionButton>
-                    <ActionButton
-                      variant="contained"
-                      startIcon={<DescriptionIcon />}
-                      fullWidth
-                      onClick={() => navigate("/resume-analyzer")}
-                      sx={{
-                        background: "linear-gradient(45deg, #2196F3, #21CBF3)",
-                        "&:hover": {
-                          background: "linear-gradient(45deg, #42a5f5, #4fc3f7)",
-                        },
-                      }}
-                    >
-                      Analyze Resume
-                    </ActionButton>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={6}>
-                    <ActionButton
-                      variant="contained"
-                      startIcon={<MicIcon />}
-                      fullWidth
-                      onClick={() => navigate("/interview-prep")}
-                      sx={{
-                        background:
-                          "linear-gradient(45deg, #607d8b, #78909c)",
-                        "&:hover": {
-                          background:
-                            "linear-gradient(45deg, #90a4ae, #b0bec5)",
-                        },
-                      }}
-                    >
-                      Interview Prep
-                    </ActionButton>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={6}>
-                    <ActionButton
-                      variant="contained"
-                      startIcon={<InterviewIcon />}
-                      fullWidth
-                      onClick={() => navigate("/live-interview")}
-                      sx={{
-                        background:
-                          "linear-gradient(45deg, #0d47a1, #1a237e)",
-                        "&:hover": {
-                          background:
-                            "linear-gradient(45deg, #1976d2, #3949ab)",
-                        },
-                      }}
-                    >
-                      Live Interview
-                    </ActionButton>
-                  </Grid>
+                <Grid container spacing={2}>
+                  {quickActions.map((action) => (
+                    <Grid key={action.key} item xs={12} sm={6} md={4}>
+                      <ActionButton
+                        variant="contained"
+                        startIcon={action.icon}
+                        fullWidth
+                        onClick={action.onClick}
+                        disabled={loadingButton === action.key}
+                        sx={{
+                          background: action.gradient,
+                          "&:hover": { filter: "brightness(1.05)" },
+                        }}
+                      >
+                        {loadingButton === action.key ? "Loading..." : action.label}
+                      </ActionButton>
+                    </Grid>
+                  ))}
                 </Grid>
               </CardContent>
             </MainCard>
@@ -784,12 +726,7 @@ export default function Dashboard() {
             {/* Recent Activity */}
             <MainCard>
               <CardContent sx={{ p: 3 }}>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  gutterBottom
-                  sx={{ color: "white" }}
-                >
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
                   Recent Activity
                 </Typography>
                 <Divider sx={{ my: 2, borderColor: "#444" }} />

@@ -10,12 +10,11 @@ import {
   Typography,
   Alert,
   Avatar,
-  Container,
   InputAdornment,
   IconButton,
   Divider,
   Link,
-  LinearProgress
+  LinearProgress,
 } from '@mui/material';
 import {
   Email,
@@ -26,7 +25,8 @@ import {
   Psychology as Brain,
   CheckCircle,
   VpnKey,
-  ArrowBack
+  ArrowBack,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
 
@@ -175,7 +175,6 @@ const FloatingElement = styled(Box)(({ theme }) => ({
   zIndex: 0,
 }));
 
-// Main container for perfect centering
 const CenteredContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
@@ -243,6 +242,7 @@ const PasswordStrengthIndicator = ({ password }) => {
 };
 
 function SignupPage() {
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -253,13 +253,10 @@ function SignupPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const navigate = useNavigate();
 
-  // Override global styles for this page
   React.useEffect(() => {
-    // Store original styles
     const originalRootStyle = document.getElementById('root')?.style.cssText;
     const originalBodyStyle = document.body.style.cssText;
 
-    // Apply signup page specific styles
     const root = document.getElementById('root');
     if (root) {
       root.style.maxWidth = 'none';
@@ -273,7 +270,6 @@ function SignupPage() {
     document.body.style.display = 'block';
     document.body.style.placeItems = 'initial';
 
-    // Cleanup function to restore original styles
     return () => {
       if (root && originalRootStyle !== undefined) {
         root.style.cssText = originalRootStyle;
@@ -290,12 +286,16 @@ function SignupPage() {
     setIsLoading(true);
     setIsSuccess(false);
 
+    if (!fullName.trim()) {
+      setMessage('Full name is required.');
+      setIsLoading(false);
+      return;
+    }
     if (password !== confirmPassword) {
       setMessage('Passwords do not match.');
       setIsLoading(false);
       return;
     }
-
     if (password.length < 6) {
       setMessage('Password must be at least 6 characters long.');
       setIsLoading(false);
@@ -303,16 +303,23 @@ function SignupPage() {
     }
 
     try {
-      const response = await signup(email, password);
-      if (response.status === 200) {
+      // Pass fullName to API
+      const response = await signup(email, password, fullName);
+      if (response.status === 200 || response.status === "ok" || response.success) {
         setMessage('A verification email has been sent to your inbox. Please click the link to activate your account.');
         setIsSuccess(true);
-      } else {
+      } else if (response.message) {
         setMessage(response.message);
+      } else {
+        setMessage('Signup failed. Please try again.');
       }
     } catch (error) {
-      setMessage('Signup failed. Please check your information and try again. If the problem persists, the server may be experiencing an issue.');
-      console.error('Signup error:', error);
+      setMessage(
+        error?.response?.data?.message ||
+        error?.message ||
+        'Signup failed. Please check your information and try again. If the problem persists, the server may be experiencing an issue.'
+      );
+      // Optionally: console.error('Signup error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -324,7 +331,6 @@ function SignupPage() {
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
-        {/* Back to Login Button */}
         <BackButton
           startIcon={<ArrowBack />}
           onClick={() => navigate('/login')}
@@ -332,31 +338,9 @@ function SignupPage() {
           Back to Login
         </BackButton>
 
-        {/* Floating background elements */}
-        <FloatingElement
-          sx={{
-            width: 200,
-            height: 200,
-            top: '15%',
-            left: '8%',
-          }}
-        />
-        <FloatingElement
-          sx={{
-            width: 350,
-            height: 350,
-            bottom: '5%',
-            right: '5%',
-          }}
-        />
-        <FloatingElement
-          sx={{
-            width: 180,
-            height: 180,
-            top: '60%',
-            left: '3%',
-          }}
-        />
+        <FloatingElement sx={{ width: 200, height: 200, top: '15%', left: '8%' }} />
+        <FloatingElement sx={{ width: 350, height: 350, bottom: '5%', right: '5%' }} />
+        <FloatingElement sx={{ width: 180, height: 180, top: '60%', left: '3%' }} />
 
         <CenteredContainer>
           <SignupCard>
@@ -375,7 +359,6 @@ function SignupPage() {
                 >
                   {isSuccess ? <CheckCircle sx={{ fontSize: 40 }} /> : <Brain sx={{ fontSize: 40 }} />}
                 </Avatar>
-
                 <Typography
                   variant="h4"
                   component="h1"
@@ -391,14 +374,12 @@ function SignupPage() {
                 >
                   {isSuccess ? 'Check Your Email!' : 'Join Prep_Orbit'}
                 </Typography>
-
                 <Typography variant="body1" sx={{ color: '#aaa', mb: 2 }}>
                   {isSuccess
                     ? 'We\'ve sent you a verification link'
                     : 'Create your account and start coding'
                   }
                 </Typography>
-
                 {!isSuccess && (
                   <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
                     <VpnKey sx={{ color: '#4caf50', fontSize: 20 }} />
@@ -408,9 +389,7 @@ function SignupPage() {
                   </Box>
                 )}
               </Box>
-
               <Divider sx={{ mb: 4, borderColor: '#444' }} />
-
               {/* Message Alert */}
               {message && (
                 <Alert
@@ -427,11 +406,29 @@ function SignupPage() {
                   {message}
                 </Alert>
               )}
-
               {!isSuccess && (
                 <>
                   {/* Signup Form */}
                   <Box component="form" onSubmit={handleSubmit}>
+                    <Box mb={3}>
+                      <StyledTextField
+                        fullWidth
+                        id="fullName"
+                        label="Full Name"
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        autoComplete="name"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon sx={{ color: '#7b1fa2' }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Box>
                     <Box mb={3}>
                       <StyledTextField
                         fullWidth
@@ -442,7 +439,6 @@ function SignupPage() {
                         onChange={(e) => setEmail(e.target.value)}
                         required
                         autoComplete="email"
-                        autoFocus
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -452,7 +448,6 @@ function SignupPage() {
                         }}
                       />
                     </Box>
-
                     <Box mb={3}>
                       <StyledTextField
                         fullWidth
@@ -485,7 +480,6 @@ function SignupPage() {
                       />
                       <PasswordStrengthIndicator password={password} />
                     </Box>
-
                     <Box mb={4}>
                       <StyledTextField
                         fullWidth
@@ -499,7 +493,7 @@ function SignupPage() {
                         error={passwordsDontMatch}
                         helperText={
                           passwordsDontMatch ? 'Passwords do not match' :
-                          passwordsMatch ? 'Passwords match!' : ''
+                            passwordsMatch ? 'Passwords match!' : ''
                         }
                         InputProps={{
                           startAdornment: (
@@ -528,7 +522,6 @@ function SignupPage() {
                         }}
                       />
                     </Box>
-
                     <GradientButton
                       type="submit"
                       fullWidth
@@ -559,8 +552,6 @@ function SignupPage() {
                       )}
                     </GradientButton>
                   </Box>
-
-                  {/* Footer Links */}
                   <Box textAlign="center" mt={4}>
                     <Typography variant="body2" sx={{ color: '#aaa', mb: 2 }}>
                       Already have an account?{' '}
@@ -587,7 +578,6 @@ function SignupPage() {
                   </Box>
                 </>
               )}
-
               {isSuccess && (
                 <Box textAlign="center" mt={3}>
                   <Button
@@ -606,7 +596,6 @@ function SignupPage() {
                   </Button>
                 </Box>
               )}
-
               <Box textAlign="center" mt={4}>
                 <Typography variant="caption" sx={{ color: '#777' }}>
                   By creating an account, you agree to our Terms of Service and Privacy Policy
@@ -614,8 +603,6 @@ function SignupPage() {
               </Box>
             </CardContent>
           </SignupCard>
-
-          {/* Bottom decoration */}
           <Box textAlign="center" mt={4}>
             <Typography variant="body2" sx={{ color: '#555' }}>
               © 2024 Prep_Orbit. Empowering developers worldwide.
