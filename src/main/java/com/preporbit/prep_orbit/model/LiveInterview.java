@@ -73,7 +73,21 @@ public class LiveInterview {
 
     public void setUsername(String username) {
     }
+    @ElementCollection // For storing as separate table
+    private List<String> strengths;
 
+    private String experience;
+
+    @Column(length = 1000)
+    private String profile;
+
+    // getters and setters
+    public List<String> getStrengths() { return strengths; }
+    public void setStrengths(List<String> strengths) { this.strengths = strengths; }
+    public String getExperience() { return experience; }
+    public void setExperience(String experience) { this.experience = experience; }
+    public String getProfile() { return profile; }
+    public void setProfile(String profile) { this.profile = profile; }
 
 
 }

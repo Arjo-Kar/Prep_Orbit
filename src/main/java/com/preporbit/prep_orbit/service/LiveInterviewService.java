@@ -131,6 +131,11 @@ public class LiveInterviewService {
         liveInterview.setLevel(dto.getLevel());
         liveInterview.setUsername(user.getUsername());
         liveInterview.setUserId(userId);
+
+        liveInterview.setStrengths(dto.getStrengths());
+        liveInterview.setExperience(dto.getExperience());
+        liveInterview.setProfile(dto.getProfile());
+
         return liveInterviewRepository.save(liveInterview);
     }
 
@@ -291,12 +296,46 @@ public class LiveInterviewService {
         answer.setCorrectAns(question.getExpectedAnswer());
         return interviewAnswerRepository.save(answer);
     }
+    //Fetching all feedbacks from a user
+    // In LiveInterviewService.java
+    public List<InterviewAnswer> getAllAnswersWithFeedbackForUser(Long userId) {
+        // Fetch all InterviewAnswers for the user, where feedback is not null
+        return interviewAnswerRepository.findByUserIdAndFeedbackIsNotNullOrderByIdDesc(userId);
+    }
+    //Final feedback for live interview
+    public List<LiveInterviewFeedbackDto> getAllLiveInterviewFeedbacksForUser(Long userId) {
+        List<LiveInterview> interviews = liveInterviewRepository.findByUserId(userId);
+        List<LiveInterviewFeedbackDto> result = new ArrayList<>();
+        for (LiveInterview interview : interviews) {
+            List<InterviewAnswer> answers = interviewAnswerRepository.findByLiveInterview_IdAndUserIdOrderByIdAsc(interview.getId(), userId);
+            List<LiveInterviewFeedbackDto.QaFeedback> qaList = new ArrayList<>();
+            for (InterviewAnswer ans : answers) {
+                LiveInterviewFeedbackDto.QaFeedback qa = new LiveInterviewFeedbackDto.QaFeedback();
+                qa.setQuestion(ans.getQuestion() != null ? ans.getQuestion().getQuestion() : null);
+                qa.setExpectedAnswer(ans.getQuestion() != null ? ans.getQuestion().getExpectedAnswer() : null);
+                qa.setUserAnswer(ans.getAnswer());
+                qa.setFeedback(ans.getFeedback());
+                qa.setRating(ans.getRating());
+                qa.setSuggestion(ans.getSuggestion());
+                qaList.add(qa);
+            }
+            LiveInterviewFeedbackDto sessionDto = new LiveInterviewFeedbackDto();
+            sessionDto.setInterviewId(interview.getId());
+            sessionDto.setPosition(interview.getPosition());
+            sessionDto.setType(interview.getType());
+            sessionDto.setLevel(interview.getLevel());
+            sessionDto.setAnswers(qaList);
+            result.add(sessionDto);
+        }
+        return result;
+    }
 
     // Generate feedback for a submitted answer for authenticated user
     // Replace ONLY the generateFeedbackForUser method and add the helper parseRatingFlexible + maybe logging.
 // Keep the rest of the class intact.
 
     // Generate feedback for a submitted answer for authenticated user
+
     public LiveFeedbackDto generateFeedbackForUser(Long answerId, Long userId) {
         InterviewAnswer answer = interviewAnswerRepository.findById(answerId).orElse(null);
         if (answer == null || !answer.getLiveInterview().getUserId().equals(userId)) {
@@ -405,6 +444,7 @@ public class LiveInterviewService {
         if (ratingValue != null) {
             answer.setRating(ratingValue);
         }
+        answer.setSuggestion(suggestion);
         interviewAnswerRepository.save(answer);
 
         LiveFeedbackDto dto = new LiveFeedbackDto();
@@ -459,63 +499,61 @@ public class LiveInterviewService {
             throw new RuntimeException("Error calling Google TTS API: " + e.getMessage(), e);
         }
     }
-
     public String transcribeAudioWithWhisper(MultipartFile audioFile) {
-        File tempFile = null;
         try {
-            // 1️⃣ Save MultipartFile to a temporary file
-            tempFile = File.createTempFile("upload-", ".mp3");
+            // Save audio to temp file
+            File tempFile = File.createTempFile("upload-", ".mp3");
             audioFile.transferTo(tempFile);
 
-            String pythonPath = "C:\\Users\\User\\whisper-env\\Scripts\\python.exe";
-            String scriptPath = "E:\\JavaFestProject\\Prep_Orbit\\python\\whisper_transcribe.py";
+            // Build Python command
+            String pythonPath = "/Users/arjo/whisper-env/bin/python3";
+            String scriptPath = new File("python/whisper_transcribe.py").getAbsolutePath();
 
-            // 2️⃣ Build ProcessBuilder with arguments
             ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, tempFile.getAbsolutePath());
-
-            // Optional: log temp file info
-            logger.info("Temp file path: {}", tempFile.getAbsolutePath());
-            logger.info("Temp file exists? {}", tempFile.exists());
-            logger.info("Temp file size: {}", tempFile.length());
-
-            pb.redirectErrorStream(true); // combine stdout & stderr
+            pb.redirectErrorStream(true);
             Process process = pb.start();
 
-            // 3️⃣ Capture Python output using UTF-8 explicitly
+            // Capture output
             InputStream is = process.getInputStream();
             String output = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            String[] lines = output.split("\n");
 
-            process.waitFor();
-
-            // 4️⃣ Remove warnings / empty lines, keep last valid line
+// Remove known warning lines and empty lines
             String transcript = "";
-            for (String line : output.split("\n")) {
+            for (String line : lines) {
                 line = line.trim();
-                if (!line.isEmpty()
-                        && !line.contains("FP16 is not supported on CPU; using FP32 instead")
-                        && !line.startsWith("WARNING")
-                        && !line.startsWith("UserWarning")
-                        && !line.startsWith("Traceback")) {
-                    transcript = line; // last valid line is transcript
+                if (
+                        !line.isEmpty() &&
+                                !line.contains("FP16 is not supported on CPU; using FP32 instead") &&
+                                !line.startsWith("WARNING") &&
+                                !line.startsWith("UserWarning") &&
+                                !line.startsWith("Traceback")
+                ) {
+                    transcript = line; // last valid line will be the transcript
                 }
             }
 
+            process.waitFor();
+            tempFile.delete();
             return transcript.trim();
-
         } catch (Exception e) {
             throw new RuntimeException("Error transcribing audio locally with Whisper", e);
-        } finally {
-            // 5️⃣ Clean up temp file
-            if (tempFile != null && tempFile.exists()) {
-                boolean deleted = tempFile.delete();
-                logger.info("Temp file deleted? {}", deleted);
-            }
         }
     }
 
 
-
-
-
-
+    public LiveFeedbackDto getStoredFeedbackForUser(Long answerId, Long userId) {
+        InterviewAnswer ans = interviewAnswerRepository.findById(answerId)
+                .orElseThrow(() -> new RuntimeException("Answer not found"));
+        // Check userId matches
+        // Build LiveFeedbackDto from stored fields only
+        LiveFeedbackDto dto = new LiveFeedbackDto();
+        dto.setQuestion(ans.getQuestion().getQuestion());
+        dto.setCorrectAns(ans.getCorrectAns());
+        dto.setUserAns(ans.getAnswer());
+        dto.setFeedback(ans.getFeedback()); // <-- stored feedback
+        dto.setRating(ans.getRating());     // <-- stored rating
+        dto.setSuggestion(ans.getSuggestion()); // <-- stored suggestion if available
+        return dto;
+    }
 }

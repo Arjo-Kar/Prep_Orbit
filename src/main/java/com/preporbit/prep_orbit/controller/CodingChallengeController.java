@@ -4,10 +4,14 @@ import com.preporbit.prep_orbit.dto.CodingChallengeDto;
 import com.preporbit.prep_orbit.dto.CodingChallengeResultDto;
 import com.preporbit.prep_orbit.dto.CodingChallengeSubmissionDto;
 import com.preporbit.prep_orbit.service.CodingChallengeService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/coding")
+
+
 public class CodingChallengeController {
 
     private final CodingChallengeService codingChallengeService;
@@ -20,7 +24,6 @@ public class CodingChallengeController {
     public CodingChallengeDto getChallenge(@PathVariable Long id) {
         return codingChallengeService.getChallenge(id);
     }
-
     @PostMapping("/challenge/{id}/submit")
     public CodingChallengeResultDto submitSolution(
             @PathVariable Long id,
@@ -28,8 +31,6 @@ public class CodingChallengeController {
     ) {
         return codingChallengeService.evaluateSubmission(id, submission);
     }
-
-    // NEW: Run solution against only visible test cases
     @PostMapping("/challenge/{id}/run")
     public CodingChallengeResultDto runSolution(
             @PathVariable Long id,
