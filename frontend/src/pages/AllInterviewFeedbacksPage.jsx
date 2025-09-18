@@ -256,20 +256,20 @@ export default function AllInterviewSessionsGrid() {
                       </span>
                     </Typography>
                     {ans.suggestion && (
-                      <>
-                        <Divider sx={{ my: 2, borderColor: "#444" }} />
-                        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-                          <TipsAndUpdatesIcon sx={{ color: "#ffd600", mr: 1, mt: "2px" }} />
-                          <Box>
-                            <Typography fontWeight="bold" color="#ffd600" fontSize={14} sx={{ mb: 0.5 }}>
-                              Suggestion:
-                            </Typography>
-                            <Typography fontSize={14} sx={{ color: "#c2c3e0", whiteSpace: "pre-wrap" }}>
-                              {ans.suggestion}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </>
+                     <>
+                       <Divider sx={{ my: 2, borderColor: "#444" }} />
+                       <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+                         <TipsAndUpdatesIcon sx={{ color: "#ffd600", mr: 1, mt: "2px" }} />
+                         <Box>
+                           <Typography fontWeight="bold" color="#ffd600" fontSize={14} sx={{ mb: 0.5 }}>
+                             Suggestion:
+                           </Typography>
+                           <Typography fontSize={14} sx={{ color: "#c2c3e0", whiteSpace: "pre-wrap" }}>
+                             {ans.suggestion ? ans.suggestion : <span style={{ color: "#888" }}>No suggestion stored.</span>}
+                           </Typography>
+                         </Box>
+                       </Box>
+                     </>
                     )}
                   </Paper>
                 </Grid>
