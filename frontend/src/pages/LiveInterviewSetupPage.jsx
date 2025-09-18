@@ -12,7 +12,11 @@ function LiveInterviewSetupPage() {
   const [strengths, setStrengths] = useState([]);
   const [experience, setExperience] = useState("");
   const [profile, setProfile] = useState("");
+  const [previousInterviews, setPreviousInterviews] = useState([]);
+  const [loadingPrev, setLoadingPrev] = useState(true);
   const navigate = useNavigate();
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();

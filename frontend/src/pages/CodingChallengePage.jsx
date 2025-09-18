@@ -85,8 +85,8 @@ const HeaderCard = styled(Paper)(({ theme }) => ({
   backdropFilter: "blur(8px)",
   boxShadow: "0 4px 30px rgba(0, 0, 0, 0.5)",
   border: "1px solid rgba(126, 87, 194, 0.5)",
-  marginBottom: theme.spacing(4),
-  padding: theme.spacing(2),
+  marginBottom: theme.spacing(0.5),
+  padding: theme.spacing(0.5),
   position: "sticky",
   top: 0,
   zIndex: 30,
@@ -884,11 +884,14 @@ int main() {
                 startIcon={<ArrowBackIcon />}
                 sx={{
                   background: 'linear-gradient(45deg, #7b1fa2, #f50057)',
+                  color: 'white', // text and icon will be white
                   '&:hover': { background: 'linear-gradient(45deg, #9c27b0, #ff4081)' },
+                  fontWeight: 'bold'
                 }}
               >
                 Back to Dashboard
               </ActionButton>
+
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Box
                   sx={{

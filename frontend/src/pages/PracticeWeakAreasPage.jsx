@@ -290,7 +290,10 @@ const PracticeWeakAreasPage = () => {
   const numQuestions = parseInt(searchParams.get("numQuestions") || "5", 10);
 
   // Fetch weak area questions with cache to avoid StrictMode double POST
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
+       if (hasFetchedRef.current) return; // prevent second call
+        hasFetchedRef.current = true;
     const fetchWeakAreaQuestions = async () => {
       const myId = ++requestIdRef.current;
       setLoading(true);
@@ -320,7 +323,7 @@ const PracticeWeakAreasPage = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
             // Optional idempotency key if you add server-side support
-            "X-Idempotency-Key": `weak-areas:${numQuestions}:${new Date().toISOString()}`,
+            "X-Idempotency-Key": `weak-areas:${numQuestions}`,
           },
           body: JSON.stringify({ numQuestions }),
         });
