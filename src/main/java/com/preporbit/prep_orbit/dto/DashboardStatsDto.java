@@ -8,6 +8,7 @@ public class DashboardStatsDto {
     private int weeklyTarget;
     private double averageScore;
     private double accuracy;
+    private boolean latestChallengeSolved;
 
     public double getAccuracy() { return accuracy; }
     public void setAccuracy(double accuracy) { this.accuracy = accuracy; }
@@ -44,6 +45,9 @@ public class DashboardStatsDto {
     public String getRank() { return rank; }
     public int getWeeklyTarget() { return weeklyTarget; }
     public double getAverageScore() { return averageScore; }
+
+    public boolean isLatestChallengeSolved() { return latestChallengeSolved; }
+    public void setLatestChallengeSolved(boolean solved) { this.latestChallengeSolved = solved; }
 
 // Constructors, getters, setters
 

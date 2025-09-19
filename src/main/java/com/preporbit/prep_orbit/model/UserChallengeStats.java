@@ -24,6 +24,9 @@ public class UserChallengeStats {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "solved", nullable = false)
+    private boolean solved = false;
+
     // Default constructor
     public UserChallengeStats() {}
 
@@ -62,6 +65,8 @@ public class UserChallengeStats {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public boolean isSolved() { return solved; }
+    public void setSolved(boolean solved) { this.solved = solved; }
 
     @Override
     public String toString() {
