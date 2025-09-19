@@ -13,7 +13,15 @@ import {
   CircularProgress,
   Alert,
   Stack,
-  Divider,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  useTheme,
+  useMediaQuery,
+  IconButton,
 } from "@mui/material";
 import {
   Code as CodeIcon,
@@ -31,10 +39,14 @@ import {
   Mic as MicIcon,
   Description as DescriptionIcon,
   Logout as LogoutIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import PageLayout from "../components/PageLayout";
 import CodingChallengeAPI from "../api/CodingChallengeAPI";
+
+const SIDEBAR_WIDTH = 280;
 
 const StatsCard = styled(Card)(() => ({
   height: "100%",
@@ -53,15 +65,93 @@ const MainCard = styled(Card)(() => ({
   border: "1px solid #444",
 }));
 
-const ActionButton = styled(Button)(() => ({
-  height: "56px",
-  borderRadius: "12px",
-  textTransform: "none",
-  fontSize: "1rem",
-  fontWeight: 600,
-  transition: "all 0.3s ease",
+const SidebarDrawer = styled(Drawer)(({ theme }) => ({
+  width: SIDEBAR_WIDTH,
+  flexShrink: 0,
+  "& .MuiDrawer-paper": {
+    width: SIDEBAR_WIDTH,
+    boxSizing: "border-box",
+    background: "linear-gradient(180deg, #1c1c1c 0%, #101010 100%)",
+    border: "none",
+    borderRight: "2px solid transparent",
+    borderImage: "linear-gradient(180deg, #7b1fa2, #f50057) 1",
+    position: "relative",
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: "4px",
+      background:
+        "linear-gradient(90deg, #7b1fa2, #f50057, #ff9800, #4caf50, #2196f3)",
+      backgroundSize: "200% 100%",
+      animation: "gradientShift 8s ease infinite",
+    },
+    "@keyframes gradientShift": {
+      "0%": { backgroundPosition: "0% 50%" },
+      "50%": { backgroundPosition: "100% 50%" },
+      "100%": { backgroundPosition: "0% 50%" },
+    },
+  },
+}));
+
+const SidebarListItem = styled(ListItemButton)(({ theme, active, gradient }) => ({
+  margin: "6px 12px",
+  borderRadius: "16px",
+  padding: "14px 16px",
+  background: active
+    ? gradient || "linear-gradient(135deg, #7b1fa2, #f50057)"
+    : "rgba(255, 255, 255, 0.02)",
+  border: active ? `1px solid transparent` : "1px solid rgba(255, 255, 255, 0.05)",
+  borderImage: active ? "linear-gradient(135deg, #7b1fa2, #f50057) 1" : "none",
+  boxShadow: active
+    ? "0 4px 20px rgba(123, 31, 162, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
+    : "0 2px 8px rgba(0, 0, 0, 0.2)",
+  transition: "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+  position: "relative",
+  overflow: "hidden",
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background:
+      gradient ||
+      "linear-gradient(135deg, rgba(123, 31, 162, 0.1), rgba(245, 0, 87, 0.1))",
+    opacity: 0,
+    transition: "opacity 0.3s ease",
+    borderRadius: "16px",
+  },
   "&:hover": {
-    transform: "translateY(-2px)",
+    background: active
+      ? gradient || "linear-gradient(135deg, #9c27b0, #ff4081)"
+      : "rgba(255, 255, 255, 0.1)",
+    boxShadow: "0 0 20px rgba(123, 31, 162, 0.4)",
+    transform: "scale(1.02)",
+    "& .MuiListItemIcon-root": {
+      color: active ? "white" : "#7b1fa2 !important",
+    },
+    "& .MuiListItemText-primary": {
+      color: active ? "white" : "#f50057 !important",
+      fontWeight: 700,
+    },
+  },
+  "& .MuiListItemIcon-root": {
+    color: active ? "white" : "#e0e0e0",
+    minWidth: "44px",
+    transition: "all 0.3s ease",
+    filter: active ? "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))" : "none",
+  },
+  "& .MuiListItemText-primary": {
+    color: active ? "white" : "#e0e0e0",
+    fontWeight: active ? 700 : 500,
+    fontSize: "0.9rem",
+    letterSpacing: "0.5px",
+    textShadow: active ? "0 1px 2px rgba(0, 0, 0, 0.3)" : "none",
+    transition: "all 0.3s ease",
   },
 }));
 
@@ -97,6 +187,12 @@ const StatTile = ({ title, value, icon, gradient }) => (
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeNavItem, setActiveNavItem] = useState("dashboard");
 
   // Form / quiz state
   const [topics, setTopics] = useState("");
@@ -134,7 +230,75 @@ export default function Dashboard() {
   };
   const username = getCurrentUsername();
 
-  // Apply URL params
+  const navigationItems = [
+    {
+      key: "generateResume",
+      label: "Generate Resume",
+      icon: <DescriptionIcon />,
+      gradient: "linear-gradient(135deg, #2196F3, #21CBF3)",
+      onClick: () => {
+        setLoadingButton("generateResume");
+        setActiveNavItem("generateResume");
+        navigate("/resume-generate");
+      },
+    },
+    {
+      key: "analyzeResume",
+      label: "Analyze Resume",
+      icon: <DescriptionIcon />,
+      gradient: "linear-gradient(135deg, #00bcd4, #26c6da)",
+      onClick: () => {
+        setLoadingButton("analyzeResume");
+        setActiveNavItem("analyzeResume");
+        navigate("/resume-analyzer");
+      },
+    },
+    {
+      key: "viewReports",
+      label: "View Reports",
+      icon: <TrendingUpIcon />,
+      gradient: "linear-gradient(135deg, #9c27b0, #ab47bc)",
+      onClick: () => {
+        setLoadingButton("viewReports");
+        setActiveNavItem("viewReports");
+        navigate("/report/weaknesses");
+      },
+    },
+    {
+      key: "chatAi",
+      label: "Chat with AI",
+      icon: <ChatIcon />,
+      gradient: "linear-gradient(135deg, #ff9800, #ffc107)",
+      onClick: () => {
+        setLoadingButton("chatAi");
+        setActiveNavItem("chatAi");
+        navigate("/gemini");
+      },
+    },
+    {
+      key: "interviewPrep",
+      label: "Interview Prep",
+      icon: <MicIcon />,
+      gradient: "linear-gradient(135deg, #607d8b, #78909c)",
+      onClick: () => {
+        setLoadingButton("interviewPrep");
+        setActiveNavItem("interviewPrep");
+        navigate("/interview-prep");
+      },
+    },
+    {
+      key: "liveInterview",
+      label: "Live Interview",
+      icon: <InterviewIcon />,
+      gradient: "linear-gradient(135deg, #e91e63, #f06292)",
+      onClick: () => {
+        setLoadingButton("liveInterview");
+        setActiveNavItem("liveInterview");
+        navigate("/live-interview");
+      },
+    },
+  ];
+
   useEffect(() => {
     const urlTopics = searchParams.get("topics");
     const urlNumQuestions = searchParams.get("numQuestions");
@@ -142,7 +306,6 @@ export default function Dashboard() {
     if (urlNumQuestions) setNumQuestions(parseInt(urlNumQuestions, 10));
   }, [searchParams]);
 
-  // Fetch dashboard stats from backend
   const fetchDashboardStats = async () => {
     const token = localStorage.getItem("authToken");
     const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -163,21 +326,18 @@ export default function Dashboard() {
         rank: data.rank,
         averageScore: data.averageScore,
         accuracy: data.accuracy,
-        latestChallengeSolved: data.latestChallengeSolved, // <-- Add this
+        latestChallengeSolved: data.latestChallengeSolved,
       });
-
     } catch (err) {
       setMessage("Failed to load dashboard stats");
     }
   };
 
-  // Load challenge and stats once
   useEffect(() => {
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
     loadDailyChallenge();
     fetchDashboardStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = () => {
@@ -200,7 +360,6 @@ export default function Dashboard() {
         return;
       }
 
-      // Use the new daily challenge endpoint
       const challenge = await CodingChallengeAPI.getDailyChallenge(authToken);
 
       if (currentId !== requestIdRef.current) return;
@@ -277,9 +436,8 @@ export default function Dashboard() {
     navigate(`/coding-challenge/${challengeId}`);
   };
 
-  const handleGenerateResumeClick = () => {
-    setLoadingButton("generateResume");
-    navigate("/resume-generate");
+  const handleSidebarToggle = () => {
+    setSidebarOpen(true);
   };
 
   const rightHeader = (
@@ -316,436 +474,471 @@ export default function Dashboard() {
     </Stack>
   );
 
-  // Quick Actions data (clean, consistent grid)
-  const quickActions = [
-    {
-      key: "generateResume",
-      label: "Generate Resume",
-      icon: <DescriptionIcon />,
-      gradient: "linear-gradient(45deg, #2196F3, #21CBF3)",
-      onClick: () => handleGenerateResumeClick(),
-    },
-    {
-      key: "analyzeResume",
-      label: "Analyze Resume",
-      icon: <DescriptionIcon />,
-      gradient: "linear-gradient(45deg, #2196F3, #21CBF3)",
-      onClick: () => {
-        setLoadingButton("analyzeResume");
-        navigate("/resume-analyzer");
-      },
-    },
-    {
-      key: "viewReports",
-      label: "View Reports",
-      icon: <TrendingUpIcon />,
-      gradient: "linear-gradient(45deg, #9c27b0, #ab47bc)",
-      onClick: () => {
-        setLoadingButton("viewReports");
-        navigate("/report/weaknesses");
-      },
-    },
-    {
-      key: "chatAi",
-      label: "Chat with AI",
-      icon: <ChatIcon />,
-      gradient: "linear-gradient(45deg, #ff9800, #ffc107)",
-      onClick: () => {
-        setLoadingButton("chatAi");
-        navigate("/gemini");
-      },
-    },
-    {
-      key: "interviewPrep",
-      label: "Interview Prep",
-      icon: <MicIcon />,
-      gradient: "linear-gradient(45deg, #607d8b, #78909c)",
-      onClick: () => {
-        setLoadingButton("interviewPrep");
-        navigate("/interview-prep");
-      },
-    },
-    {
-      key: "liveInterview",
-      label: "Live Interview",
-      icon: <InterviewIcon />,
-      gradient: "linear-gradient(45deg, #0d47a1, #1a237e)",
-      onClick: () => {
-        setLoadingButton("liveInterview");
-        navigate("/live-interview");
-      },
-    },
-  ];
+  const sidebarContent = (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          p: 3,
+          borderBottom: "1px solid rgba(123, 31, 162, 0.2)",
+          background:
+            "linear-gradient(135deg, rgba(123, 31, 162, 0.1), rgba(245, 0, 87, 0.1))",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Box
+              sx={{
+                position: "relative",
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  inset: "-2px",
+                  borderRadius: "50%",
+                  background:
+                    "linear-gradient(45deg, #7b1fa2, #f50057, #ff9800)",
+                  zIndex: -1,
+                },
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 44,
+                  height: 44,
+                  background: "linear-gradient(135deg, #7b1fa2, #f50057)",
+                  boxShadow: "0 4px 15px rgba(123, 31, 162, 0.3)",
+                }}
+              >
+                <BrainIcon />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "white",
+                  fontWeight: "bold",
+                  textShadow: "0 2px 4px rgba(0, 0, 0, 0.3)",
+                  background: "linear-gradient(135deg, #ffffff, #e0e0e0)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Quick Actions
+              </Typography>
+            </Box>
+          </Stack>
+        </Stack>
+      </Box>
+
+      <Box sx={{ flex: 1, py: 2, background: "rgba(255, 255, 255, 0.01)" }}>
+        <List>
+          {navigationItems.map((item, index) => (
+            <ListItem key={item.key} disablePadding>
+              <SidebarListItem
+                active={activeNavItem === item.key}
+                gradient={item.gradient}
+                onClick={item.onClick}
+                disabled={loadingButton === item.key}
+                sx={{
+                  animationDelay: `${index * 0.1}s`,
+                  animation: "slideInLeft 0.6s ease forwards",
+                  opacity: 0,
+                  "@keyframes slideInLeft": {
+                    from: {
+                      opacity: 0,
+                      transform: "translateX(-20px)",
+                    },
+                    to: {
+                      opacity: 1,
+                      transform: "translateX(0)",
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    background:
+                      activeNavItem === item.key
+                        ? "rgba(255, 255, 255, 0.1)"
+                        : "transparent",
+                    borderRadius: "8px",
+                    padding: "8px",
+                    marginRight: "4px",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={loadingButton === item.key ? "Loading..." : item.label}
+                  primaryTypographyProps={{
+                    fontSize: "0.9rem",
+                  }}
+                />
+                {activeNavItem === item.key && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      right: 0,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: "3px",
+                      height: "60%",
+                      background:
+                        "linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.8), transparent)",
+                      borderRadius: "2px",
+                    }}
+                  />
+                )}
+              </SidebarListItem>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+
+      <Box
+        sx={{
+          p: 2,
+          borderTop: "1px solid rgba(123, 31, 162, 0.2)",
+          background:
+            "linear-gradient(135deg, rgba(123, 31, 162, 0.05), rgba(245, 0, 87, 0.05))",
+        }}
+      />
+    </Box>
+  );
 
   return (
-    <PageLayout
-      maxWidth="xl"
-      headerIcon={<BrainIcon sx={{ fontSize: 40 }} />}
-      title={`Welcome back, ${username}!`}
-      subtitle="Ready for today's challenge? Choose your path to success."
-      rightHeaderContent={rightHeader}
-    >
-      <Grid container justifyContent="center" spacing={3}>
-        <Grid item xs={12} md={10} lg={9}>
-          <Stack spacing={3}>
-            {message && (
-              <Alert
-                severity="error"
-                variant="filled"
-                sx={{
-                  borderRadius: "12px",
-                  background: "linear-gradient(45deg, #f44336, #d32f2f)",
-                }}
-              >
-                {message}
-              </Alert>
+    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#0a0a0a" }}>
+      {/* Sidebar — always visible */}
+      <SidebarDrawer variant="permanent">{sidebarContent}</SidebarDrawer>
 
-            )}
-        {stats.latestChallengeSolved && (
-          <Alert
-            severity="success"
-            variant="filled"
-            sx={{
-              borderRadius: "12px",
-              background: "linear-gradient(45deg, #4caf50, #8bc34a)",
-              mb: 2,
-            }}
-          >
-            🎉 Congratulations! You have solved the today's coding challenge!
-          </Alert>
-        )}
+      {/* Main Content (no extra left margin/width) */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          minWidth: 0, // prevent overflow on small screens
+        }}
+      >
+        <PageLayout
+          maxWidth="xl"
+          headerIcon={<BrainIcon sx={{ fontSize: 40 }} />}
+          title={`Welcome back, ${username}!`}
+          subtitle="Ready for today's challenge? Choose your path to success."
+          rightHeaderContent={rightHeader}
+        >
+          <Grid container justifyContent="center" spacing={3}>
+            <Grid item xs={12} md={10} lg={9}>
+              <Stack spacing={3}>
+                {message && (
+                  <Alert
+                    severity="error"
+                    variant="filled"
+                    sx={{
+                      borderRadius: "12px",
+                      background: "linear-gradient(45deg, #f44336, #d32f2f)",
+                    }}
+                  >
+                    {message}
+                  </Alert>
+                )}
 
-            {/* Stats */}
-            <Box>
-              <Grid container spacing={2} justifyContent="center">
-                <Grid item xs={12} sm={6}>
-                  <StatTile
-                    title="Quizzes Taken"
-                    value={stats.totalQuizzesTaken ?? 0}
-                    icon={<BrainIcon />}
-                    gradient="linear-gradient(135deg, #2196F3, #21CBF3)"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <StatTile
-                    title="Coding Problems"
-                    value={stats.codingChallengesSolved ?? 0}
-                    icon={<CodeIcon />}
-                    gradient="linear-gradient(135deg, #4caf50, #8bc34a)"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <StatTile
-                    title="Accuracy"
-                    value={`${stats.accuracy ?? 0}%`}
-                    icon={<Award />}
-                    gradient="linear-gradient(135deg, #00c853, #64dd17)"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <StatTile
-                    title="Current Streak"
-                    value={`${stats.streak ?? 0} days`}
-                    icon={<TrendingUp />}
-                    gradient="linear-gradient(135deg, #ff9800, #ffc107)"
-                  />
-                </Grid>
+                {stats.latestChallengeSolved && (
+                  <Alert
+                    severity="success"
+                    variant="filled"
+                    sx={{
+                      borderRadius: "12px",
+                      background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+                      mb: 2,
+                    }}
+                  >
+                    🎉 Congratulations! You have solved today's coding challenge!
+                  </Alert>
+                )}
 
-                <Grid item xs={12} sm={6}>
-                  <StatTile
-                    title="Rank"
-                    value={stats.rank ?? "Participant"}
-                    icon={<TrendingUpIcon />}
-                    gradient="linear-gradient(135deg, #7b1fa2, #f50057)"
-                  />
-                </Grid>
-              </Grid>
-            </Box>
+                {/* Stats */}
+                <Box>
+                  <Grid container spacing={2} justifyContent="center">
+                    <Grid item xs={12} sm={6}>
+                      <StatTile
+                        title="Quizzes Taken"
+                        value={stats.totalQuizzesTaken ?? 0}
+                        icon={<BrainIcon />}
+                        gradient="linear-gradient(135deg, #2196F3, #21CBF3)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <StatTile
+                        title="Coding Problems"
+                        value={stats.codingChallengesSolved ?? 0}
+                        icon={<CodeIcon />}
+                        gradient="linear-gradient(135deg, #4caf50, #8bc34a)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <StatTile
+                        title="Accuracy"
+                        value={`${stats.accuracy ?? 0}%`}
+                        icon={<Award />}
+                        gradient="linear-gradient(135deg, #00c853, #64dd17)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <StatTile
+                        title="Current Streak"
+                        value={`${stats.streak ?? 0} days`}
+                        icon={<TrendingUp />}
+                        gradient="linear-gradient(135deg, #ff9800, #ffc107)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <StatTile
+                        title="Rank"
+                        value={stats.rank ?? "Participant"}
+                        icon={<TrendingUpIcon />}
+                        gradient="linear-gradient(135deg, #7b1fa2, #f50057)"
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
 
-            {/* Daily Challenge */}
-            <MainCard>
-              <Box
-                sx={{
-                  background: "linear-gradient(135deg, #4caf50, #8bc34a)",
-                  p: 3,
-                }}
-              >
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                  <Calendar />
-                  <Typography variant="h6" fontWeight="bold">
-                    Today's Coding Challenge
-                  </Typography>
-                </Stack>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  {new Date().toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Typography>
-              </Box>
-
-              <CardContent sx={{ p: 3 }}>
-                {loadingChallenge ? (
-                  <Box display="flex" flexDirection="column" alignItems="center" py={4}>
-                    <CircularProgress sx={{ color: "#4caf50", mb: 2 }} />
-                    <Typography variant="body2" sx={{ color: "#aaa" }}>
-                      Loading today's challenge...
+                {/* Daily Challenge */}
+                <MainCard>
+                  <Box
+                    sx={{
+                      background: "linear-gradient(135deg, #4caf50, #8bc34a)",
+                      p: 3,
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                      <Calendar />
+                      <Typography variant="h6" fontWeight="bold">
+                        Today's Coding Challenge
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      {new Date().toLocaleDateString("en-US", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
                     </Typography>
                   </Box>
-                ) : dailyChallenge ? (
-                  <Box>
+
+                  <CardContent sx={{ p: 3 }}>
+                    {loadingChallenge ? (
+                      <Box display="flex" flexDirection="column" alignItems="center" py={4}>
+                        <CircularProgress sx={{ color: "#4caf50", mb: 2 }} />
+                        <Typography variant="body2" sx={{ color: "#aaa" }}>
+                          Loading today's challenge...
+                        </Typography>
+                      </Box>
+                    ) : dailyChallenge ? (
+                      <Box>
+                        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
+                          {dailyChallenge.title}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}>
+                          {dailyChallenge.description
+                            ? dailyChallenge.description.substring(0, 150) + "..."
+                            : "A new coding challenge awaits!"}
+                        </Typography>
+
+                        <Stack direction="row" spacing={2} mb={3}>
+                          <Paper
+                            sx={{
+                              px: 1.5,
+                              py: 0.75,
+                              borderRadius: "8px",
+                              backgroundColor: "#333",
+                              border: "1px solid #555",
+                            }}
+                          >
+                            <Stack direction="row" alignItems="center" spacing={0.5}>
+                              <Clock sx={{ fontSize: 16, color: "#90caf9" }} />
+                              <Typography variant="body2" sx={{ color: "#ccc" }}>
+                                {dailyChallenge.timeLimitMs || "1000"}ms
+                              </Typography>
+                            </Stack>
+                          </Paper>
+                          <Paper
+                            sx={{
+                              px: 1.5,
+                              py: 0.75,
+                              borderRadius: "8px",
+                              backgroundColor: "#333",
+                              border: "1px solid #555",
+                            }}
+                          >
+                            <Stack direction="row" alignItems="center" spacing={0.5}>
+                              <BrainIcon sx={{ fontSize: 16, color: "#ce93d8" }} />
+                              <Typography
+                                variant="body2"
+                                sx={{ color: "#ccc", textTransform: "capitalize" }}
+                              >
+                                {dailyChallenge.difficulty || "Medium"}
+                              </Typography>
+                            </Stack>
+                          </Paper>
+                        </Stack>
+
+                        <Stack spacing={2}>
+                          <Button
+                            variant="contained"
+                            startIcon={<Play />}
+                            fullWidth
+                            onClick={() =>
+                              dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)
+                            }
+                            disabled={!dailyChallenge || !dailyChallenge.id || loadingButton === "startDaily"}
+                            sx={{
+                              py: 1.5,
+                              background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+                              "&:hover": {
+                                background: "linear-gradient(45deg, #66bb6a, #aed581)",
+                              },
+                            }}
+                          >
+                            {loadingButton === "startDaily"
+                              ? "Loading..."
+                              : stats.latestChallengeSolved
+                              ? "Try Again"
+                              : "Start Daily Challenge"}
+                          </Button>
+                        </Stack>
+                      </Box>
+                    ) : (
+                      <Box textAlign="center" py={4}>
+                        <Typography sx={{ color: "#aaa", mb: 2 }}>
+                          No daily challenge available
+                        </Typography>
+                        <Button
+                          variant="text"
+                          size="small"
+                          onClick={async () => {
+                            setLoadingButton("retryDaily");
+                            try {
+                              await loadDailyChallenge();
+                            } finally {
+                              setLoadingButton("");
+                            }
+                          }}
+                          disabled={loadingButton === "retryDaily"}
+                          sx={{ color: "#7b1fa2" }}
+                        >
+                          {loadingButton === "retryDaily" ? "Loading..." : "Try loading again"}
+                        </Button>
+                      </Box>
+                    )}
+                  </CardContent>
+                </MainCard>
+
+                {/* Start Knowledge Quiz */}
+                <MainCard>
+                  <CardContent sx={{ p: 3 }}>
                     <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
-                      {dailyChallenge.title}
+                      Start Knowledge Quiz
+                    </Typography>
+                    <Box component="form" onSubmit={handleStartQuiz} sx={{ mt: 2 }}>
+                      <Stack spacing={3}>
+                        <TextField
+                          fullWidth
+                          label="Topics (comma-separated)"
+                          placeholder="e.g., java, spring boot, algorithms"
+                          value={topics}
+                          onChange={(e) => setTopics(e.target.value)}
+                          required
+                          variant="outlined"
+                          sx={inputSx}
+                        />
+                        <TextField
+                          fullWidth
+                          label="Number of Questions"
+                          type="number"
+                          inputProps={{ min: 1 }}
+                          value={numQuestions}
+                          onChange={(e) => setNumQuestions(e.target.value)}
+                          variant="outlined"
+                          sx={inputSx}
+                        />
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          size="large"
+                          fullWidth
+                          disabled={loadingButton === "startQuiz"}
+                          sx={{
+                            py: 1.5,
+                            background: "linear-gradient(45deg, #7b1fa2, #f50057)",
+                            "&:hover": {
+                              background: "linear-gradient(45deg, #9c27b0, #ff4081)",
+                            },
+                          }}
+                        >
+                          {loadingButton === "startQuiz" ? "Loading..." : "Start Quiz"}
+                        </Button>
+                      </Stack>
+                    </Box>
+                  </CardContent>
+                </MainCard>
+
+                {/* Practice Weak Areas */}
+                <MainCard>
+                  <CardContent sx={{ p: 3 }}>
+                    <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
+                      Practice Weak Areas
                     </Typography>
                     <Typography variant="body2" sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}>
-                      {dailyChallenge.description
-                        ? dailyChallenge.description.substring(0, 150) + "..."
-                        : "A new coding challenge awaits!"}
+                      Focus on topics you've previously struggled with.
                     </Typography>
-
-                    <Stack direction="row" spacing={2} mb={3}>
-                      <Paper
-                        sx={{
-                          px: 1.5,
-                          py: 0.75,
-                          borderRadius: "8px",
-                          backgroundColor: "#333",
-                          border: "1px solid #555",
-                        }}
-                      >
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <Clock sx={{ fontSize: 16, color: "#90caf9" }} />
-                          <Typography variant="body2" sx={{ color: "#ccc" }}>
-                            {dailyChallenge.timeLimitMs || "1000"}ms
-                          </Typography>
-                        </Stack>
-                      </Paper>
-                      <Paper
-                        sx={{
-                          px: 1.5,
-                          py: 0.75,
-                          borderRadius: "8px",
-                          backgroundColor: "#333",
-                          border: "1px solid #555",
-                        }}
-                      >
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <BrainIcon sx={{ fontSize: 16, color: "#ce93d8" }} />
-                          <Typography
-                            variant="body2"
-                            sx={{ color: "#ccc", textTransform: "capitalize" }}
-                          >
-                            {dailyChallenge.difficulty || "Medium"}
-                          </Typography>
-                        </Stack>
-                      </Paper>
-                    </Stack>
-
-                    <Stack spacing={2}>
-                     <Button
-                       variant="contained"
-                       startIcon={<Play />}
-                       fullWidth
-                       onClick={() =>
-                         dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)
-                       }
-                       disabled={!dailyChallenge || !dailyChallenge.id || loadingButton === "startDaily"}
-                       sx={{
-                         py: 1.5,
-                         background: "linear-gradient(45deg, #4caf50, #8bc34a)",
-                         "&:hover": {
-                           background: "linear-gradient(45deg, #66bb6a, #aed581)",
-                         },
-                       }}
-                     >
-                       {loadingButton === "startDaily"
-                         ? "Loading..."
-                         : stats.latestChallengeSolved
-                           ? "Try Again"
-                           : "Start Daily Challenge"}
-                     </Button>
-                      <Button
-                        variant="outlined"
-                        startIcon={<RefreshCw />}
+                    <Stack spacing={3}>
+                      <TextField
                         fullWidth
-                        onClick={async () => {
-                          setLoadingButton("newChallenge");
-                          try {
-                            await loadDailyChallenge();
-                          } finally {
-                            setLoadingButton("");
-                          }
-                        }}
-                        disabled={loadingButton === "newChallenge"}
+                        label="Number of Questions"
+                        type="number"
+                        inputProps={{ min: 1 }}
+                        value={numWeakQuestions}
+                        onChange={(e) => setNumWeakQuestions(e.target.value)}
+                        variant="outlined"
                         sx={{
-                          borderColor: "#666",
-                          color: "#ccc",
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "#333",
+                            "& fieldset": { borderColor: "#555" },
+                            "&:hover fieldset": { borderColor: "#4caf50" },
+                            "&.Mui-focused fieldset": { borderColor: "#4caf50" },
+                          },
+                          "& .MuiInputLabel-root": { color: "#aaa" },
+                          "& .MuiOutlinedInput-input": { color: "white" },
+                        }}
+                      />
+                      <Button
+                        variant="contained"
+                        size="large"
+                        fullWidth
+                        onClick={handlePracticeWeakAreas}
+                        disabled={loadingButton === "startPractice"}
+                        sx={{
+                          py: 1.5,
+                          background: "linear-gradient(45deg, #4caf50, #8bc34a)",
                           "&:hover": {
-                            borderColor: "#7b1fa2",
-                            backgroundColor: "#7b1fa220",
+                            background: "linear-gradient(45deg, #66bb6a, #aed581)",
                           },
                         }}
                       >
-                        {loadingButton === "newChallenge" || loadingChallenge ? "Loading..." : "New Challenge"}
+                        {loadingButton === "startPractice" ? "Loading..." : "Start Practice Session"}
                       </Button>
                     </Stack>
-                  </Box>
-                ) : (
-                  <Box textAlign="center" py={4}>
-                    <Typography sx={{ color: "#aaa", mb: 2 }}>
-                      No daily challenge available
-                    </Typography>
-                    <Button
-                      variant="text"
-                      size="small"
-                      onClick={async () => {
-                        setLoadingButton("retryDaily");
-                        try {
-                          await loadDailyChallenge();
-                        } finally {
-                          setLoadingButton("");
-                        }
-                      }}
-                      disabled={loadingButton === "retryDaily"}
-                      sx={{ color: "#7b1fa2" }}
-                    >
-                      {loadingButton === "retryDaily" ? "Loading..." : "Try loading again"}
-                    </Button>
-                  </Box>
-                )}
-              </CardContent>
-            </MainCard>
-
-            {/* Start Knowledge Quiz */}
-            <MainCard>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
-                  Start Knowledge Quiz
-                </Typography>
-                <Box component="form" onSubmit={handleStartQuiz} sx={{ mt: 2 }}>
-                  <Stack spacing={3}>
-                    <TextField
-                      fullWidth
-                      label="Topics (comma-separated)"
-                      placeholder="e.g., java, spring boot, algorithms"
-                      value={topics}
-                      onChange={(e) => setTopics(e.target.value)}
-                      required
-                      variant="outlined"
-                      sx={inputSx}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Number of Questions"
-                      type="number"
-                      inputProps={{ min: 1 }}
-                      value={numQuestions}
-                      onChange={(e) => setNumQuestions(e.target.value)}
-                      variant="outlined"
-                      sx={inputSx}
-                    />
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      size="large"
-                      fullWidth
-                      disabled={loadingButton === "startQuiz"}
-                      sx={{
-                        py: 1.5,
-                        background: "linear-gradient(45deg, #7b1fa2, #f50057)",
-                        "&:hover": {
-                          background: "linear-gradient(45deg, #9c27b0, #ff4081)",
-                        },
-                      }}
-                    >
-                      {loadingButton === "startQuiz" ? "Loading..." : "Start Quiz"}
-                    </Button>
-                  </Stack>
-                </Box>
-              </CardContent>
-            </MainCard>
-
-            {/* Practice Weak Areas */}
-            <MainCard>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
-                  Practice Weak Areas
-                </Typography>
-                <Typography variant="body2" sx={{ color: "#ccc", mb: 3, lineHeight: 1.6 }}>
-                  Focus on topics you've previously struggled with.
-                </Typography>
-                <Stack spacing={3}>
-                  <TextField
-                    fullWidth
-                    label="Number of Questions"
-                    type="number"
-                    inputProps={{ min: 1 }}
-                    value={numWeakQuestions}
-                    onChange={(e) => setNumWeakQuestions(e.target.value)}
-                    variant="outlined"
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "#333",
-                        "& fieldset": { borderColor: "#555" },
-                        "&:hover fieldset": { borderColor: "#4caf50" },
-                        "&.Mui-focused fieldset": { borderColor: "#4caf50" },
-                      },
-                      "& .MuiInputLabel-root": { color: "#aaa" },
-                      "& .MuiOutlinedInput-input": { color: "white" },
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    onClick={handlePracticeWeakAreas}
-                    disabled={loadingButton === "startPractice"}
-                    sx={{
-                      py: 1.5,
-                      background: "linear-gradient(45deg, #4caf50, #8bc34a)",
-                      "&:hover": {
-                        background: "linear-gradient(45deg, #66bb6a, #aed581)",
-                      },
-                    }}
-                  >
-                    {loadingButton === "startPractice" ? "Loading..." : "Start Practice Session"}
-                  </Button>
-                </Stack>
-              </CardContent>
-            </MainCard>
-
-            {/* Quick Actions (Re-arranged into a clean, responsive grid) */}
-            <MainCard>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white", mb: 3 }}>
-                  Quick Actions
-                </Typography>
-                <Grid container spacing={2}>
-                  {quickActions.map((action) => (
-                    <Grid key={action.key} item xs={12} sm={6} md={4}>
-                      <ActionButton
-                        variant="contained"
-                        startIcon={action.icon}
-                        fullWidth
-                        onClick={action.onClick}
-                        disabled={loadingButton === action.key}
-                        sx={{
-                          background: action.gradient,
-                          "&:hover": { filter: "brightness(1.05)" },
-                        }}
-                      >
-                        {loadingButton === action.key ? "Loading..." : action.label}
-                      </ActionButton>
-                    </Grid>
-                  ))}
-                </Grid>
-              </CardContent>
-            </MainCard>
-          </Stack>
-        </Grid>
-      </Grid>
-    </PageLayout>
+                  </CardContent>
+                </MainCard>
+              </Stack>
+            </Grid>
+          </Grid>
+        </PageLayout>
+      </Box>
+    </Box>
   );
 }

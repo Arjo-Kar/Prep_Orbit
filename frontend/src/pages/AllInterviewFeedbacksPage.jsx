@@ -8,6 +8,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import { useNavigate } from "react-router-dom";
 
 const BASE_URL = import.meta?.env?.VITE_API_URL || "http://localhost:8080";
 
@@ -24,6 +27,7 @@ export default function AllInterviewSessionsGrid() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchSessions() {
@@ -51,6 +55,48 @@ export default function AllInterviewSessionsGrid() {
       minHeight: "100vh",
       background: "linear-gradient(120deg, #180f36 60%, #312584 100%)"
     }}>
+      {/* Back to Live Interview - top left */}
+      <Box sx={{ position: "fixed", top: 16, left: 16, zIndex: 2000 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/live-interview")}
+          sx={{
+            borderColor: "#ad1fff",
+            color: "#fff",
+            background: "rgba(255,255,255,0.06)",
+            fontWeight: "bold",
+            "&:hover": {
+              borderColor: "#ff4fa7",
+              background: "rgba(173,31,255,0.18)",
+            },
+          }}
+        >
+          Back to Live Interview
+        </Button>
+      </Box>
+
+      {/* Back to Dashboard - top right */}
+      <Box sx={{ position: "fixed", top: 16, right: 16, zIndex: 2000 }}>
+        <Button
+          variant="outlined"
+          startIcon={<DashboardIcon />}
+          onClick={() => navigate("/dashboard")}
+          sx={{
+            borderColor: "#ad1fff",
+            color: "#fff",
+            background: "rgba(255,255,255,0.06)",
+            fontWeight: "bold",
+            "&:hover": {
+              borderColor: "#ff4fa7",
+              background: "rgba(173,31,255,0.18)",
+            },
+          }}
+        >
+          Back to Dashboard
+        </Button>
+      </Box>
+
       <Typography variant="h3" sx={{
         color: "#ad1fff",
         mb: 4,
