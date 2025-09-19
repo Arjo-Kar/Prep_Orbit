@@ -5,12 +5,20 @@ import com.preporbit.prep_orbit.dto.CodingChallengeSubmissionDto;
 import com.preporbit.prep_orbit.dto.CodingChallengeResultDto;
 import com.preporbit.prep_orbit.model.ChallengeTestCase;
 import com.preporbit.prep_orbit.model.CodingChallenge;
+import com.preporbit.prep_orbit.model.User;
+import com.preporbit.prep_orbit.model.UserChallengeStats;
 import com.preporbit.prep_orbit.repository.CodingChallengeRepository;
 import com.preporbit.prep_orbit.repository.ChallengeTestCaseRepository;
+import com.preporbit.prep_orbit.repository.UserChallengeStatsRepository;
+import com.preporbit.prep_orbit.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -19,11 +27,15 @@ public class CodingChallengeService {
     private final CodingChallengeRepository challengeRepo;
     private final ChallengeTestCaseRepository testCaseRepo;
     private final Judge0Service judge0Service; // You should have this service for code evaluation
+    private final UserRepository userRepository;
+    private final UserChallengeStatsRepository userChallengeStatsRepository;
 
-    public CodingChallengeService(CodingChallengeRepository challengeRepo, ChallengeTestCaseRepository testCaseRepo, Judge0Service judge0Service) {
+    public CodingChallengeService(CodingChallengeRepository challengeRepo, ChallengeTestCaseRepository testCaseRepo, Judge0Service judge0Service, UserRepository userRepository, UserChallengeStatsRepository userChallengeStatsRepository) {
         this.challengeRepo = challengeRepo;
         this.testCaseRepo = testCaseRepo;
         this.judge0Service = judge0Service;
+        this.userRepository = userRepository;
+        this.userChallengeStatsRepository = userChallengeStatsRepository;
     }
 
     public CodingChallengeDto getChallenge(Long id) {
@@ -95,6 +107,18 @@ public class CodingChallengeService {
         resultDto.setTotalTestCases(allTestCases.size());
         resultDto.setPassedTestCases(passed.get());
         resultDto.setAllPassed(passed.get() == allTestCases.size());
+        Long userId = getCurrentUserId(); // <-- You need to implement this helper (see below)
+        // 2. Find today's UserChallengeStats record
+        if (userId != null) {
+            Optional<UserChallengeStats> statsOpt = userChallengeStatsRepository.findByUserIdAndChallengeId(userId, challengeId);
+            UserChallengeStats stats = statsOpt.orElse(null);
+            if (stats != null && !stats.isSolved()) {
+                stats.setSolved(resultDto.isAllPassed());
+                userChallengeStatsRepository.save(stats);
+            } else {
+
+            }
+        }
 
         return resultDto;
     }
@@ -140,5 +164,11 @@ public class CodingChallengeService {
         resultDto.setAllPassed(passed.get() == visibleCases.size());
 
         return resultDto;
+    }
+    private Long getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email).orElse(null);
+        return user != null ? user.getId() : null;
     }
 }

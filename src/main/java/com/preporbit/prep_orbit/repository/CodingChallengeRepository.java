@@ -8,4 +8,5 @@ import java.util.List;
 public interface CodingChallengeRepository extends JpaRepository<CodingChallenge, Long> {
     List<CodingChallenge> findByDifficulty(String difficulty);
     List<CodingChallenge> findByTitleContainingIgnoreCase(String keyword);
+
 }

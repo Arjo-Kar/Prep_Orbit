@@ -120,6 +120,7 @@ export default function Dashboard() {
     streak: 0,
     rank: "",
     averageScore: 0,
+    latestChallengeSolved: false,
   });
 
   // Prevent double invocation (React StrictMode dev)
@@ -162,7 +163,9 @@ export default function Dashboard() {
         rank: data.rank,
         averageScore: data.averageScore,
         accuracy: data.accuracy,
+        latestChallengeSolved: data.latestChallengeSolved, // <-- Add this
       });
+
     } catch (err) {
       setMessage("Failed to load dashboard stats");
     }
@@ -396,7 +399,21 @@ export default function Dashboard() {
               >
                 {message}
               </Alert>
+
             )}
+        {stats.latestChallengeSolved && (
+          <Alert
+            severity="success"
+            variant="filled"
+            sx={{
+              borderRadius: "12px",
+              background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+              mb: 2,
+            }}
+          >
+            🎉 Congratulations! You have solved the today's coding challenge!
+          </Alert>
+        )}
 
             {/* Stats */}
             <Box>
@@ -527,24 +544,28 @@ export default function Dashboard() {
                     </Stack>
 
                     <Stack spacing={2}>
-                      <Button
-                        variant="contained"
-                        startIcon={<Play />}
-                        fullWidth
-                        onClick={() =>
-                          dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)
-                        }
-                        disabled={!dailyChallenge || !dailyChallenge.id || loadingButton === "startDaily"}
-                        sx={{
-                          py: 1.5,
-                          background: "linear-gradient(45deg, #4caf50, #8bc34a)",
-                          "&:hover": {
-                            background: "linear-gradient(45deg, #66bb6a, #aed581)",
-                          },
-                        }}
-                      >
-                        {loadingButton === "startDaily" ? "Loading..." : "Start Daily Challenge"}
-                      </Button>
+                     <Button
+                       variant="contained"
+                       startIcon={<Play />}
+                       fullWidth
+                       onClick={() =>
+                         dailyChallenge && dailyChallenge.id && startCodingChallenge(dailyChallenge.id)
+                       }
+                       disabled={!dailyChallenge || !dailyChallenge.id || loadingButton === "startDaily"}
+                       sx={{
+                         py: 1.5,
+                         background: "linear-gradient(45deg, #4caf50, #8bc34a)",
+                         "&:hover": {
+                           background: "linear-gradient(45deg, #66bb6a, #aed581)",
+                         },
+                       }}
+                     >
+                       {loadingButton === "startDaily"
+                         ? "Loading..."
+                         : stats.latestChallengeSolved
+                           ? "Try Again"
+                           : "Start Daily Challenge"}
+                     </Button>
                       <Button
                         variant="outlined"
                         startIcon={<RefreshCw />}
@@ -720,36 +741,6 @@ export default function Dashboard() {
                     </Grid>
                   ))}
                 </Grid>
-              </CardContent>
-            </MainCard>
-
-            {/* Recent Activity */}
-            <MainCard>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ color: "white" }}>
-                  Recent Activity
-                </Typography>
-                <Divider sx={{ my: 2, borderColor: "#444" }} />
-                <Box textAlign="center" py={6}>
-                  <Avatar
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      mx: "auto",
-                      mb: 2,
-                      background: "linear-gradient(135deg, #666, #999)",
-                    }}
-                  >
-                    <Terminal sx={{ fontSize: 40 }} />
-                  </Avatar>
-                  <Typography variant="h6" sx={{ color: "#aaa", mb: 1 }}>
-                    Your recent activity will appear here
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "#777" }}>
-                    Start solving challenges and taking quizzes to see your
-                    progress!
-                  </Typography>
-                </Box>
               </CardContent>
             </MainCard>
           </Stack>

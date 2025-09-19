@@ -1,5 +1,6 @@
 package com.preporbit.prep_orbit.repository;
 
+import com.preporbit.prep_orbit.model.CodingChallenge;
 import com.preporbit.prep_orbit.model.UserChallengeStats;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -22,4 +23,13 @@ public interface UserChallengeStatsRepository extends JpaRepository<UserChalleng
 
     @Query("SELECT u.createdAt FROM UserChallengeStats u WHERE u.userId = :userId")
     List<LocalDateTime> getActivityDates(@Param("userId") Long userId);
+
+    @Query("SELECT COUNT(ucs) FROM UserChallengeStats ucs WHERE ucs.userId = :userId AND ucs.solved = true")
+    Long countByUserIdAndSolvedTrue(@Param("userId") Long userId);
+
+    @Query("SELECT ucs FROM UserChallengeStats ucs WHERE ucs.userId = :userId AND ucs.challengeId = :challengeId")
+    Optional<UserChallengeStats> findByUserIdAndChallengeId(@Param("userId") Long userId, @Param("challengeId") Long challengeId);
+
+    // Returns the latest UserChallengeStats for a user (by createdAt descending)
+    Optional<UserChallengeStats> findTopByUserIdOrderByCreatedAtDesc(Long userId);
 }

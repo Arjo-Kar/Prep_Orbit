@@ -1,7 +1,9 @@
 package com.preporbit.prep_orbit.service;
 
 import com.preporbit.prep_orbit.dto.*;
+import com.preporbit.prep_orbit.model.CodingChallenge;
 import com.preporbit.prep_orbit.model.User;
+import com.preporbit.prep_orbit.model.UserChallengeStats;
 import com.preporbit.prep_orbit.model.VerificationToken;
 import com.preporbit.prep_orbit.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +38,8 @@ public class UserService {
     private QuizSessionRepository quizSessionRepository;
     @Autowired
     private UserChallengeStatsRepository userChallengeStatsRepository;
+
+
 
     String adminMail = "arjokaraditto1199@gmail.com";
 
@@ -103,7 +107,7 @@ public class UserService {
         DashboardStatsDto stats = new DashboardStatsDto();
 
         stats.setTotalQuizzesTaken(quizSessionRepository.countByUserId(userId));
-        stats.setCodingChallengesSolved(Math.toIntExact(userChallengeStatsRepository.countByUserId(userId)));
+        stats.setCodingChallengesSolved(Math.toIntExact(userChallengeStatsRepository.countByUserIdAndSolvedTrue(userId)));
         Double avg = quizSessionRepository.averageScoreByUserId(userId);
         if (avg == null) {
             stats.setAverageScore(0.0);
@@ -115,6 +119,14 @@ public class UserService {
         stats.setAccuracy(avgAccuracy == null ? 0.0 : Math.round(avgAccuracy));
         stats.setStreak(calculateStreak(userId));
         stats.setRank(calculateRank(userId));
+
+        // Get the latest UserChallengeStats for this user
+        Optional<UserChallengeStats> latestStatsOpt = userChallengeStatsRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
+        boolean latestChallengeSolved = latestStatsOpt.isPresent() && latestStatsOpt.get().isSolved();
+        System.out.println(latestChallengeSolved);
+        stats.setLatestChallengeSolved(latestChallengeSolved);
+        System.out.println(stats.isLatestChallengeSolved());
+
         return stats;
     }
     // Helper for streak: days with activity in a row (quizzes or challenges)

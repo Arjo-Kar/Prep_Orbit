@@ -81,13 +81,26 @@ public class QuizService {
     }
 
     private List<QuizQuestionDto> generateQuestionsFromGemini(List<String> topics, int numQuestions) {
-        String prompt = "Generate " + numQuestions + " technical MCQ questions on these topics: " +
-                String.join(", ", topics) +
-                ". Each question should have exactly 4 options (A, B, C, D), specify the correct answer as a letter," +
-                " and include a 'topic' field using one of the provided topics for each question. " +
-                "Reply ONLY with a JSON array of objects in the format: " +
-                "[{\"questionText\": \"...\", \"choices\": [\"...\"], \"correctAnswer\": \"...\", \"topic\": \"...\"}]. " +
-                "Do not include any explanation or extra text, just the JSON.";
+        String prompt =
+                "Generate " + numQuestions + " technical MCQ questions on these topics: " +
+                        String.join(", ", topics) + ".\n\n" +
+                        "Requirements:\n" +
+                        "- Exactly 4 options per question.\n" +
+                        "- The \"choices\" field MUST be ONE string made by joining the four option texts with the delimiter \",,,\" in A,,,B,,,C,,,D order.\n" +
+                        "- Do NOT prefix options with \"A)\", \"B)\", etc.\n" +
+                        "- Do NOT include the delimiter sequence \",,,\" inside any option text.\n" +
+                        "- \"correctAnswer\" must be one of \"A\", \"B\", \"C\", or \"D\".\n" +
+                        "- \"topic\" must be one of the provided topics for each question.\n" +
+                        "- Return ONLY a valid JSON array. No extra text, no markdown, no comments.\n\n" +
+                        "Output format (schema, not an example of content):\n" +
+                        "[\n" +
+                        "  {\n" +
+                        "    \"questionText\": \"…\",\n" +
+                        "    \"choices\": \"option A text,,,option B text,,,option C text,,,option D text\",\n" +
+                        "    \"correctAnswer\": \"A\",\n" +
+                        "    \"topic\": \"…\"\n" +
+                        "  }\n" +
+                        "]";
 
         String geminiResponse = geminiService.askGemini(prompt);
 
@@ -303,7 +316,7 @@ public class QuizService {
             QuizQuestionDto dto = new QuizQuestionDto();
             dto.setId(q.getId());
             dto.setQuestionText(q.getQuestionText());
-            dto.setChoices(q.getChoices().split(","));
+            dto.setChoices(q.getChoices().split(",,,"));
             dto.setCorrectAnswer(q.getCorrectAnswer());
             dto.setTopic(q.getTopic());
             return dto;

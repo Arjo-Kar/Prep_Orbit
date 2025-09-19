@@ -171,14 +171,10 @@ const QuizSessionPage = () => {
         if (!token) throw new Error("User not authenticated");
 
         const res = await fetch(`http://localhost:8080/api/quiz/${sessionId}/questions`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!res.ok) {
-          throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
-        }
+        if (!res.ok) throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
 
         const data = await res.json();
         let questions = [];
@@ -186,7 +182,33 @@ const QuizSessionPage = () => {
           questions = data;
         } else if (data.questions && Array.isArray(data.questions)) {
           questions = data.questions;
+        } else {
+          // Try to find a nested array of questions
+          const firstArray = Object.values(data || {}).find(
+            (v) => Array.isArray(v) && v.length && typeof v[0] === "object"
+          );
+          questions = Array.isArray(firstArray) ? firstArray : [];
         }
+
+        questions = questions.map((q, idx) => {
+          const id = getQuestionId(q) ?? `q_${idx}`;
+          const normalizedChoices = normalizeOptions(q);
+          const questionText =
+            q.questionText ?? q.question ?? q.text ?? q.title ?? "";
+
+          if (!normalizedChoices.length) {
+            // Debug to help trace bad payloads
+            // eslint-disable-next-line no-console
+            console.debug("No parsed choices for question", { id, raw: q.choices ?? q.options ?? q });
+          }
+
+          return {
+            ...q,
+            id,
+            questionText,
+            choices: normalizedChoices,
+          };
+        });
 
         setQuizData({ questions });
       } catch (err) {
@@ -287,6 +309,108 @@ const QuizSessionPage = () => {
   };
 
   const unansweredCount = quizData.questions.filter((q) => !answers[q.id]).length;
+
+  // Delimiter and helpers for normalizing options
+  const OPTION_DELIMITER = ",,,";
+
+  const STRIP_LETTER_REGEX = /^\s*[A-Za-z]\s*[\.\)\-:]\s*/;
+
+  const sanitizeOptionText = (s) => {
+    if (s == null) return "";
+    let t = String(s).trim();
+
+    // Strip surrounding quotes/brackets if a JSONish slice got split
+    t = t.replace(/^["'\[\]\s]+/, "").replace(/["'\[\]\s]+$/, "");
+
+    // Remove leading "A) ", "B. ", etc.
+    t = t.replace(STRIP_LETTER_REGEX, "").trim();
+
+    return t;
+  };
+
+  const optionToText = (opt) => {
+    if (typeof opt === "string") return sanitizeOptionText(opt);
+    if (opt?.label) return sanitizeOptionText(opt.label);
+    if (opt?.text) return sanitizeOptionText(opt.text);
+    if (opt?.option) return sanitizeOptionText(opt.option);
+    if (opt?.value && typeof opt.value === "string") return sanitizeOptionText(opt.value);
+    return sanitizeOptionText(opt ?? "");
+  };
+
+  const tryParseJsonArray = (str) => {
+    try {
+      const trimmed = str.trim();
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        const arr = JSON.parse(trimmed);
+        return Array.isArray(arr) ? arr : null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const extractRawOptions = (q) => {
+    // Arrays first
+    if (Array.isArray(q.choices)) return q.choices;
+    if (Array.isArray(q.options)) return q.options;
+
+    // Strings
+    const str =
+      typeof q.choices === "string"
+        ? q.choices
+        : typeof q.options === "string"
+        ? q.options
+        : null;
+
+    if (typeof str === "string") {
+      // JSON string array like '["a","b","c"]'
+      const parsed = tryParseJsonArray(str);
+      if (parsed) return parsed;
+
+      // Prefer the new delimiter ",,,"
+      if (str.includes(OPTION_DELIMITER)) {
+        return str.split(OPTION_DELIMITER);
+      }
+
+      // Backward-compat: only fall back to comma if we find multiple commas
+      // to avoid turning a single text with commas into many empties
+      if ((str.match(/,/g) || []).length >= 1) {
+        return str.split(",");
+      }
+
+      // Single string with no delimiter => treat as one option
+      return [str];
+    }
+
+    // optionA..optionD and a..d
+    const optKeys = ["optionA", "optionB", "optionC", "optionD", "a", "b", "c", "d"];
+    const collected = optKeys
+      .map((k) => q[k])
+      .filter((v) => typeof v === "string" && v.trim().length > 0);
+    if (collected.length) return collected;
+
+    return [];
+  };
+
+  const normalizeOptions = (q) => {
+    const raw = extractRawOptions(q);
+    // Map to text, trim, dedupe, and drop empties
+    const mapped = raw.map(optionToText).map((s) => s.trim()).filter((s) => s.length > 0);
+    const seen = new Set();
+    const unique = [];
+    for (const m of mapped) {
+      const key = m.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(m);
+      }
+    }
+    return unique;
+  };
+
+  const getQuestionId = (q) =>
+    q.id ?? q.questionId ?? q._id ?? q.uuid ?? q.key ?? q.qid ?? null;
 
   if (loading) {
     return (

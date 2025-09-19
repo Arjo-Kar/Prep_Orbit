@@ -111,8 +111,16 @@ const OptionLabel = styled(FormControlLabel)({
   border: "1px solid #444",
   transition: "all 0.2s ease",
   backgroundColor: "rgba(51, 51, 51, 0.5)",
+  alignItems: "flex-start",
   "&:hover": { backgroundColor: "rgba(76, 175, 80, 0.1)", border: "1px solid #4caf50" },
-  "& .MuiFormControlLabel-label": { color: "#ccc", fontSize: "1rem", lineHeight: 1.5, flex: 1 },
+  "& .MuiFormControlLabel-label": {
+    color: "#ccc",
+    fontSize: "1rem",
+    lineHeight: 1.5,
+    flex: 1,
+    whiteSpace: "normal",
+    wordBreak: "break-word",
+  },
 });
 
 const GradientButton = styled(Button)({
@@ -161,6 +169,8 @@ const LoadingCard = styled(Card)({
 
 // Helpers
 const letters = ["A", "B", "C", "D", "E", "F"];
+const OPTION_DELIMITER = ",,,"; // change delimiter here
+
 const extractQuestionId = (q) =>
   q.id ?? q.questionId ?? q._id ?? q.uuid ?? q.key ?? q.qid ?? null;
 
@@ -176,11 +186,28 @@ const optionToText = (opt) => {
 // Remove leading markers like "A)", "A.", "A -", etc. for display only
 const stripLeadingLetter = (s) => s.replace(/^\s*[A-Za-z]\s*[\.\)\-:]\s*/, "").trim();
 
+// Detect if the string already begins with an alpha option marker like "A) " or "B. "
+const hasAlphaPrefix = (s) => /^\s*[A-Za-z]\s*[\.\)\-:]\s*/.test(s);
+
 // Extract raw options from different shapes
 const extractRawOptions = (q) => {
   if (Array.isArray(q.options)) return q.options;
   if (Array.isArray(q.choices)) return q.choices;
-  // Support optionA .. optionD
+
+  // If options/choices is a string, split by the delimiter (fallback to comma for backward compat)
+  const str =
+    typeof q.options === "string"
+      ? q.options
+      : typeof q.choices === "string"
+      ? q.choices
+      : null;
+  if (typeof str === "string") {
+    const parts =
+      str.includes(OPTION_DELIMITER) ? str.split(OPTION_DELIMITER) : str.split(",");
+    return parts.map((s) => s.trim()).filter(Boolean);
+  }
+
+  // Support optionA .. optionD and a..d
   const optKeys = ["optionA", "optionB", "optionC", "optionD", "a", "b", "c", "d"];
   const collected = optKeys
     .map((k) => q[k])
@@ -189,12 +216,14 @@ const extractRawOptions = (q) => {
   return [];
 };
 
-// Normalize options to [{ code: 'A', text: '...' }, ...]
+// Normalize options; preserve original label if it already has A)/B)/C)/D)
 const normalizeOptions = (q) => {
   const raw = extractRawOptions(q);
   return raw.slice(0, 4).map((opt, idx) => {
-    const text = stripLeadingLetter(optionToText(opt));
-    return { code: letters[idx], text };
+    const rawText = optionToText(opt);
+    const stripped = stripLeadingLetter(rawText);
+    const displayText = hasAlphaPrefix(rawText) ? rawText.trim() : `${letters[idx]}) ${stripped}`;
+    return { code: letters[idx], text: stripped, displayText };
   });
 };
 
@@ -292,8 +321,8 @@ const PracticeWeakAreasPage = () => {
   // Fetch weak area questions with cache to avoid StrictMode double POST
   const hasFetchedRef = useRef(false);
   useEffect(() => {
-       if (hasFetchedRef.current) return; // prevent second call
-        hasFetchedRef.current = true;
+    if (hasFetchedRef.current) return; // prevent second call
+    hasFetchedRef.current = true;
     const fetchWeakAreaQuestions = async () => {
       const myId = ++requestIdRef.current;
       setLoading(true);
@@ -495,7 +524,7 @@ const PracticeWeakAreasPage = () => {
                 <Typography variant="h5" sx={{ color: "#f44336", mb: 2 }}>
                   Error Loading Questions
                 </Typography>
-                <Typography variant="body1" sx={{ color: "#ccc", mb: 3 }}>
+                <Typography variant="body1" sx={{ color: "#cccccc", mb: 3 }}>
                   {error}
                 </Typography>
                 <Button variant="contained" onClick={() => window.location.reload()} sx={{ mr: 2 }}>
@@ -673,7 +702,7 @@ const PracticeWeakAreasPage = () => {
                                 key={opt.code}
                                 value={opt.code} // Always A/B/C/D
                                 control={<StyledRadio />}
-                                label={`${opt.code}) ${opt.text}`}
+                                label={opt.displayText}
                               />
                             ))}
                             {(!q._normalizedOptions || q._normalizedOptions.length === 0) && (
