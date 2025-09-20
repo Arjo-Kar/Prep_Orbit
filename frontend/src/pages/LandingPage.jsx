@@ -164,8 +164,8 @@ export default function LandingPage() {
       gradient: "linear-gradient(135deg, #4caf50, #8bc34a)",
     },
     {
-      title: "AI Resume Builder",
-      description: "Generate a professional resume tailored to your profile.",
+      title: "AI Resume Builder and Analyser",
+      description: "Generate a professional resume tailored to your profile and analyze it deeper.",
       icon: <DescriptionIcon sx={{ fontSize: 40 }} />,
       gradient: "linear-gradient(135deg, #2196F3, #21CBF3)",
     },

@@ -30,3 +30,27 @@ export const askGemini = async (prompt) => {
         throw error;
     }
 };
+
+export const askGeminiWithImage = async (prompt, imageFile) => {
+    try {
+        const formData = new FormData();
+        if (prompt) formData.append('prompt', prompt);
+        if (imageFile) formData.append('image', imageFile);
+
+        // Do NOT use axiosInstance here because it sets Content-Type: application/json which breaks FormData
+        const token = localStorage.getItem('authToken');
+        const response = await axios.post(
+            `${API_URL}/api/gemini/chat`,
+            formData,
+            {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
+                },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};

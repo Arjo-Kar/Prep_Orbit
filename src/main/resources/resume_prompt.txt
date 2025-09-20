@@ -51,3 +51,5 @@ name(string)
 interests: A list of additional interests or hobbies related to technology or professional development  [list of objects having keys].
 id(number)
 name(string)
+
+I am Arjo Kar, a highly motivated IT professional and final-year Computer Science student at Bangladesh University of Engineering and Technology (BUET). I have strong expertise in software development, algorithms, and database systems, with hands-on experience in building scalable web applications, implementing optimized algorithms, and contributing to research projects in distributed systems. I am skilled in Java, C++, Python, React, and Spring Boot, with additional knowledge in cloud platforms such as AWS and Azure. Passionate about competitive programming, open-source contributions, and leveraging technology to solve real-world problems, I am seeking opportunities to apply my technical skills and problem-solving abilities in a challenging professional environment.

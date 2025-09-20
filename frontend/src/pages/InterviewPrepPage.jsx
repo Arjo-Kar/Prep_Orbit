@@ -198,7 +198,7 @@ function InterviewPrepPage() {
 
       if (!userInfo.authToken) {
         setError('Please log in to view your interviews.');
-        setLoading(false);
+        setTimeout(() => setLoading(false), 250);
         return;
       }
 

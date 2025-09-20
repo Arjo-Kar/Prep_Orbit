@@ -171,16 +171,16 @@ function InterviewFeedbackPage() {
         // fallback
         setFeedback(transformFeedback(generateFallbackFeedback(actualInterview, ui), actualInterview, ui));
         setInterview(actualInterview);
-        setLoading(false);
+        setTimeout(() => setLoading(false), 250);
         return;
       }
 
       setFeedback(transformFeedback(loadedFeedback, actualInterview, ui));
       setInterview(actualInterview);
-      setLoading(false);
+      setTimeout(() => setLoading(false), 250);
     } catch (e) {
       setError(e.message || 'Unknown error');
-      setLoading(false);
+      setTimeout(() => setLoading(false), 250);
     }
   };
 

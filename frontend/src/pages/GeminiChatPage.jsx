@@ -205,6 +205,7 @@ function GeminiChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -238,6 +239,50 @@ function GeminiChatPage() {
       // Remove the user message if there was an error
       setMessages(prev => prev.slice(0, -1));
       setPrompt(currentPrompt); // Restore the prompt
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const handleImageSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedImage) return; // Only image required, but you can also send prompt
+
+    // Show user message in chat with image (if any)
+    const userMessage = {
+      type: 'user',
+      content: prompt,
+      timestamp: Date.now(),
+      image: selectedImage ? URL.createObjectURL(selectedImage) : null
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('prompt', prompt);
+    if (selectedImage) formData.append('image', selectedImage);
+
+    setPrompt('');
+    setSelectedImage(null);
+
+    try {
+      const response = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        body: formData,
+      });
+      const geminiResponse = await response.text(); // or .json() if your backend returns JSON
+
+      const aiMessage = {
+        type: 'ai',
+        content: geminiResponse,
+        timestamp: Date.now()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (err) {
+      setError('Failed to get a response from Gemini. Please try again.');
+      setMessages(prev => prev.slice(0, -1));
+      setPrompt(prompt); // Restore the prompt
     } finally {
       setIsLoading(false);
     }
@@ -509,6 +554,8 @@ function GeminiChatPage() {
                       }
                     }}
                   />
+
+
                   <SendButton
                     type="submit"
                     variant="contained"
@@ -517,6 +564,7 @@ function GeminiChatPage() {
                   >
                     {isLoading ? 'Sending...' : 'Send'}
                   </SendButton>
+
                 </Stack>
               </Box>
             </InputContainer>

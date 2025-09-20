@@ -28,6 +28,8 @@ import {
   Hearing as HearingIcon,
   Replay as ReplayIcon,
   ArrowBack as ArrowBackIcon,
+  CheckCircle as CheckCircleIcon,
+  InfoOutlined as InfoIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
@@ -137,9 +139,12 @@ const VoiceVibrator = ({ active }) => (
 );
 
 function LiveInterviewPage() {
+  // New step: show instructions first
+  const [showInstructions, setShowInstructions] = useState(true);
+
   // Pre-interview form state
   const [formStep, setFormStep] = useState(true);
-  const [type, setType] = useState("technical"); // Default value: "tec
+  const [type, setType] = useState("technical"); // Default value: "technical"
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState("Intermediate");
   const [strengthsInput, setStrengthsInput] = useState("");
@@ -168,7 +173,6 @@ function LiveInterviewPage() {
   const audioChunksRef = useRef([]);
   const recordTimerRef = useRef(null);
   const audioPlayerRef = useRef(null);
-
 
   // Camera access
   useEffect(() => {
@@ -358,14 +362,14 @@ function LiveInterviewPage() {
           "Content-Type": "application/json",
           Authorization: authToken ? `Bearer ${authToken}` : undefined,
         },
-       body: JSON.stringify({
-         position: topic, // topic/domain
-         type,            // interview type from dropdown
-         level,
-         strengths,
-         experience,
-         profile,
-       })
+        body: JSON.stringify({
+          position: topic, // topic/domain
+          type,            // interview type from dropdown
+          level,
+          strengths,
+          experience,
+          profile,
+        })
       });
       if (!res.ok) {
         throw new Error("Failed to create interview session.");
@@ -373,7 +377,7 @@ function LiveInterviewPage() {
       const data = await res.json();
       setLiveInterviewId(data.id);
 
-      // 2. Generate questions for the interview session (use the generate endpoint!)
+      // 2. Generate questions for the interview session
       const genRes = await fetch(
         `http://localhost:8080/api/interview/questions/generate/${data.id}`,
         {
@@ -392,7 +396,6 @@ function LiveInterviewPage() {
       if (!genRes.ok) {
         throw new Error("Failed to generate interview questions.");
       }
-      // Consume body if needed: const _genData = await genRes.json();
 
       // 3. Fetch questions for the given liveInterviewId
       const qRes = await fetch(
@@ -440,6 +443,23 @@ function LiveInterviewPage() {
     return `${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
+  // Instruction bullet (helper)
+  const Bullet = ({ icon, text }) => (
+    <Stack direction="row" spacing={2} alignItems="flex-start">
+      <Avatar
+        sx={{
+          width: 36,
+          height: 36,
+          bgcolor: "primary.main",
+          boxShadow: "0 0 0 3px rgba(173,31,255,0.25)",
+        }}
+      >
+        {icon}
+      </Avatar>
+      <Typography sx={{ color: "#e9ddff", lineHeight: 1.6 }}>{text}</Typography>
+    </Stack>
+  );
+
   return (
     <ThemeProvider theme={darkTheme}>
       <GradientBox>
@@ -464,7 +484,114 @@ function LiveInterviewPage() {
           </Button>
         </Box>
 
-        {formStep ? (
+        {/* Step 1: Friendly instructions */}
+        {showInstructions ? (
+          <FullScreenWrapper>
+            <EnlargedPaper>
+              <Stack spacing={3}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Avatar
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      background: "linear-gradient(135deg, #ad1fff, #ff4fa7)",
+                      boxShadow: "0 8px 30px rgba(173,31,255,0.4)",
+                    }}
+                  >
+                    <InfoIcon sx={{ fontSize: 36 }} />
+                  </Avatar>
+                  <Box>
+                    <Typography
+                      variant="h3"
+                      sx={{
+                        fontWeight: 800,
+                        background: "linear-gradient(to right, #ffffff, #ffb800)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      Welcome to the Live Interview
+                    </Typography>
+                    <Typography sx={{ color: "#c6b1e6" }}>
+                      We’ll guide you through a realistic interview experience.
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                <Divider sx={{ borderColor: "rgba(173,31,255,0.4)" }} />
+
+                <Stack spacing={2.5}>
+                  <Bullet
+                    icon={<CheckCircleIcon />}
+                    text="First, you’ll complete a short setup form about your topic, type, level, and experience."
+                  />
+                  <Bullet
+                    icon={<CheckCircleIcon />}
+                    text="Based on your form, we will generate 5 interview questions tailored to you."
+                  />
+                  <Bullet
+                    icon={<CameraIcon />}
+                    text="Video is optional. You can enable your camera to simulate a real interview."
+                  />
+                  <Bullet
+                    icon={<MicIcon />}
+                    text="For each question, click the mic icon to start recording your answer, and click the stop icon when you finish."
+                  />
+                  <Bullet
+                    icon={<HearingIcon />}
+                    text="After stopping, your audio is transcribed. Review your response under the ‘Voice Transcript’ section."
+                  />
+                  <Bullet
+                    icon={<PlayIcon />}
+                    text="Click ‘Next’ to proceed to the following question and repeat the process for all 5 questions."
+                  />
+                  <Bullet
+                    icon={<VolumeIcon />}
+                    text="At the end, click ‘End & Get Feedback’ to receive a detailed breakdown of your interview performance."
+                  />
+                </Stack>
+
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    border: "1px dashed rgba(255,255,255,0.2)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "#e9ddff",
+                  }}
+                >
+                  Tip: Make sure your microphone permissions are allowed. For the best experience, use headphones and a quiet environment.
+                </Box>
+
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mt={2}>
+                  <Button
+                    variant="contained"
+                    startIcon={<PlayIcon />}
+                    onClick={() => setShowInstructions(false)}
+                    sx={{
+                      flex: 1,
+                      py: 1.5,
+                      background: "linear-gradient(90deg, #ad1fff 0%, #ff4fa7 100%)",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Continue to Setup
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate("/dashboard")}
+                    sx={{ flex: 1, borderColor: "#ad1fff", color: "#fff" }}
+                  >
+                    Maybe later
+                  </Button>
+                </Stack>
+              </Stack>
+            </EnlargedPaper>
+          </FullScreenWrapper>
+        ) : formStep ? (
+          // Step 2: Setup form
           <FullScreenWrapper>
             {/* --- Form Section --- */}
             <Card sx={{ p: 4, borderRadius: "24px", minWidth: 440, background: "rgba(35,19,70,0.98)", boxShadow: "0 6px 32px 0 rgba(173,31,255,0.3)" }}>
@@ -486,37 +613,38 @@ function LiveInterviewPage() {
                     />
 
                     <Box>
-                       <Typography variant="subtitle1" sx={{ color: "#ad1fff", fontWeight: "bold", mb: 0 }}>
-                         Level
-                       </Typography>
-                       <Select
-                         value={level}
-                         onChange={e => setLevel(e.target.value)}
-                         fullWidth
-                         sx={{ background: "#190c36", color: "#fff", mt: 0 }}
-                       >
-                         <MenuItem value="Beginner">Beginner</MenuItem>
-                         <MenuItem value="Intermediate">Intermediate</MenuItem>
-                         <MenuItem value="Expert">Expert</MenuItem>
-                       </Select>
-                     </Box>
+                      <Typography variant="subtitle1" sx={{ color: "#ad1fff", fontWeight: "bold", mb: 0 }}>
+                        Level
+                      </Typography>
+                      <Select
+                        value={level}
+                        onChange={e => setLevel(e.target.value)}
+                        fullWidth
+                        sx={{ background: "#190c36", color: "#fff", mt: 0 }}
+                      >
+                        <MenuItem value="Beginner">Beginner</MenuItem>
+                        <MenuItem value="Intermediate">Intermediate</MenuItem>
+                        <MenuItem value="Expert">Expert</MenuItem>
+                      </Select>
+                    </Box>
 
-                     {/* Type label + dropdown */}
-                     <Box mt={2}>
-                       <Typography variant="subtitle1" sx={{ color: "#ad1fff", fontWeight: "bold", mb: 0 }}>
-                         Type
-                       </Typography>
-                       <Select
-                         value={type}
-                         onChange={e => setType(e.target.value)}
-                         fullWidth
-                         sx={{ background: "#190c36", color: "#fff", mt: 0 }}
-                       >
-                         <MenuItem value="technical">Technical</MenuItem>
-                         <MenuItem value="behavioural">Behavioural</MenuItem>
-                         <MenuItem value="mixed">Mixed</MenuItem>
-                       </Select>
-                     </Box>
+                    {/* Type label + dropdown */}
+                    <Box mt={2}>
+                      <Typography variant="subtitle1" sx={{ color: "#ad1fff", fontWeight: "bold", mb: 0 }}>
+                        Type
+                      </Typography>
+                      <Select
+                        value={type}
+                        onChange={e => setType(e.target.value)}
+                        fullWidth
+                        sx={{ background: "#190c36", color: "#fff", mt: 0 }}
+                      >
+                        <MenuItem value="technical">Technical</MenuItem>
+                        <MenuItem value="behavioural">Behavioural</MenuItem>
+                        <MenuItem value="mixed">Mixed</MenuItem>
+                      </Select>
+                    </Box>
+
                     <Box>
                       <TextField
                         label="Strengths (comma separated)"
@@ -553,6 +681,7 @@ function LiveInterviewPage() {
                         ))}
                       </Box>
                     </Box>
+
                     <TextField
                       label="Years of Experience"
                       type="number"
@@ -589,30 +718,31 @@ function LiveInterviewPage() {
                     >
                       {loading ? <CircularProgress size={24} color="inherit" /> : "Start Interview"}
                     </Button>
-                      <Button
-                                          variant="contained"
-                                          color="secondary"
-                                          fullWidth
-                                          sx={{
-                                            mt: 3,
-                                            py: 1.5,
-                                            fontWeight: "bold",
-                                            fontSize: 16,
-                                            background: "linear-gradient(90deg, #ad1fff 0%, #ff4fa7 100%)",
-                                            color: "#fff",
-                                            borderRadius: "12px",
-                                            boxShadow: "0 4px 14px #ad1fff33"
-                                          }}
-                                          onClick={() => navigate("/all-interview-feedbacks")}
-                                        >
-                                          View All Interview Feedbacks
-                                        </Button>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      fullWidth
+                      sx={{
+                        mt: 3,
+                        py: 1.5,
+                        fontWeight: "bold",
+                        fontSize: 16,
+                        background: "linear-gradient(90deg, #ad1fff 0%, #ff4fa7 100%)",
+                        color: "#fff",
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 14px #ad1fff33"
+                      }}
+                      onClick={() => navigate("/all-interview-feedbacks")}
+                    >
+                      View All Interview Feedbacks
+                    </Button>
                   </Stack>
                 </form>
               </CardContent>
             </Card>
           </FullScreenWrapper>
         ) : (
+          // Step 3: Live interview experience
           <FullScreenWrapper>
             {/* --- Interview Section --- */}
             <EnlargedPaper>
@@ -648,6 +778,7 @@ function LiveInterviewPage() {
                 </Stack>
               </CardContent>
             </EnlargedPaper>
+
             <Stack direction={{ xs: "column", md: "row" }} gap={6} alignItems="flex-start" sx={{ width: "100%", maxWidth: "1100px" }}>
               {/* Camera & Transcript Side */}
               <Box flex={1} minWidth={340} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -656,10 +787,7 @@ function LiveInterviewPage() {
                     <Typography fontWeight="bold" fontSize={22}>
                       Camera Feed
                     </Typography>
-                    <EnlargedVideo
-                      ref={videoRef}
-                      autoPlay
-                    />
+                    <EnlargedVideo ref={videoRef} autoPlay />
                     <Button
                       onClick={() => setCameraActive((val) => !val)}
                       variant="contained"
@@ -678,6 +806,7 @@ function LiveInterviewPage() {
                     </Button>
                   </Stack>
                 </EnlargedPaper>
+
                 <EnlargedPaper>
                   <Stack alignItems="center" gap={2}>
                     <Typography fontWeight="bold" fontSize={22}>
@@ -764,6 +893,7 @@ function LiveInterviewPage() {
                   </Stack>
                 </EnlargedPaper>
               </Box>
+
               {/* Interview Q&A */}
               <Box flex={2} minWidth={420}>
                 <EnlargedPaper>

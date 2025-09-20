@@ -85,20 +85,20 @@ const darkTheme = createTheme({
 
 // Styled components
 const GradientBox = styled(Box)(({ theme }) => ({
+  // Use device viewport height (fixes "pushed upward" on mobile address bars)
   background: 'linear-gradient(135deg, #100827 0%, #1a0f3d 50%, #291a54 100%)',
-  minHeight: '100vh',
-  height: '100vh',
+  minHeight: '100dvh',
   width: '100vw',
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'stretch',
   justifyContent: 'center',
   color: 'white',
   padding: '20px',
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  zIndex: 1000,
+  position: 'relative', // was fixed; relative prevents content from sticking to very top
   overflowY: 'auto',
+  // add safe-area padding for iOS notches so content doesn't sit too high
+  paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)',
+  paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
 }));
 
 const SignupCard = styled(Card)(({ theme }) => ({
@@ -153,13 +153,13 @@ const GradientButton = styled(Button)(({ theme }) => ({
 
 const BackButton = styled(Button)(({ theme }) => ({
   position: 'absolute',
-  top: '20px',
+  top: 'calc(env(safe-area-inset-top, 0px) + 16px)', // respect safe area and add spacing
   left: '20px',
   background: 'rgba(255, 255, 255, 0.1)',
   backdropFilter: 'blur(10px)',
   border: '1px solid rgba(255, 255, 255, 0.2)',
   color: 'white',
-  zIndex: 1001,
+  zIndex: 10,
   '&:hover': {
     background: 'rgba(123, 31, 162, 0.3)',
     transform: 'translateX(-5px)',
@@ -179,12 +179,12 @@ const CenteredContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '100vh',
+  justifyContent: 'center', // keep vertically centered
+  minHeight: 'calc(100dvh - 80px)', // leave room for top safe-area + back button
   width: '100%',
   position: 'relative',
   zIndex: 1,
-  padding: '20px 0',
+  padding: '32px 0',
 }));
 
 const PasswordStrengthIndicator = ({ password }) => {
@@ -263,7 +263,8 @@ function SignupPage() {
       root.style.padding = '0';
       root.style.margin = '0';
       root.style.textAlign = 'initial';
-      root.style.height = '100vh';
+      // Avoid forcing a fixed viewport height on the container; let 100dvh on GradientBox handle it
+      root.style.height = 'auto';
       root.style.width = '100vw';
     }
 
@@ -319,7 +320,6 @@ function SignupPage() {
         error?.message ||
         'Signup failed. Please check your information and try again. If the problem persists, the server may be experiencing an issue.'
       );
-      // Optionally: console.error('Signup error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -343,7 +343,7 @@ function SignupPage() {
         <FloatingElement sx={{ width: 180, height: 180, top: '60%', left: '3%' }} />
 
         <CenteredContainer>
-          <SignupCard>
+          <SignupCard sx={{ mt: { xs: 2, sm: 0 } }}>
             <CardContent sx={{ p: 4 }}>
               {/* Header */}
               <Box textAlign="center" mb={4}>

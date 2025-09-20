@@ -231,8 +231,8 @@ function InterviewFeedbackListPage() {
       setError(`Network error: ${e.message}`);
       setFeedbacks([]);
     } finally {
-      setLoading(false);
-    }
+        setTimeout(() => setLoading(false), 250); // 250ms delay (adjust as needed)
+      }
   }, [authToken, resolvedUserId]);
 
   // ------------------------------------------------------------
@@ -418,20 +418,27 @@ function InterviewFeedbackListPage() {
           )}
 
           {/* Feedback List */}
-          {feedbacks.length === 0 && !loading ? (
-            <Paper sx={{ p: 6, textAlign: 'center', backgroundColor: 'rgba(25, 25, 25, 0.8)' }}>
-              <Typography variant="h6" sx={{ color: '#aaa', mb: 2 }}>
-                {resolvedUserId == null
-                  ? 'No user context yet (no interviews created).'
-                  : 'No feedback available yet'}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#777' }}>
-                {resolvedUserId == null
-                  ? 'Generate an interview to start receiving feedback.'
-                  : 'Complete some interviews to see your feedback history here!'}
-              </Typography>
-            </Paper>
-          ) : (
+         {loading ? (
+           renderLoading()
+         ) : feedbacks.length === 0 && resolvedUserId == null ? (
+           <Paper sx={{ p: 6, textAlign: 'center', backgroundColor: 'rgba(25, 25, 25, 0.8)' }}>
+             <Typography variant="h6" sx={{ color: '#aaa', mb: 2 }}>
+               No user context yet (no interviews created).
+             </Typography>
+             <Typography variant="body2" sx={{ color: '#777' }}>
+               Generate an interview to start receiving feedback.
+             </Typography>
+           </Paper>
+         ) : feedbacks.length === 0 && resolvedUserId != null ? (
+           <Paper sx={{ p: 6, textAlign: 'center', backgroundColor: 'rgba(25, 25, 25, 0.8)' }}>
+             <Typography variant="h6" sx={{ color: '#aaa', mb: 2 }}>
+               No feedback available yet
+             </Typography>
+             <Typography variant="body2" sx={{ color: '#777' }}>
+               Complete some interviews to see your feedback history here!
+             </Typography>
+           </Paper>
+         ) : (
             <Grid container spacing={3}>
               {feedbacks.map((feedback) => (
                 <Grid item xs={12} sm={6} lg={4} key={feedback.id}>
