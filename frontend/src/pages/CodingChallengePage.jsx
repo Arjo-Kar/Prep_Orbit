@@ -366,6 +366,39 @@ int main() {
       document.documentElement.style.overflow = "";
     };
   }, []);
+    // 1. Set boilerplate code for the selected language on first load
+    useEffect(() => {
+      if (!code) {
+        setCode(languageConfigs[selectedLanguage].template);
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // 2. When user changes language, update code if editor is blank or still at template
+    useEffect(() => {
+      if (!code || Object.values(languageConfigs).some(cfg => code === cfg.template)) {
+        setCode(languageConfigs[selectedLanguage].template);
+        if (monacoEditorInstance.current && window.monaco) {
+          const newModel = window.monaco.editor.createModel(languageConfigs[selectedLanguage].template, selectedLanguage);
+          monacoEditorInstance.current.setModel(newModel);
+        }
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedLanguage]);
+
+    // 3. When challenge loads, update code if editor is blank or still at template
+    useEffect(() => {
+      if (challenge) {
+        if (!code || Object.values(languageConfigs).some(cfg => code === cfg.template)) {
+          setCode(languageConfigs[selectedLanguage].template);
+          if (monacoEditorInstance.current && window.monaco) {
+            const newModel = window.monaco.editor.createModel(languageConfigs[selectedLanguage].template, selectedLanguage);
+            monacoEditorInstance.current.setModel(newModel);
+          }
+        }
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [challenge]);
 
   const handleMonacoReady = (editor) => {
     monacoEditorInstance.current = editor;
