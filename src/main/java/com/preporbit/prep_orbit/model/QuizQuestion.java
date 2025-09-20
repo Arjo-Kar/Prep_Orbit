@@ -1,0 +1,73 @@
+package com.preporbit.prep_orbit.model;
+
+import jakarta.persistence.*;
+
+@Entity
+public class QuizQuestion {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(length = 2000)
+    private String questionText;
+
+    @Column(length = 1000)
+    private String choices; // comma separated
+    private String correctAnswer;
+    private String topic;
+
+    @ManyToOne
+    @JoinColumn(name = "quiz_session_id") // <-- Added for correct mapping
+    private QuizSession quizSession;
+
+    public String getQuestionText() {
+        return this.questionText;
+    }
+
+    public String getChoices() {
+        return this.choices;
+    }
+
+    public void setChoices(String s) {
+        this.choices = s;
+    }
+
+    public String getTopic() {
+        return this.topic;
+    }
+
+    public Long getId() {
+        return this.id;
+    }
+
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
+
+    public void setQuizSession(QuizSession session) {
+        this.quizSession = session;
+    }
+
+    public QuizSession getQuizSession() {
+        return this.quizSession;
+    }
+
+    public String getCorrectAnswer() {
+        return this.correctAnswer;
+    }
+
+    public void setQuestionText(String questionText) {
+        this.questionText = questionText;
+    }
+
+    public void setCorrectAnswer(String correctAnswer) {
+        this.correctAnswer = correctAnswer;
+    }
+
+    public void setQuizSessionId(Long id) {
+    }
+
+
+    // Removed invalid methods: toString(Object questionText), setQuizSessionId(Long id)
+    // Getters and setters...
+}
